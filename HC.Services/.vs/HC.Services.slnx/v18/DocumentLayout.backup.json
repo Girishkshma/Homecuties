@@ -1,0 +1,96 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Girish\\work\\Repositories\\InsuMust\\Insumust\\HC.Services\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{05994214-8B4C-4D68-9B54-0EA64EE4714F}|HC.Data\\HC.Data.csproj|c:\\girish\\work\\repositories\\insumust\\insumust\\hc.services\\hc.data\\class1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{05994214-8B4C-4D68-9B54-0EA64EE4714F}|HC.Data\\HC.Data.csproj|solutionrelative:hc.data\\class1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C3AA60BA-18FF-4361-8C11-70766DD5DAEB}|HC.Utilities\\HC.Utilities.csproj|c:\\girish\\work\\repositories\\insumust\\insumust\\hc.services\\hc.utilities\\class1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{C3AA60BA-18FF-4361-8C11-70766DD5DAEB}|HC.Utilities\\HC.Utilities.csproj|solutionrelative:hc.utilities\\class1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{EA8CE373-1122-4771-9A96-E8AFD0024F65}|HC.Entities\\HC.Entities.csproj|c:\\girish\\work\\repositories\\insumust\\insumust\\hc.services\\hc.entities\\class1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{EA8CE373-1122-4771-9A96-E8AFD0024F65}|HC.Entities\\HC.Entities.csproj|solutionrelative:hc.entities\\class1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{684EDA45-7C44-436E-81D4-709ACF3690AF}|HC.Business\\HC.Business.csproj|c:\\girish\\work\\repositories\\insumust\\insumust\\hc.services\\hc.business\\class1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{684EDA45-7C44-436E-81D4-709ACF3690AF}|HC.Business\\HC.Business.csproj|solutionrelative:hc.business\\class1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 3,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:128:0:{116d2292-e37d-41cd-a077-ebacac4c8cc4}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{1c4feeaa-4718-4aa9-859d-94ce25d182ba}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "Class1.cs",
+              "DocumentMoniker": "C:\\Girish\\work\\Repositories\\InsuMust\\Insumust\\HC.Services\\HC.Utilities\\Class1.cs",
+              "RelativeDocumentMoniker": "HC.Utilities\\Class1.cs",
+              "ToolTip": "C:\\Girish\\work\\Repositories\\InsuMust\\Insumust\\HC.Services\\HC.Utilities\\Class1.cs",
+              "RelativeToolTip": "HC.Utilities\\Class1.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-26T15:36:33.006Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "Class1.cs",
+              "DocumentMoniker": "C:\\Girish\\work\\Repositories\\InsuMust\\Insumust\\HC.Services\\HC.Data\\Class1.cs",
+              "RelativeDocumentMoniker": "HC.Data\\Class1.cs",
+              "ToolTip": "C:\\Girish\\work\\Repositories\\InsuMust\\Insumust\\HC.Services\\HC.Data\\Class1.cs",
+              "RelativeToolTip": "HC.Data\\Class1.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-26T15:36:06.321Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "Class1.cs",
+              "DocumentMoniker": "C:\\Girish\\work\\Repositories\\InsuMust\\Insumust\\HC.Services\\HC.Entities\\Class1.cs",
+              "RelativeDocumentMoniker": "HC.Entities\\Class1.cs",
+              "ToolTip": "C:\\Girish\\work\\Repositories\\InsuMust\\Insumust\\HC.Services\\HC.Entities\\Class1.cs",
+              "RelativeToolTip": "HC.Entities\\Class1.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-26T15:35:33.899Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "Class1.cs",
+              "DocumentMoniker": "C:\\Girish\\work\\Repositories\\InsuMust\\Insumust\\HC.Services\\HC.Business\\Class1.cs",
+              "RelativeDocumentMoniker": "HC.Business\\Class1.cs",
+              "ToolTip": "C:\\Girish\\work\\Repositories\\InsuMust\\Insumust\\HC.Services\\HC.Business\\Class1.cs",
+              "RelativeToolTip": "HC.Business\\Class1.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-26T15:35:03.305Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

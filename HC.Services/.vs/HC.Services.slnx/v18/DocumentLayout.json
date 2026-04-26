@@ -1,0 +1,93 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{5D496DAA-8E36-1BB2-D5DA-1C6AE49B36F1}|HC.Data\\HC.Data.csproj|c:\\girish\\work\\repositories\\homecuties\\homecuties\\hc.services\\hc.data\\class1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{5D496DAA-8E36-1BB2-D5DA-1C6AE49B36F1}|HC.Data\\HC.Data.csproj|solutionrelative:hc.data\\class1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{B5E5CD75-8DFB-D219-82AF-0597C479640B}|HC.Utilities\\HC.Utilities.csproj|c:\\girish\\work\\repositories\\homecuties\\homecuties\\hc.services\\hc.utilities\\class1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B5E5CD75-8DFB-D219-82AF-0597C479640B}|HC.Utilities\\HC.Utilities.csproj|solutionrelative:hc.utilities\\class1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{1ED1FBE7-6DED-43E3-5D22-ABE90452437C}|HC.Entities\\HC.Entities.csproj|c:\\girish\\work\\repositories\\homecuties\\homecuties\\hc.services\\hc.entities\\class1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{1ED1FBE7-6DED-43E3-5D22-ABE90452437C}|HC.Entities\\HC.Entities.csproj|solutionrelative:hc.entities\\class1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{85956951-9350-CBD1-9C1B-4E94433356DD}|HC.Business\\HC.Business.csproj|c:\\girish\\work\\repositories\\homecuties\\homecuties\\hc.services\\hc.business\\class1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{85956951-9350-CBD1-9C1B-4E94433356DD}|HC.Business\\HC.Business.csproj|solutionrelative:hc.business\\class1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 3,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:128:0:{116d2292-e37d-41cd-a077-ebacac4c8cc4}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{1c4feeaa-4718-4aa9-859d-94ce25d182ba}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "Class1.cs",
+              "DocumentMoniker": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Utilities\\Class1.cs",
+              "RelativeDocumentMoniker": "HC.Utilities\\Class1.cs",
+              "ToolTip": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Utilities\\Class1.cs",
+              "RelativeToolTip": "HC.Utilities\\Class1.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-26T15:36:33.006Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "Class1.cs",
+              "DocumentMoniker": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\Class1.cs",
+              "RelativeDocumentMoniker": "HC.Data\\Class1.cs",
+              "ToolTip": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\Class1.cs",
+              "RelativeToolTip": "HC.Data\\Class1.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-26T15:36:06.321Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "Class1.cs",
+              "DocumentMoniker": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Entities\\Class1.cs",
+              "RelativeDocumentMoniker": "HC.Entities\\Class1.cs",
+              "ToolTip": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Entities\\Class1.cs",
+              "RelativeToolTip": "HC.Entities\\Class1.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-26T15:35:33.899Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "Class1.cs",
+              "DocumentMoniker": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Business\\Class1.cs",
+              "RelativeDocumentMoniker": "HC.Business\\Class1.cs",
+              "ToolTip": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Business\\Class1.cs",
+              "RelativeToolTip": "HC.Business\\Class1.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-26T15:35:03.305Z"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

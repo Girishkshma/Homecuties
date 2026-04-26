@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "/vOBouNwm50=",
+  "success": true,
+  "projectFilePath": "C:\\Girish\\work\\Repositories\\InsuMust\\Insumust\\HC.Services\\HC.Services\\HC.Services.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\giris\\.nuget\\packages\\microsoft.aspnetcore.openapi\\10.0.6\\microsoft.aspnetcore.openapi.10.0.6.nupkg.sha512",
+    "C:\\Users\\giris\\.nuget\\packages\\microsoft.openapi\\2.0.0\\microsoft.openapi.2.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}

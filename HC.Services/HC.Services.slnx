@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="HC.Business/HC.Business.csproj" />
+  <Project Path="HC.Data/HC.Data.csproj" />
+  <Project Path="HC.Entities/HC.Entities.csproj" />
+  <Project Path="HC.Services/HC.Services.csproj" />
+  <Project Path="HC.Utilities/HC.Utilities.csproj" />
+</Solution>
