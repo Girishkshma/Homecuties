@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Girish\\work\\Repositories\\InsuMust\\Insumust\\HC.Services\\HC.Business\\HC.Business.csproj": {}
+    "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Business\\HC.Business.csproj": {}
   },
   "projects": {
-    "C:\\Girish\\work\\Repositories\\InsuMust\\Insumust\\HC.Services\\HC.Business\\HC.Business.csproj": {
+    "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Business\\HC.Business.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Girish\\work\\Repositories\\InsuMust\\Insumust\\HC.Services\\HC.Business\\HC.Business.csproj",
+        "projectUniqueName": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Business\\HC.Business.csproj",
         "projectName": "HC.Business",
-        "projectPath": "C:\\Girish\\work\\Repositories\\InsuMust\\Insumust\\HC.Services\\HC.Business\\HC.Business.csproj",
+        "projectPath": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Business\\HC.Business.csproj",
         "packagesPath": "C:\\Users\\giris\\.nuget\\packages\\",
-        "outputPath": "C:\\Girish\\work\\Repositories\\InsuMust\\Insumust\\HC.Services\\HC.Business\\obj\\",
+        "outputPath": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Business\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

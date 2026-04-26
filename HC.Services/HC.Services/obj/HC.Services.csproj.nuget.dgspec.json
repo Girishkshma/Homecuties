@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Girish\\work\\Repositories\\InsuMust\\Insumust\\HC.Services\\HC.Services\\HC.Services.csproj": {}
+    "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Services\\HC.Services.csproj": {}
   },
   "projects": {
-    "C:\\Girish\\work\\Repositories\\InsuMust\\Insumust\\HC.Services\\HC.Services\\HC.Services.csproj": {
+    "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Services\\HC.Services.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Girish\\work\\Repositories\\InsuMust\\Insumust\\HC.Services\\HC.Services\\HC.Services.csproj",
+        "projectUniqueName": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Services\\HC.Services.csproj",
         "projectName": "HC.Services",
-        "projectPath": "C:\\Girish\\work\\Repositories\\InsuMust\\Insumust\\HC.Services\\HC.Services\\HC.Services.csproj",
+        "projectPath": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Services\\HC.Services.csproj",
         "packagesPath": "C:\\Users\\giris\\.nuget\\packages\\",
-        "outputPath": "C:\\Girish\\work\\Repositories\\InsuMust\\Insumust\\HC.Services\\HC.Services\\obj\\",
+        "outputPath": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Services\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

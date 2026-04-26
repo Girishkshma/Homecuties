@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Girish\\work\\Repositories\\InsuMust\\Insumust\\HC.Services\\HC.Data\\HC.Data.csproj": {}
+    "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\HC.Data.csproj": {}
   },
   "projects": {
-    "C:\\Girish\\work\\Repositories\\InsuMust\\Insumust\\HC.Services\\HC.Data\\HC.Data.csproj": {
+    "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\HC.Data.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Girish\\work\\Repositories\\InsuMust\\Insumust\\HC.Services\\HC.Data\\HC.Data.csproj",
+        "projectUniqueName": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\HC.Data.csproj",
         "projectName": "HC.Data",
-        "projectPath": "C:\\Girish\\work\\Repositories\\InsuMust\\Insumust\\HC.Services\\HC.Data\\HC.Data.csproj",
+        "projectPath": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\HC.Data.csproj",
         "packagesPath": "C:\\Users\\giris\\.nuget\\packages\\",
-        "outputPath": "C:\\Girish\\work\\Repositories\\InsuMust\\Insumust\\HC.Services\\HC.Data\\obj\\",
+        "outputPath": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -52,6 +52,18 @@
         "net10.0": {
           "framework": "net10.0",
           "targetAlias": "net10.0",
+          "dependencies": {
+            "Microsoft.EntityFrameworkCore.Design": {
+              "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[10.0.7, )"
+            },
+            "Microsoft.EntityFrameworkCore.SqlServer": {
+              "target": "Package",
+              "version": "[10.0.7, )"
+            }
+          },
           "imports": [
             "net461",
             "net462",

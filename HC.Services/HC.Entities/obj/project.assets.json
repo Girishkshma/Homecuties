@@ -14,11 +14,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Girish\\work\\Repositories\\InsuMust\\Insumust\\HC.Services\\HC.Entities\\HC.Entities.csproj",
+      "projectUniqueName": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Entities\\HC.Entities.csproj",
       "projectName": "HC.Entities",
-      "projectPath": "C:\\Girish\\work\\Repositories\\InsuMust\\Insumust\\HC.Services\\HC.Entities\\HC.Entities.csproj",
+      "projectPath": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Entities\\HC.Entities.csproj",
       "packagesPath": "C:\\Users\\giris\\.nuget\\packages\\",
-      "outputPath": "C:\\Girish\\work\\Repositories\\InsuMust\\Insumust\\HC.Services\\HC.Entities\\obj\\",
+      "outputPath": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Entities\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
