@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\HC.Data.csproj": {}
+    "c:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\HC.Data.csproj": {}
   },
   "projects": {
-    "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\HC.Data.csproj": {
+    "c:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\HC.Data.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\HC.Data.csproj",
+        "projectUniqueName": "c:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\HC.Data.csproj",
         "projectName": "HC.Data",
-        "projectPath": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\HC.Data.csproj",
+        "projectPath": "c:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\HC.Data.csproj",
         "packagesPath": "C:\\Users\\giris\\.nuget\\packages\\",
-        "outputPath": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\obj\\",
+        "outputPath": "c:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
