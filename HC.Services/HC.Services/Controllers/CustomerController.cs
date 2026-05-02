@@ -45,6 +45,35 @@ public class CustomerController : ControllerBase
         var result = await _customerService.CreateGuestCustomerAsync();
         return Ok(result);
     }
+
+    [HttpPost("CreateCustomer")]
+    public async Task<ActionResult> CreateCustomer([FromBody] CreateCustomerRequest request)
+    {
+        var result = await _customerService.CreateCustomerAsync(
+            request.FirstName, request.LastName, request.Email, request.Password);
+        return Ok(result);
+    }
+
+    [HttpPost("Login")]
+    public async Task<ActionResult> Login([FromBody] LoginRequest request)
+    {
+        var result = await _customerService.LoginAsync(request.Email, request.Password);
+        return Ok(result);
+    }
+
+    [HttpPost("ForgotPassword")]
+    public async Task<ActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+    {
+        var result = await _customerService.ForgotPasswordAsync(request.Email);
+        return Ok(result);
+    }
+
+    [HttpPost("ResetPassword")]
+    public async Task<ActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+    {
+        var result = await _customerService.ResetPasswordAsync(request.Token, request.NewPassword);
+        return Ok(result);
+    }
 }
 
 public class GetCustomerRequest
@@ -68,4 +97,29 @@ public class ValidateJwtRequest
 {
     public string JWT { get; set; } = "";
     public string IPAddress { get; set; } = "";
+}
+
+public class CreateCustomerRequest
+{
+    public string FirstName { get; set; } = "";
+    public string LastName { get; set; } = "";
+    public string Email { get; set; } = "";
+    public string Password { get; set; } = "";
+}
+
+public class LoginRequest
+{
+    public string Email { get; set; } = "";
+    public string Password { get; set; } = "";
+}
+
+public class ForgotPasswordRequest
+{
+    public string Email { get; set; } = "";
+}
+
+public class ResetPasswordRequest
+{
+    public string Token { get; set; } = "";
+    public string NewPassword { get; set; } = "";
 }

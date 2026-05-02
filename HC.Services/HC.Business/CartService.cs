@@ -185,6 +185,94 @@ public class CartService : ICartService
         }
     }
 
+    public async Task<ResultDto> UpdateCartItemQuantityAsync(long customerId, bool isGuest, int productId, int quantity)
+    {
+        if (isGuest)
+        {
+            var guestCart = await _context.Set<GuestCart>()
+                .Include(gc => gc.GuestCartItems)
+                .FirstOrDefaultAsync(gc => gc.CustomerId == customerId);
+
+            if (guestCart == null)
+                return new ResultDto { Result = 0, Messages = new[] { "Cart not found" } };
+
+            var item = guestCart.GuestCartItems.FirstOrDefault(ci => ci.ProductId == productId);
+            if (item == null)
+                return new ResultDto { Result = 0, Messages = new[] { "Item not found in cart" } };
+
+            if (quantity <= 0)
+            {
+                guestCart.GuestCartItems.Remove(item);
+            }
+            else
+            {
+                item.Quantity = (short)quantity;
+            }
+        }
+        else
+        {
+            var cart = await _context.Carts
+                .Include(c => c.CartItems)
+                .FirstOrDefaultAsync(c => c.CustomerId == customerId);
+
+            if (cart == null)
+                return new ResultDto { Result = 0, Messages = new[] { "Cart not found" } };
+
+            var item = cart.CartItems.FirstOrDefault(ci => ci.ProductId == productId);
+            if (item == null)
+                return new ResultDto { Result = 0, Messages = new[] { "Item not found in cart" } };
+
+            if (quantity <= 0)
+            {
+                cart.CartItems.Remove(item);
+            }
+            else
+            {
+                item.Quantity = (short)quantity;
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        return new ResultDto { Result = 1, Messages = new[] { "Cart updated" } };
+    }
+
+    public async Task<ResultDto> RemoveFromCartAsync(long customerId, bool isGuest, int productId)
+    {
+        if (isGuest)
+        {
+            var guestCart = await _context.Set<GuestCart>()
+                .Include(gc => gc.GuestCartItems)
+                .FirstOrDefaultAsync(gc => gc.CustomerId == customerId);
+
+            if (guestCart == null)
+                return new ResultDto { Result = 0, Messages = new[] { "Cart not found" } };
+
+            var item = guestCart.GuestCartItems.FirstOrDefault(ci => ci.ProductId == productId);
+            if (item == null)
+                return new ResultDto { Result = 0, Messages = new[] { "Item not found in cart" } };
+
+            guestCart.GuestCartItems.Remove(item);
+        }
+        else
+        {
+            var cart = await _context.Carts
+                .Include(c => c.CartItems)
+                .FirstOrDefaultAsync(c => c.CustomerId == customerId);
+
+            if (cart == null)
+                return new ResultDto { Result = 0, Messages = new[] { "Cart not found" } };
+
+            var item = cart.CartItems.FirstOrDefault(ci => ci.ProductId == productId);
+            if (item == null)
+                return new ResultDto { Result = 0, Messages = new[] { "Item not found in cart" } };
+
+            cart.CartItems.Remove(item);
+        }
+
+        await _context.SaveChangesAsync();
+        return new ResultDto { Result = 1, Messages = new[] { "Item removed from cart" } };
+    }
+
     public async Task<ResultDto> TransferGuestCartAsync(long guestCustomerId, long customerId)
     {
         var guestCart = await _context.Set<GuestCart>()

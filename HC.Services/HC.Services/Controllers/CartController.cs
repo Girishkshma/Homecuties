@@ -41,6 +41,20 @@ public class CartController : ControllerBase
         var result = await _cartService.TransferGuestCartAsync(request.GuestCustomerID, request.CustomerID);
         return Ok(result);
     }
+
+    [HttpPost("UpdateQuantity")]
+    public async Task<ActionResult> UpdateQuantity([FromBody] UpdateCartQuantityRequest request)
+    {
+        var result = await _cartService.UpdateCartItemQuantityAsync(request.CustomerID, request.IsGuest, request.ProductID, request.Quantity);
+        return Ok(result);
+    }
+
+    [HttpPost("RemoveItem")]
+    public async Task<ActionResult> RemoveItem([FromBody] RemoveCartItemRequest request)
+    {
+        var result = await _cartService.RemoveFromCartAsync(request.CustomerID, request.IsGuest, request.ProductID);
+        return Ok(result);
+    }
 }
 
 public class AddToCartRequest
@@ -61,4 +75,19 @@ public class TransferCartRequest
 {
     public long GuestCustomerID { get; set; }
     public long CustomerID { get; set; }
+}
+
+public class UpdateCartQuantityRequest
+{
+    public long CustomerID { get; set; }
+    public bool IsGuest { get; set; }
+    public int ProductID { get; set; }
+    public int Quantity { get; set; }
+}
+
+public class RemoveCartItemRequest
+{
+    public long CustomerID { get; set; }
+    public bool IsGuest { get; set; }
+    public int ProductID { get; set; }
 }
