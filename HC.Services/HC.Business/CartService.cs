@@ -18,6 +18,24 @@ public class CartService : ICartService
     {
         if (isGuest)
         {
+            // Ensure a GuestCustomer record exists before creating a GuestCart.
+            // The GuestCustomer.CustomerId is auto-generated (identity column), so we need
+            // to use the generated ID for the GuestCart.
+            var guestCustomer = await _context.Set<GuestCustomer>()
+                .FirstOrDefaultAsync(gc => gc.CustomerId == customerId);
+
+            if (guestCustomer == null)
+            {
+                guestCustomer = new GuestCustomer
+                {
+                    CreatedOn = DateTime.UtcNow
+                };
+                _context.Set<GuestCustomer>().Add(guestCustomer);
+                await _context.SaveChangesAsync();
+                // Use the auto-generated CustomerId from the database
+                customerId = guestCustomer.CustomerId;
+            }
+
             var guestCart = await _context.Set<GuestCart>()
                 .Include(gc => gc.GuestCartItems)
                 .FirstOrDefaultAsync(gc => gc.CustomerId == customerId);

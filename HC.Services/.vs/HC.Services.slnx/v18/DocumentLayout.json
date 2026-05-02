@@ -3,12 +3,12 @@
   "WorkspaceRootPath": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{978C7982-AB93-1A9D-C480-5E043C4EED72}|HC.Services\\HC.Services.csproj|c:\\girish\\work\\repositories\\homecuties\\homecuties\\hc.services\\hc.services\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
-      "RelativeMoniker": "D:0:0:{978C7982-AB93-1A9D-C480-5E043C4EED72}|HC.Services\\HC.Services.csproj|solutionrelative:hc.services\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{978C7982-AB93-1A9D-C480-5E043C4EED72}|HC.Services\\HC.Services.csproj|c:\\girish\\work\\repositories\\homecuties\\homecuties\\hc.services\\hc.services\\hc.services.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
       "RelativeMoniker": "D:0:0:{978C7982-AB93-1A9D-C480-5E043C4EED72}|HC.Services\\HC.Services.csproj|solutionrelative:hc.services\\hc.services.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{978C7982-AB93-1A9D-C480-5E043C4EED72}|HC.Services\\HC.Services.csproj|c:\\girish\\work\\repositories\\homecuties\\homecuties\\hc.services\\hc.services\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{978C7982-AB93-1A9D-C480-5E043C4EED72}|HC.Services\\HC.Services.csproj|solutionrelative:hc.services\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{5D496DAA-8E36-1BB2-D5DA-1C6AE49B36F1}|HC.Data\\HC.Data.csproj|c:\\girish\\work\\repositories\\homecuties\\homecuties\\hc.services\\hc.data\\homecutiesdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -34,7 +34,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 2,
+          "SelectedChildIndex": 3,
           "Children": [
             {
               "$type": "Bookmark",
@@ -46,7 +46,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 1,
               "Title": "appsettings.json",
               "DocumentMoniker": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Services\\appsettings.json",
               "RelativeDocumentMoniker": "HC.Services\\appsettings.json",
@@ -59,8 +59,8 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "HC.Services",
+              "DocumentIndex": 0,
+              "Title": "HC.Services.csproj",
               "DocumentMoniker": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Services\\HC.Services.csproj",
               "RelativeDocumentMoniker": "HC.Services\\HC.Services.csproj",
               "ToolTip": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Services\\HC.Services.csproj",
@@ -80,8 +80,7 @@
               "RelativeToolTip": "HC.Data\\HomecutiesDbContext.cs",
               "ViewState": "AgIAAAAGAAAAAAAAAAAAAAAGAAAIAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-04-26T16:04:55.642Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-04-26T16:04:55.642Z"
             },
             {
               "$type": "Document",
