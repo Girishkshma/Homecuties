@@ -29,11 +29,26 @@ public class AdminController : ControllerBase
     [HttpPost("validate-token")]
     public ActionResult ValidateToken([FromBody] AdminValidateJwtRequest request)
     {
-        var user = _adminAuthService.ValidateToken(request.JWT);
+        var ipAddress = string.IsNullOrEmpty(request.IPAddress) ? GetClientIp() : request.IPAddress;
+        var user = _adminAuthService.ValidateToken(request.JWT, ipAddress);
         if (user == null)
-            return Unauthorized(new { Result = 0, Messages = new[] { "Invalid or expired token." } });
+            return Unauthorized(new { result = 0, messages = new[] { "Invalid or expired token." } });
 
-        return Ok(new { Result = 1, User = user });
+        return Ok(new { result = 1, user = user });
+    }
+
+    [HttpPost("forgot-password")]
+    public async Task<ActionResult> ForgotPassword([FromBody] AdminForgotPasswordRequest request)
+    {
+        var result = await _adminAuthService.ForgotPasswordAsync(request.LoginId);
+        return Ok(result);
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<ActionResult> ResetPassword([FromBody] AdminResetPasswordRequest request)
+    {
+        var result = await _adminAuthService.ResetPasswordAsync(request.Token, request.NewPassword);
+        return Ok(result);
     }
 
     [HttpPost("menus")]
@@ -75,7 +90,7 @@ public class AdminController : ControllerBase
     {
         var product = await _adminDashboardService.GetProductDetailAsync(id);
         if (product == null)
-            return NotFound(new { Result = 0, Messages = new[] { "Product not found." } });
+            return NotFound(new { result = 0, messages = new[] { "Product not found." } });
 
         return Ok(product);
     }
@@ -117,7 +132,7 @@ public class AdminController : ControllerBase
     {
         var order = await _adminDashboardService.GetOrderDetailAsync(id);
         if (order == null)
-            return NotFound(new { Result = 0, Messages = new[] { "Order not found." } });
+            return NotFound(new { result = 0, messages = new[] { "Order not found." } });
 
         return Ok(order);
     }
@@ -127,13 +142,37 @@ public class AdminController : ControllerBase
     #region Customers
 
     [HttpGet("customers")]
-    public async Task<ActionResult> GetCustomers()
+    public async Task<ActionResult> GetCustomers([FromQuery] string? search)
     {
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchResults = await _adminDashboardService.SearchCustomersAsync(search);
+            return Ok(searchResults);
+        }
+
         var customers = await _adminDashboardService.GetCustomersAsync();
         return Ok(customers);
     }
 
+    [HttpGet("customers/{id}")]
+    public async Task<ActionResult> GetCustomerDetail(long id)
+    {
+        var customer = await _adminDashboardService.GetCustomerDetailAsync(id);
+        if (customer == null)
+            return NotFound(new { result = 0, messages = new[] { "Customer not found." } });
+
+        return Ok(customer);
+    }
+
+    [HttpPut("customers/{id}/status")]
+    public async Task<ActionResult> UpdateCustomerStatus(long id, [FromBody] UpdateCustomerStatusRequest request)
+    {
+        var result = await _adminDashboardService.UpdateCustomerStatusAsync(id, request.CustomerStatusId);
+        return Ok(result);
+    }
+
     #endregion
+
 
     #region Partners
 
@@ -142,6 +181,16 @@ public class AdminController : ControllerBase
     {
         var partners = await _adminDashboardService.GetPartnersAsync();
         return Ok(partners);
+    }
+
+    [HttpGet("partners/{id}")]
+    public async Task<ActionResult> GetPartnerDetail(int id)
+    {
+        var partner = await _adminDashboardService.GetPartnerDetailAsync(id);
+        if (partner == null)
+            return NotFound(new { result = 0, messages = new[] { "Partner not found." } });
+
+        return Ok(partner);
     }
 
     #endregion
@@ -153,6 +202,16 @@ public class AdminController : ControllerBase
     {
         var vendors = await _adminDashboardService.GetVendorsAsync();
         return Ok(vendors);
+    }
+
+    [HttpGet("vendors/{id}")]
+    public async Task<ActionResult> GetVendorDetail(short id)
+    {
+        var vendor = await _adminDashboardService.GetVendorDetailAsync(id);
+        if (vendor == null)
+            return NotFound(new { result = 0, messages = new[] { "Vendor not found." } });
+
+        return Ok(vendor);
     }
 
     #endregion
@@ -175,6 +234,24 @@ public class AdminController : ControllerBase
     {
         var categories = await _adminDashboardService.GetCategoryTreeAsync();
         return Ok(categories);
+    }
+
+    #endregion
+
+    #region Helpers
+
+    private string GetClientIp()
+    {
+        // Try to get from X-Forwarded-For header
+        if (Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedFor))
+        {
+            var ip = forwardedFor.FirstOrDefault();
+            if (!string.IsNullOrEmpty(ip))
+                return ip.Split(',').First().Trim();
+        }
+
+        // Fall back to remote IP
+        return HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
     }
 
     #endregion

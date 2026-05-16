@@ -399,14 +399,124 @@ public class AdminDashboardService : IAdminDashboardService
             {
                 CustomerId = c.CustomerId,
                 FirstName = c.FirstName,
+                MiddleName = c.MiddleName,
                 LastName = c.LastName,
                 EmailId = c.EmailId,
                 MobileNumber = c.MobileNumber,
+                MobileVerified = c.MobileVerified,
+                EmailVerified = c.EmailVerfied,
                 CreatedOn = c.CreatedOn,
+                ModifiedOn = c.ModifiedOn,
+                CustomerStatusId = c.CustomerStatusId,
                 Status = c.CustomerStatus.CustomerStatus1
             })
             .ToListAsync();
     }
+
+    public async Task<AdminCustomerDetailDto?> GetCustomerDetailAsync(long customerId)
+    {
+        return await _context.Customers
+            .Include(c => c.CustomerStatus)
+            .Include(c => c.CustomerAddresses)
+            .Include(c => c.Orders)
+            .Where(c => c.CustomerId == customerId)
+            .Select(c => new AdminCustomerDetailDto
+            {
+                CustomerId = c.CustomerId,
+                FirstName = c.FirstName,
+                MiddleName = c.MiddleName,
+                LastName = c.LastName,
+                EmailId = c.EmailId,
+                MobileNumber = c.MobileNumber,
+                MobileVerified = c.MobileVerified,
+                EmailVerified = c.EmailVerfied,
+                CreatedOn = c.CreatedOn,
+                ModifiedOn = c.ModifiedOn,
+                CustomerStatusId = c.CustomerStatusId,
+                Status = c.CustomerStatus.CustomerStatus1,
+                Addresses = c.CustomerAddresses.Select(a => new AdminCustomerAddressDto
+                {
+                    AddressId = a.AddressId,
+                    AddressTitle = a.AddressTitle,
+                    ContactName = a.ContactName,
+                    AddressLine1 = a.AddressLine1,
+                    AddressLine2 = a.AddressLine2,
+                    City = a.City,
+                    State = a.State,
+                    Country = a.Country,
+                    Zipcode = a.Zipcode,
+                    MobileNumber = a.MobileNumber
+                }).ToList(),
+                OrderCount = c.Orders.Count,
+                TotalSpent = c.Orders.SelectMany(o => o.OrderItems).Sum(oi => (decimal?)oi.UnitPrice) ?? 0
+            })
+            .FirstOrDefaultAsync();
+    }
+
+    public async Task<AdminResultDto> UpdateCustomerStatusAsync(long customerId, short customerStatusId)
+    {
+        var customer = await _context.Customers.FindAsync(customerId);
+        if (customer == null)
+        {
+            return new AdminResultDto
+            {
+                Result = 0,
+                Messages = new[] { "Customer not found." }
+            };
+        }
+
+        var statusExists = await _context.CustomerStatuses.AnyAsync(cs => cs.CustomerStatusId == customerStatusId);
+        if (!statusExists)
+        {
+            return new AdminResultDto
+            {
+                Result = 0,
+                Messages = new[] { "Invalid customer status." }
+            };
+        }
+
+        customer.CustomerStatusId = customerStatusId;
+        customer.ModifiedOn = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        return new AdminResultDto
+        {
+            Result = 1,
+            Messages = new[] { "Customer status updated successfully." }
+        };
+    }
+
+    public async Task<List<AdminCustomerListDto>> SearchCustomersAsync(string searchTerm)
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+            return await GetCustomersAsync();
+
+        var term = searchTerm.Trim().ToLower();
+        return await _context.Customers
+            .Include(c => c.CustomerStatus)
+            .Where(c => c.FirstName.ToLower().Contains(term) ||
+                        (c.LastName != null && c.LastName.ToLower().Contains(term)) ||
+                        c.EmailId.ToLower().Contains(term) ||
+                        (c.MobileNumber != null && c.MobileNumber.Contains(term)))
+            .OrderByDescending(c => c.CreatedOn)
+            .Select(c => new AdminCustomerListDto
+            {
+                CustomerId = c.CustomerId,
+                FirstName = c.FirstName,
+                MiddleName = c.MiddleName,
+                LastName = c.LastName,
+                EmailId = c.EmailId,
+                MobileNumber = c.MobileNumber,
+                MobileVerified = c.MobileVerified,
+                EmailVerified = c.EmailVerfied,
+                CreatedOn = c.CreatedOn,
+                ModifiedOn = c.ModifiedOn,
+                CustomerStatusId = c.CustomerStatusId,
+                Status = c.CustomerStatus.CustomerStatus1
+            })
+            .ToListAsync();
+    }
+
 
     public async Task<List<AdminPartnerListDto>> GetPartnersAsync()
     {
@@ -423,6 +533,38 @@ public class AdminDashboardService : IAdminDashboardService
             .ToListAsync();
     }
 
+    public async Task<AdminPartnerDetailDto?> GetPartnerDetailAsync(int partnerId)
+    {
+        return await _context.Partners
+            .Include(p => p.PartnerStatus)
+            .Include(p => p.PartnersUsers)
+                .ThenInclude(pu => pu.User)
+                    .ThenInclude(u => u.UserRoles)
+                        .ThenInclude(ur => ur.Role)
+            .Include(p => p.Inventories)
+            .Where(p => p.PartnerId == partnerId)
+            .Select(p => new AdminPartnerDetailDto
+            {
+                PartnerId = p.PartnerId,
+                PartnerName = p.PartnerName,
+                Status = p.PartnerStatus.PartnerStatus1,
+                LastModifiedOn = p.LastModifiedOn,
+                Users = p.PartnersUsers.Where(pu => pu.IsActive).Select(pu => new AdminPartnerUserDto
+                {
+                    UserId = pu.User.UserId,
+                    UserName = pu.User.FirstName + " " + (pu.User.LastName ?? ""),
+                    LoginId = pu.User.LoginId,
+                    EmailId = pu.User.EmailId,
+                    MobileNumber = pu.User.MobileNumber,
+                    IsActive = pu.User.IsActive ?? false,
+                    Roles = pu.User.UserRoles.Where(ur => ur.IsActive).Select(ur => ur.Role.RoleName).ToList()
+                }).ToList(),
+                InventoryCount = p.Inventories.Count,
+                OrderCount = _context.Orders.Count(o => o.SellerId == p.PartnerId)
+            })
+            .FirstOrDefaultAsync();
+    }
+
     public async Task<List<AdminVendorListDto>> GetVendorsAsync()
     {
         return await _context.Vendors
@@ -436,6 +578,38 @@ public class AdminDashboardService : IAdminDashboardService
                 IsActive = v.IsActive
             })
             .ToListAsync();
+    }
+
+    public async Task<AdminVendorDetailDto?> GetVendorDetailAsync(short vendorId)
+    {
+        return await _context.Vendors
+            .Include(v => v.VendorsUsers)
+                .ThenInclude(vu => vu.User)
+                    .ThenInclude(u => u.UserRoles)
+                        .ThenInclude(ur => ur.Role)
+            .Include(v => v.Purchases)
+            .Where(v => v.VendorId == vendorId)
+            .Select(v => new AdminVendorDetailDto
+            {
+                VendorId = v.VendorId,
+                VendorName = v.VendorName,
+                VendorAddress = v.VendorAddress,
+                Mobile = v.Mobile,
+                Remarks = v.Remarks,
+                IsActive = v.IsActive,
+                Users = v.VendorsUsers.Where(vu => vu.IsActive).Select(vu => new AdminVendorUserDto
+                {
+                    UserId = vu.User.UserId,
+                    UserName = vu.User.FirstName + " " + (vu.User.LastName ?? ""),
+                    LoginId = vu.User.LoginId,
+                    EmailId = vu.User.EmailId,
+                    MobileNumber = vu.User.MobileNumber,
+                    IsActive = vu.User.IsActive ?? false,
+                    Roles = vu.User.UserRoles.Where(ur => ur.IsActive).Select(ur => ur.Role.RoleName).ToList()
+                }).ToList(),
+                PurchaseCount = v.Purchases.Count
+            })
+            .FirstOrDefaultAsync();
     }
 
     public async Task<List<AdminUserListDto>> GetAdminUsersAsync()

@@ -3,12 +3,16 @@
   "WorkspaceRootPath": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{978C7982-AB93-1A9D-C480-5E043C4EED72}|HC.Services\\HC.Services.csproj|c:\\girish\\work\\repositories\\homecuties\\homecuties\\hc.services\\hc.services\\hc.services.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
-      "RelativeMoniker": "D:0:0:{978C7982-AB93-1A9D-C480-5E043C4EED72}|HC.Services\\HC.Services.csproj|solutionrelative:hc.services\\hc.services.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+      "AbsoluteMoniker": "D:0:0:{978C7982-AB93-1A9D-C480-5E043C4EED72}|HC.Services\\HC.Services.csproj|c:\\girish\\work\\repositories\\homecuties\\homecuties\\hc.services\\hc.services\\controllers\\admincontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{978C7982-AB93-1A9D-C480-5E043C4EED72}|HC.Services\\HC.Services.csproj|solutionrelative:hc.services\\controllers\\admincontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{5D496DAA-8E36-1BB2-D5DA-1C6AE49B36F1}|HC.Data\\HC.Data.csproj|c:\\girish\\work\\repositories\\homecuties\\homecuties\\hc.services\\hc.data\\homecutiesdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{5D496DAA-8E36-1BB2-D5DA-1C6AE49B36F1}|HC.Data\\HC.Data.csproj|solutionrelative:hc.data\\homecutiesdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{978C7982-AB93-1A9D-C480-5E043C4EED72}|HC.Services\\HC.Services.csproj|c:\\girish\\work\\repositories\\homecuties\\homecuties\\hc.services\\hc.services\\hc.services.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
+      "RelativeMoniker": "D:0:0:{978C7982-AB93-1A9D-C480-5E043C4EED72}|HC.Services\\HC.Services.csproj|solutionrelative:hc.services\\hc.services.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
     },
     {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\MSBuild\\Current\\Bin\\amd64\\Microsoft.Common.CurrentVersion.targets||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
@@ -25,7 +29,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 4,
+          "SelectedChildIndex": 2,
           "Children": [
             {
               "$type": "Bookmark",
@@ -37,7 +41,20 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 0,
+              "Title": "AdminController.cs",
+              "DocumentMoniker": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Services\\Controllers\\AdminController.cs",
+              "RelativeDocumentMoniker": "HC.Services\\Controllers\\AdminController.cs",
+              "ToolTip": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Services\\Controllers\\AdminController.cs",
+              "RelativeToolTip": "HC.Services\\Controllers\\AdminController.cs",
+              "ViewState": "AgIAAA4AAAAAAAAAAAAgwBoAAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-05-16T16:10:10.144Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
               "Title": "Microsoft.Common.CurrentVersion.targets",
               "DocumentMoniker": "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\MSBuild\\Current\\Bin\\amd64\\Microsoft.Common.CurrentVersion.targets",
               "RelativeDocumentMoniker": "..\\..\\..\\..\\..\\..\\Program Files\\Microsoft Visual Studio\\18\\Community\\MSBuild\\Current\\Bin\\amd64\\Microsoft.Common.CurrentVersion.targets",
@@ -49,7 +66,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 4,
               "Title": "appsettings.json",
               "DocumentMoniker": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Services\\appsettings.json",
               "RelativeDocumentMoniker": "HC.Services\\appsettings.json",
@@ -57,17 +74,18 @@
               "RelativeToolTip": "HC.Services\\appsettings.json",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAkAAAB6AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
-              "WhenOpened": "2026-05-01T15:09:23.791Z"
+              "WhenOpened": "2026-05-01T15:09:23.791Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 2,
               "Title": "HC.Services.csproj",
               "DocumentMoniker": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Services\\HC.Services.csproj",
               "RelativeDocumentMoniker": "HC.Services\\HC.Services.csproj",
               "ToolTip": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Services\\HC.Services.csproj",
               "RelativeToolTip": "HC.Services\\HC.Services.csproj",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABIAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
               "WhenOpened": "2026-05-01T15:02:07.937Z",
               "EditorCaption": ""
@@ -82,7 +100,8 @@
               "RelativeToolTip": "HC.Data\\HomecutiesDbContext.cs",
               "ViewState": "AgIAAOcFAAAAAAAAAAAAAPYFAAAIAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-04-26T16:04:55.642Z"
+              "WhenOpened": "2026-04-26T16:04:55.642Z",
+              "EditorCaption": ""
             }
           ]
         }

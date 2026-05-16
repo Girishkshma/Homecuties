@@ -13,8 +13,13 @@ public interface IAdminDashboardService
     Task<List<AdminOrderListDto>> GetOrdersAsync();
     Task<AdminOrderDetailDto?> GetOrderDetailAsync(long orderId);
     Task<List<AdminCustomerListDto>> GetCustomersAsync();
+    Task<AdminCustomerDetailDto?> GetCustomerDetailAsync(long customerId);
+    Task<AdminResultDto> UpdateCustomerStatusAsync(long customerId, short customerStatusId);
+    Task<List<AdminCustomerListDto>> SearchCustomersAsync(string searchTerm);
     Task<List<AdminPartnerListDto>> GetPartnersAsync();
+    Task<AdminPartnerDetailDto?> GetPartnerDetailAsync(int partnerId);
     Task<List<AdminVendorListDto>> GetVendorsAsync();
+    Task<AdminVendorDetailDto?> GetVendorDetailAsync(short vendorId);
     Task<List<AdminUserListDto>> GetAdminUsersAsync();
     Task<List<AdminCategoryDto>> GetCategoriesAsync();
     Task<List<AdminCategoryDto>> GetCategoryTreeAsync();
