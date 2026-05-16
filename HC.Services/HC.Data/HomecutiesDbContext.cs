@@ -60,6 +60,8 @@ public partial class HomecutiesDbContext : DbContext
 
     public virtual DbSet<GuestCustomer> GuestCustomers { get; set; }
 
+    public virtual DbSet<GuestWishList> GuestWishLists { get; set; }
+
     public virtual DbSet<ImageType> ImageTypes { get; set; }
 
     public virtual DbSet<Inventory> Inventories { get; set; }
@@ -1622,6 +1624,27 @@ public partial class HomecutiesDbContext : DbContext
                 .HasForeignKey(d => d.VendorId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_VendorsUsers_Vendors");
+        });
+
+        modelBuilder.Entity<GuestWishList>(entity =>
+        {
+            entity.HasKey(e => new { e.CustomerId, e.ProductId });
+
+            entity.ToTable("GuestWishList");
+
+            entity.Property(e => e.CustomerId).HasColumnName("CustomerID");
+            entity.Property(e => e.ProductId).HasColumnName("ProductID");
+            entity.Property(e => e.AddedOn).HasColumnType("datetime");
+
+            entity.HasOne(d => d.Customer).WithMany(p => p.GuestWishLists)
+                .HasForeignKey(d => d.CustomerId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_GuestWishList_GuestCustomers");
+
+            entity.HasOne(d => d.Product).WithMany(p => p.GuestWishLists)
+                .HasForeignKey(d => d.ProductId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_GuestWishList_Products");
         });
 
         modelBuilder.Entity<WishList>(entity =>

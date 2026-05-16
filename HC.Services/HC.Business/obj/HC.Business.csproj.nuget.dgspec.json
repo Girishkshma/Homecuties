@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Business\\HC.Business.csproj": {}
+    "c:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Business\\HC.Business.csproj": {}
   },
   "projects": {
-    "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Business\\HC.Business.csproj": {
+    "c:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Business\\HC.Business.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Business\\HC.Business.csproj",
+        "projectUniqueName": "c:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Business\\HC.Business.csproj",
         "projectName": "HC.Business",
-        "projectPath": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Business\\HC.Business.csproj",
+        "projectPath": "c:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Business\\HC.Business.csproj",
         "packagesPath": "C:\\Users\\giris\\.nuget\\packages\\",
-        "outputPath": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Business\\obj\\",
+        "outputPath": "c:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Business\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -31,11 +31,10 @@
         },
         "frameworks": {
           "net10.0": {
-            "framework": "net10.0",
             "targetAlias": "net10.0",
             "projectReferences": {
-              "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\HC.Data.csproj": {
-                "projectPath": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\HC.Data.csproj"
+              "c:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\HC.Data.csproj": {
+                "projectPath": "c:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\HC.Data.csproj"
               }
             }
           }
@@ -54,7 +53,6 @@
       },
       "frameworks": {
         "net10.0": {
-          "framework": "net10.0",
           "targetAlias": "net10.0",
           "imports": [
             "net461",
@@ -350,14 +348,14 @@
         }
       }
     },
-    "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\HC.Data.csproj": {
+    "c:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\HC.Data.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\HC.Data.csproj",
+        "projectUniqueName": "c:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\HC.Data.csproj",
         "projectName": "HC.Data",
-        "projectPath": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\HC.Data.csproj",
+        "projectPath": "c:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\HC.Data.csproj",
         "packagesPath": "C:\\Users\\giris\\.nuget\\packages\\",
-        "outputPath": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\obj\\",
+        "outputPath": "c:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -377,7 +375,6 @@
         },
         "frameworks": {
           "net10.0": {
-            "framework": "net10.0",
             "targetAlias": "net10.0",
             "projectReferences": {}
           }
@@ -396,7 +393,6 @@
       },
       "frameworks": {
         "net10.0": {
-          "framework": "net10.0",
           "targetAlias": "net10.0",
           "dependencies": {
             "Microsoft.EntityFrameworkCore.Design": {

@@ -18,28 +18,28 @@ public class WishListController : ControllerBase
     [HttpPost("GetWishList")]
     public async Task<ActionResult<IEnumerable<WishListDto>>> GetWishList([FromBody] GetWishListRequest request)
     {
-        var wishList = await _wishListService.GetWishListAsync(request.CustomerId);
+        var wishList = await _wishListService.GetWishListAsync(request.CustomerId, request.IsGuest);
         return Ok(wishList);
     }
 
     [HttpPost("AddToWishList")]
     public async Task<ActionResult<ResultDto>> AddToWishList([FromBody] AddToWishListRequest request)
     {
-        var result = await _wishListService.AddToWishListAsync(request.CustomerId, request.ProductId);
+        var result = await _wishListService.AddToWishListAsync(request.CustomerId, request.ProductId, request.IsGuest);
         return Ok(result);
     }
 
     [HttpPost("RemoveFromWishList")]
     public async Task<ActionResult<ResultDto>> RemoveFromWishList([FromBody] RemoveFromWishListRequest request)
     {
-        var result = await _wishListService.RemoveFromWishListAsync(request.CustomerId, request.ProductId);
+        var result = await _wishListService.RemoveFromWishListAsync(request.CustomerId, request.ProductId, request.IsGuest);
         return Ok(result);
     }
 
     [HttpPost("IsInWishList")]
     public async Task<ActionResult<bool>> IsInWishList([FromBody] CheckWishListItemRequest request)
     {
-        var isInWishList = await _wishListService.IsInWishListAsync(request.CustomerId, request.ProductId);
+        var isInWishList = await _wishListService.IsInWishListAsync(request.CustomerId, request.ProductId, request.IsGuest);
         return Ok(isInWishList);
     }
 

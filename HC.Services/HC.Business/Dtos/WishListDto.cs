@@ -21,23 +21,27 @@ public class AddToWishListRequest
 {
     public long CustomerId { get; set; }
     public int ProductId { get; set; }
+    public bool IsGuest { get; set; }
 }
 
 public class RemoveFromWishListRequest
 {
     public long CustomerId { get; set; }
     public int ProductId { get; set; }
+    public bool IsGuest { get; set; }
 }
 
 public class GetWishListRequest
 {
     public long CustomerId { get; set; }
+    public bool IsGuest { get; set; }
 }
 
 public class CheckWishListItemRequest
 {
     public long CustomerId { get; set; }
     public int ProductId { get; set; }
+    public bool IsGuest { get; set; }
 }
 
 public class TransferGuestWishListRequest

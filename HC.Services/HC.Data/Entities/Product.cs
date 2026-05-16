@@ -53,6 +53,8 @@ public partial class Product
 
     public virtual ICollection<GuestCartItem> GuestCartItems { get; set; } = new List<GuestCartItem>();
 
+    public virtual ICollection<GuestWishList> GuestWishLists { get; set; } = new List<GuestWishList>();
+
     public virtual User ModifiedByNavigation { get; set; } = null!;
 
     public virtual ICollection<ProductCategory> ProductCategories { get; set; } = new List<ProductCategory>();

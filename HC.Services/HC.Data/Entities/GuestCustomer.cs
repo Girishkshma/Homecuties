@@ -10,4 +10,6 @@ public partial class GuestCustomer
     public DateTime CreatedOn { get; set; }
 
     public virtual ICollection<GuestCart> GuestCarts { get; set; } = new List<GuestCart>();
+
+    public virtual ICollection<GuestWishList> GuestWishLists { get; set; } = new List<GuestWishList>();
 }
