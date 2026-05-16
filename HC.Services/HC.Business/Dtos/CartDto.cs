@@ -8,6 +8,8 @@ public class CartItemDto
     public int Quantity { get; set; }
     public decimal Price { get; set; }
     public string Image { get; set; } = "";
+    public bool IsInStock { get; set; }
+    public int AvailableQty { get; set; }
 }
 
 public class CartCalculationDto

@@ -27,6 +27,7 @@ builder.Services.AddScoped<IGoogleLoginService, GoogleLoginService>();
 builder.Services.AddScoped<IFacebookLoginService, FacebookLoginService>();
 builder.Services.AddScoped<IUtilitiesService, UtilitiesService>();
 builder.Services.AddScoped<IWishListService, WishListService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
 
 // Configure CORS
 builder.Services.AddCors(options =>

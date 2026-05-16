@@ -37,7 +37,8 @@ public class WishListService : IWishListService
                 PostDiscountSalesPrice = w.Product.UnitPrice - (w.Product.UnitPrice * w.Product.DiscountPercent / 100),
                 PostAdditionalDiscountSalesPrice = w.Product.UnitPrice - (w.Product.UnitPrice * (w.Product.DiscountPercent + w.Product.AdditionalDiscountPercent) / 100),
                 DiscountPercent = w.Product.DiscountPercent,
-                AdditionalDiscountPercent = w.Product.AdditionalDiscountPercent
+                AdditionalDiscountPercent = w.Product.AdditionalDiscountPercent,
+                IsInStock = w.Product.PurchaseDetails.Any(pd => pd.Skus.Any(s => !s.OrderItems.Any()))
             })
             .ToListAsync();
     }
@@ -113,5 +114,36 @@ public class WishListService : IWishListService
     {
         return await _context.WishLists
             .AnyAsync(w => w.CustomerId == customerId && w.ProductId == productId);
+    }
+
+    public async Task<ResultDto> TransferGuestWishListAsync(long guestCustomerId, long customerId)
+    {
+        var guestWishListItems = await _context.WishLists
+            .Where(w => w.CustomerId == guestCustomerId)
+            .ToListAsync();
+
+        if (guestWishListItems.Count == 0)
+            return new ResultDto { Result = 1, Messages = new[] { "No guest wishlist to transfer" } };
+
+        foreach (var guestItem in guestWishListItems)
+        {
+            var existing = await _context.WishLists
+                .FirstOrDefaultAsync(w => w.CustomerId == customerId && w.ProductId == guestItem.ProductId);
+
+            if (existing == null)
+            {
+                _context.WishLists.Add(new WishList
+                {
+                    CustomerId = customerId,
+                    ProductId = guestItem.ProductId,
+                    AddedOn = guestItem.AddedOn
+                });
+            }
+
+            _context.WishLists.Remove(guestItem);
+        }
+
+        await _context.SaveChangesAsync();
+        return new ResultDto { Result = 1, Messages = new[] { "Wishlist transferred" } };
     }
 }

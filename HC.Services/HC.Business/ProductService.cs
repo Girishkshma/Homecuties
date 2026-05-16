@@ -52,6 +52,7 @@ public class ProductService : IProductService
     public async Task<IEnumerable<CategoryDto>> GetCategoriesAsync()
     {
         return await _context.Categories
+            .Where(c => c.ProductCategories.Any(pc => pc.IsActive))
             .Select(c => new CategoryDto
             {
                 CategoryID = c.CategoryId,
@@ -98,6 +99,7 @@ public class ProductService : IProductService
         CGSTPercent = p.Cgstpercent,
         SGSTPercent = p.Sgstpercent,
         IGSTPercent = p.Igstpercent,
+        IsInStock = p.PurchaseDetails.Any(pd => pd.Skus.Any(s => !s.OrderItems.Any())),
         Features = p.ProductFeatures
             .Where(pf => pf.IsActive)
             .Select(pf => new ProductFeatureDto

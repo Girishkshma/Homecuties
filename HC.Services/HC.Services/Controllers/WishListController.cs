@@ -42,4 +42,11 @@ public class WishListController : ControllerBase
         var isInWishList = await _wishListService.IsInWishListAsync(request.CustomerId, request.ProductId);
         return Ok(isInWishList);
     }
+
+    [HttpPost("TransferGuestWishList")]
+    public async Task<ActionResult<ResultDto>> TransferGuestWishList([FromBody] TransferGuestWishListRequest request)
+    {
+        var result = await _wishListService.TransferGuestWishListAsync(request.GuestCustomerId, request.CustomerId);
+        return Ok(result);
+    }
 }

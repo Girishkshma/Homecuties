@@ -8,4 +8,5 @@ public interface IWishListService
     Task<ResultDto> AddToWishListAsync(long customerId, int productId);
     Task<ResultDto> RemoveFromWishListAsync(long customerId, int productId);
     Task<bool> IsInWishListAsync(long customerId, int productId);
+    Task<ResultDto> TransferGuestWishListAsync(long guestCustomerId, long customerId);
 }

@@ -17,6 +17,7 @@ public class ProductDto
     public decimal CGSTPercent { get; set; }
     public decimal SGSTPercent { get; set; }
     public decimal IGSTPercent { get; set; }
+    public bool IsInStock { get; set; }
     public List<ProductFeatureDto> Features { get; set; } = new();
     public List<CategoryDto> Categories { get; set; } = new();
 }

@@ -118,17 +118,27 @@ public class CartService : ICartService
             if (guestCart == null)
                 return new CartResponseDto();
 
-            var cartItems = guestCart.GuestCartItems.Select(ci => new CartItemDto
+            var cartItems = guestCart.GuestCartItems.Select(ci =>
             {
-                ProductID = ci.ProductId,
-                ProductName = ci.Product.ProductName,
-                ProductTitle = ci.Product.ProductTitle,
-                Quantity = ci.Quantity,
-                Price = ci.Product.UnitPrice,
-                Image = ci.Product.ProductImages
-                    .Where(pi => pi.IsPromoImage && pi.IsActive)
-                    .Select(pi => pi.ImageUrl)
-                    .FirstOrDefault() ?? ""
+                var availableSkus = ci.Product.PurchaseDetails
+                    .SelectMany(pd => pd.Skus)
+                    .Where(s => !s.OrderItems.Any())
+                    .ToList();
+                var availableQty = availableSkus.Count;
+                return new CartItemDto
+                {
+                    ProductID = ci.ProductId,
+                    ProductName = ci.Product.ProductName,
+                    ProductTitle = ci.Product.ProductTitle,
+                    Quantity = ci.Quantity,
+                    Price = ci.Product.UnitPrice,
+                    Image = ci.Product.ProductImages
+                        .Where(pi => pi.IsPromoImage && pi.IsActive)
+                        .Select(pi => pi.ImageUrl)
+                        .FirstOrDefault() ?? "",
+                    IsInStock = availableQty > 0,
+                    AvailableQty = availableQty
+                };
             }).ToList();
 
             var calculation = CalculateCart(guestCart.GuestCartItems.ToList());
@@ -145,17 +155,27 @@ public class CartService : ICartService
             if (cart == null)
                 return new CartResponseDto();
 
-            var cartItems = cart.CartItems.Select(ci => new CartItemDto
+            var cartItems = cart.CartItems.Select(ci =>
             {
-                ProductID = ci.ProductId,
-                ProductName = ci.Product.ProductName,
-                ProductTitle = ci.Product.ProductTitle,
-                Quantity = ci.Quantity,
-                Price = ci.Product.UnitPrice,
-                Image = ci.Product.ProductImages
-                    .Where(pi => pi.IsPromoImage && pi.IsActive)
-                    .Select(pi => pi.ImageUrl)
-                    .FirstOrDefault() ?? ""
+                var availableSkus = ci.Product.PurchaseDetails
+                    .SelectMany(pd => pd.Skus)
+                    .Where(s => !s.OrderItems.Any())
+                    .ToList();
+                var availableQty = availableSkus.Count;
+                return new CartItemDto
+                {
+                    ProductID = ci.ProductId,
+                    ProductName = ci.Product.ProductName,
+                    ProductTitle = ci.Product.ProductTitle,
+                    Quantity = ci.Quantity,
+                    Price = ci.Product.UnitPrice,
+                    Image = ci.Product.ProductImages
+                        .Where(pi => pi.IsPromoImage && pi.IsActive)
+                        .Select(pi => pi.ImageUrl)
+                        .FirstOrDefault() ?? "",
+                    IsInStock = availableQty > 0,
+                    AvailableQty = availableQty
+                };
             }).ToList();
 
             var calculation = CalculateCart(cart.CartItems.ToList());
@@ -316,6 +336,9 @@ public class CartService : ICartService
             }
         }
 
+        // Explicitly remove guest cart items before removing the guest cart
+        // to avoid orphaned child entities with non-nullable foreign keys
+        _context.Set<GuestCartItem>().RemoveRange(guestCart.GuestCartItems);
         _context.Set<GuestCart>().Remove(guestCart);
         await _context.SaveChangesAsync();
 

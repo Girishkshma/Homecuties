@@ -14,6 +14,7 @@ public class WishListDto
     public decimal PostAdditionalDiscountSalesPrice { get; set; }
     public decimal DiscountPercent { get; set; }
     public decimal AdditionalDiscountPercent { get; set; }
+    public bool IsInStock { get; set; }
 }
 
 public class AddToWishListRequest
@@ -37,4 +38,10 @@ public class CheckWishListItemRequest
 {
     public long CustomerId { get; set; }
     public int ProductId { get; set; }
+}
+
+public class TransferGuestWishListRequest
+{
+    public long GuestCustomerId { get; set; }
+    public long CustomerId { get; set; }
 }
