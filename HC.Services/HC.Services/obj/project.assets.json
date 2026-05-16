@@ -1219,11 +1219,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "c:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Services\\HC.Services.csproj",
+      "projectUniqueName": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Services\\HC.Services.csproj",
       "projectName": "HC.Services",
-      "projectPath": "c:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Services\\HC.Services.csproj",
+      "projectPath": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Services\\HC.Services.csproj",
       "packagesPath": "C:\\Users\\giris\\.nuget\\packages\\",
-      "outputPath": "c:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Services\\obj\\",
+      "outputPath": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Services\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -1243,13 +1243,14 @@
       },
       "frameworks": {
         "net10.0": {
+          "framework": "net10.0",
           "targetAlias": "net10.0",
           "projectReferences": {
-            "c:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Business\\HC.Business.csproj": {
-              "projectPath": "c:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Business\\HC.Business.csproj"
+            "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Business\\HC.Business.csproj": {
+              "projectPath": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Business\\HC.Business.csproj"
             },
-            "c:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\HC.Data.csproj": {
-              "projectPath": "c:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\HC.Data.csproj"
+            "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\HC.Data.csproj": {
+              "projectPath": "C:\\Girish\\work\\Repositories\\homecuties\\Homecuties\\HC.Services\\HC.Data\\HC.Data.csproj"
             }
           }
         }
@@ -1268,6 +1269,7 @@
     },
     "frameworks": {
       "net10.0": {
+        "framework": "net10.0",
         "targetAlias": "net10.0",
         "dependencies": {
           "Microsoft.AspNetCore.OpenApi": {

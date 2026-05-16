@@ -28,6 +28,8 @@ builder.Services.AddScoped<IFacebookLoginService, FacebookLoginService>();
 builder.Services.AddScoped<IUtilitiesService, UtilitiesService>();
 builder.Services.AddScoped<IWishListService, WishListService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IAdminAuthService, AdminAuthService>();
+builder.Services.AddScoped<IAdminDashboardService, AdminDashboardService>();
 
 // Configure CORS
 builder.Services.AddCors(options =>
