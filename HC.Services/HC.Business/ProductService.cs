@@ -16,7 +16,7 @@ public class ProductService : IProductService
     public async Task<IEnumerable<ProductDto>> GetProductsForHomepageAsync()
     {
         return await _context.Products
-            .Where(p => p.DisplayOnHomePage)
+            .Where(p => p.DisplayOnHomePage && p.ProductStatusId != 2) // 2 = Suspended (disabled)
             .Include(p => p.ProductCategories)
                 .ThenInclude(pc => pc.Category)
             .Include(p => p.ProductImages)
@@ -28,7 +28,7 @@ public class ProductService : IProductService
     public async Task<ProductDto?> GetProductAsync(int productId)
     {
         return await _context.Products
-            .Where(p => p.ProductId == productId)
+            .Where(p => p.ProductId == productId && p.ProductStatusId != 2) // 2 = Suspended (disabled)
             .Include(p => p.ProductCategories)
                 .ThenInclude(pc => pc.Category)
             .Include(p => p.ProductImages)
@@ -40,7 +40,8 @@ public class ProductService : IProductService
     public async Task<IEnumerable<ProductDto>> GetProductsByCategoryAsync(short categoryId)
     {
         return await _context.Products
-            .Where(p => p.ProductCategories.Any(pc => pc.CategoryId == categoryId && pc.IsActive))
+            .Where(p => p.ProductCategories.Any(pc => pc.CategoryId == categoryId && pc.IsActive)
+                && p.ProductStatusId != 2) // 2 = Suspended (disabled)
             .Include(p => p.ProductCategories)
                 .ThenInclude(pc => pc.Category)
             .Include(p => p.ProductImages)

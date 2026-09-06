@@ -256,6 +256,32 @@ public class CreateProductRequest
     public List<AdminProductImageDto> Images { get; set; } = new();
 }
 
+public class ProductStatusOptionDto
+{
+    [JsonPropertyName("productStatusId")]
+    public short ProductStatusId { get; set; }
+    [JsonPropertyName("productStatusName")]
+    public string ProductStatusName { get; set; } = "";
+}
+
+public class ImageTypeOptionDto
+{
+    [JsonPropertyName("imageTypeId")]
+    public short ImageTypeId { get; set; }
+    [JsonPropertyName("imageTypeName")]
+    public string ImageTypeName { get; set; } = "";
+    [JsonPropertyName("shortCode")]
+    public string ShortCode { get; set; } = "";
+}
+
+public class ProductFormOptionsDto
+{
+    [JsonPropertyName("statuses")]
+    public List<ProductStatusOptionDto> Statuses { get; set; } = new();
+    [JsonPropertyName("imageTypes")]
+    public List<ImageTypeOptionDto> ImageTypes { get; set; } = new();
+}
+
 // Orders
 public class AdminOrderListDto
 {
@@ -464,6 +490,8 @@ public class AdminPartnerListDto
     public int PartnerId { get; set; }
     [JsonPropertyName("partnerName")]
     public string PartnerName { get; set; } = "";
+    [JsonPropertyName("partnerStatusId")]
+    public short PartnerStatusId { get; set; }
     [JsonPropertyName("status")]
     public string Status { get; set; } = "";
     [JsonPropertyName("lastModifiedOn")]
@@ -476,6 +504,8 @@ public class AdminPartnerDetailDto
     public int PartnerId { get; set; }
     [JsonPropertyName("partnerName")]
     public string PartnerName { get; set; } = "";
+    [JsonPropertyName("partnerStatusId")]
+    public short PartnerStatusId { get; set; }
     [JsonPropertyName("status")]
     public string Status { get; set; } = "";
     [JsonPropertyName("lastModifiedOn")]
@@ -504,6 +534,22 @@ public class AdminPartnerUserDto
     public bool IsActive { get; set; }
     [JsonPropertyName("roles")]
     public List<string> Roles { get; set; } = new();
+}
+
+public class PartnerStatusOptionDto
+{
+    [JsonPropertyName("partnerStatusId")]
+    public short PartnerStatusId { get; set; }
+    [JsonPropertyName("partnerStatus")]
+    public string PartnerStatus { get; set; } = "";
+}
+
+public class PartnerFormRequest
+{
+    [JsonPropertyName("partnerName")]
+    public string PartnerName { get; set; } = "";
+    [JsonPropertyName("partnerStatusId")]
+    public short PartnerStatusId { get; set; }
 }
 
 // Vendors
@@ -559,6 +605,109 @@ public class AdminVendorUserDto
     public List<string> Roles { get; set; } = new();
 }
 
+public class VendorFormRequest
+{
+    [JsonPropertyName("vendorName")]
+    public string VendorName { get; set; } = "";
+    [JsonPropertyName("vendorAddress")]
+    public string? VendorAddress { get; set; }
+    [JsonPropertyName("mobile")]
+    public string Mobile { get; set; } = "";
+    [JsonPropertyName("remarks")]
+    public string? Remarks { get; set; }
+    [JsonPropertyName("isActive")]
+    public bool IsActive { get; set; } = true;
+}
+
+// Purchases
+public class AdminPurchaseListDto
+{
+    [JsonPropertyName("purchaseId")]
+    public long PurchaseId { get; set; }
+    [JsonPropertyName("purchaseNumber")]
+    public string? PurchaseNumber { get; set; }
+    [JsonPropertyName("vendorId")]
+    public short VendorId { get; set; }
+    [JsonPropertyName("vendorName")]
+    public string VendorName { get; set; } = "";
+    [JsonPropertyName("purchaserName")]
+    public string PurchaserName { get; set; } = "";
+    [JsonPropertyName("purchaseDate")]
+    public DateTime PurchaseDate { get; set; }
+    [JsonPropertyName("purchaseStatusId")]
+    public short PurchaseStatusId { get; set; }
+    [JsonPropertyName("status")]
+    public string Status { get; set; } = "";
+    [JsonPropertyName("itemCount")]
+    public int ItemCount { get; set; }
+    [JsonPropertyName("totalAmount")]
+    public decimal TotalAmount { get; set; }
+}
+
+public class AdminPurchaseDetailDto
+{
+    [JsonPropertyName("purchaseId")]
+    public long PurchaseId { get; set; }
+    [JsonPropertyName("purchaseNumber")]
+    public string? PurchaseNumber { get; set; }
+    [JsonPropertyName("vendorId")]
+    public short VendorId { get; set; }
+    [JsonPropertyName("vendorName")]
+    public string VendorName { get; set; } = "";
+    [JsonPropertyName("purchaserName")]
+    public string PurchaserName { get; set; } = "";
+    [JsonPropertyName("purchaseDate")]
+    public DateTime PurchaseDate { get; set; }
+    [JsonPropertyName("purchaseStatusId")]
+    public short PurchaseStatusId { get; set; }
+    [JsonPropertyName("status")]
+    public string Status { get; set; } = "";
+    [JsonPropertyName("invoicePath")]
+    public string? InvoicePath { get; set; }
+    [JsonPropertyName("addedByName")]
+    public string AddedByName { get; set; } = "";
+    [JsonPropertyName("addedOn")]
+    public DateTime AddedOn { get; set; }
+    [JsonPropertyName("lastModifiedByName")]
+    public string LastModifiedByName { get; set; } = "";
+    [JsonPropertyName("lastModifiedOn")]
+    public DateTime LastModifiedOn { get; set; }
+    [JsonPropertyName("items")]
+    public List<AdminPurchaseItemDto> Items { get; set; } = new();
+    [JsonPropertyName("comments")]
+    public List<AdminPurchaseCommentDto> Comments { get; set; } = new();
+}
+
+public class AdminPurchaseItemDto
+{
+    [JsonPropertyName("purchaseDetailId")]
+    public long PurchaseDetailId { get; set; }
+    [JsonPropertyName("productId")]
+    public int ProductId { get; set; }
+    [JsonPropertyName("productName")]
+    public string ProductName { get; set; } = "";
+    [JsonPropertyName("quantity")]
+    public short Quantity { get; set; }
+    [JsonPropertyName("unitPrice")]
+    public decimal UnitPrice { get; set; }
+    [JsonPropertyName("gst")]
+    public decimal Gst { get; set; }
+    [JsonPropertyName("lineTotal")]
+    public decimal LineTotal { get; set; }
+}
+
+public class AdminPurchaseCommentDto
+{
+    [JsonPropertyName("purchaseCommentId")]
+    public long PurchaseCommentId { get; set; }
+    [JsonPropertyName("comments")]
+    public string Comments { get; set; } = "";
+    [JsonPropertyName("addedByName")]
+    public string AddedByName { get; set; } = "";
+    [JsonPropertyName("addedOn")]
+    public DateTime AddedOn { get; set; }
+}
+
 // Users (Admin Users)
 public class AdminUserListDto
 {
@@ -576,6 +725,78 @@ public class AdminUserListDto
     public bool IsActive { get; set; }
     [JsonPropertyName("roles")]
     public List<string> Roles { get; set; } = new();
+}
+
+public class AdminUserDetailDto
+{
+    [JsonPropertyName("userId")]
+    public long UserId { get; set; }
+    [JsonPropertyName("loginId")]
+    public string LoginId { get; set; } = "";
+    [JsonPropertyName("firstName")]
+    public string FirstName { get; set; } = "";
+    [JsonPropertyName("middleName")]
+    public string? MiddleName { get; set; }
+    [JsonPropertyName("lastName")]
+    public string? LastName { get; set; }
+    [JsonPropertyName("emailId")]
+    public string? EmailId { get; set; }
+    [JsonPropertyName("mobileNumber")]
+    public string? MobileNumber { get; set; }
+    [JsonPropertyName("isActive")]
+    public bool IsActive { get; set; }
+    [JsonPropertyName("mustChangePassword")]
+    public bool MustChangePassword { get; set; }
+    [JsonPropertyName("roles")]
+    public List<AdminRoleDto> Roles { get; set; } = new();
+}
+
+public class AdminUserCreateRequest
+{
+    [JsonPropertyName("loginId")]
+    public string LoginId { get; set; } = "";
+    [JsonPropertyName("password")]
+    public string Password { get; set; } = "";
+    [JsonPropertyName("firstName")]
+    public string FirstName { get; set; } = "";
+    [JsonPropertyName("middleName")]
+    public string? MiddleName { get; set; }
+    [JsonPropertyName("lastName")]
+    public string? LastName { get; set; }
+    [JsonPropertyName("emailId")]
+    public string? EmailId { get; set; }
+    [JsonPropertyName("mobileNumber")]
+    public string? MobileNumber { get; set; }
+    [JsonPropertyName("isActive")]
+    public bool IsActive { get; set; } = true;
+    [JsonPropertyName("mustChangePassword")]
+    public bool MustChangePassword { get; set; }
+    [JsonPropertyName("roleIds")]
+    public List<short> RoleIds { get; set; } = new();
+}
+
+public class AdminUserUpdateRequest
+{
+    [JsonPropertyName("loginId")]
+    public string LoginId { get; set; } = "";
+    [JsonPropertyName("password")]
+    public string? Password { get; set; }
+    [JsonPropertyName("firstName")]
+    public string FirstName { get; set; } = "";
+    [JsonPropertyName("middleName")]
+    public string? MiddleName { get; set; }
+    [JsonPropertyName("lastName")]
+    public string? LastName { get; set; }
+    [JsonPropertyName("emailId")]
+    public string? EmailId { get; set; }
+    [JsonPropertyName("mobileNumber")]
+    public string? MobileNumber { get; set; }
+    [JsonPropertyName("isActive")]
+    public bool IsActive { get; set; } = true;
+    [JsonPropertyName("mustChangePassword")]
+    public bool MustChangePassword { get; set; }
+    [JsonPropertyName("roleIds")]
+    public List<short> RoleIds { get; set; } = new();
 }
 
 // Categories

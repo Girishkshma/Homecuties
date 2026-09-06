@@ -1,6 +1,9 @@
 using HC.Business;
 using HC.Data;
+using HC.Services;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,6 +13,7 @@ builder.Services.AddControllers()
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = null;
         options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.Converters.Add(new UtcDateTimeJsonConverter());
     });
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -51,6 +55,17 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowAll");
+
+// Serve uploaded images (e.g., /images/products/...) from wwwroot,
+// creating the upload folder if it does not exist yet.
+var wwwrootPath = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+var productImagesPath = Path.Combine(wwwrootPath, "images", "products");
+Directory.CreateDirectory(productImagesPath);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(wwwrootPath),
+    RequestPath = ""
+});
 
 if (!app.Environment.IsDevelopment())
 {
