@@ -1,0 +1,88 @@
+<div class="container section">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a routerLink="/">Home</a></li>
+      <li class="breadcrumb-item active">My Favorites</li>
+    </ol>
+  </nav>
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="section-title mb-1">My Favorites</h2>
+      <p class="text-muted mb-0" *ngIf="!loading">{{ wishList.length }} item{{ wishList.length !== 1 ? 's' : '' }}</p>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-state">
+    <div class="spinner"></div>
+    <p>Loading your favorites...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error" class="alert-custom alert-error">
+    <i class="bi bi-exclamation-circle me-2"></i>{{ error }}
+  </div>
+
+  <!-- Wishlist Items -->
+  <div *ngIf="!loading && !error && wishList.length > 0" class="row g-4">
+    <div *ngFor="let item of wishList" class="col-xl-3 col-lg-4 col-md-6">
+      <div class="product-card">
+        <div class="product-image">
+          <img [src]="item.PromoImage | productImage" alt="{{ item.ProductName }}">
+          <span class="product-badge" *ngIf="item.DiscountPercent > 0">{{ item.DiscountPercent }}% OFF</span>
+          <div class="product-actions">
+            <button class="btn-action active" title="Remove from Favorites" (click)="removeFromWishList(item.ProductId)">
+              <i class="bi bi-heart-fill"></i>
+            </button>
+          </div>
+        </div>
+        <div class="product-body">
+          <h3 class="product-name">
+            <a [routerLink]="['/product', item.ProductId]">{{ item.ProductTitle }}</a>
+          </h3>
+          <p class="product-description">{{ item.ProductDescription | slice:0:120 }}{{ item.ProductDescription.length > 120 ? '...' : '' }}</p>
+          <div class="product-footer">
+            <div class="product-price">
+              <span class="current-price">{{ UtilityService.currencyFormat(item.PostAdditionalDiscountSalesPrice) }}</span>
+              <span class="original-price" *ngIf="item.PostDiscountSalesPrice !== item.PostAdditionalDiscountSalesPrice">
+                {{ UtilityService.currencyFormat(item.PostDiscountSalesPrice) }}
+              </span>
+              <span class="discount-badge" *ngIf="item.AdditionalDiscountPercent > 0">
+                Extra {{ item.AdditionalDiscountPercent }}% off
+              </span>
+            </div>
+            <ng-container *ngIf="cartQuantities.has(item.ProductId); else addToCartBtn">
+              <a [routerLink]="['/cart']" class="btn btn-success btn-sm btn-add-cart">
+                <i class="bi bi-cart-check me-1"></i> In Cart ({{ cartQuantities.get(item.ProductId) }})
+              </a>
+            </ng-container>
+            <ng-template #addToCartBtn>
+              <button *ngIf="item.IsInStock; else outOfStock" class="btn btn-primary btn-sm btn-add-cart" (click)="addToCart(item.ProductId)" [disabled]="addedToCart[item.ProductId]">
+                <i class="bi" [class.bi-cart-plus]="!addedToCart[item.ProductId]" [class.bi-check-lg]="addedToCart[item.ProductId]"></i>
+                {{ addedToCart[item.ProductId] ? 'Added!' : 'Add to Cart' }}
+              </button>
+              <ng-template #outOfStock>
+                <button class="btn btn-secondary btn-sm btn-add-cart" disabled>
+                  <i class="bi bi-x-circle me-1"></i> Out of Stock
+                </button>
+              </ng-template>
+            </ng-template>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!loading && !error && wishList.length === 0" class="empty-state">
+    <div class="empty-icon">
+      <i class="bi bi-heart"></i>
+    </div>
+    <h4>Your Favorites List is Empty</h4>
+    <p>Save your favorite products by clicking the heart icon on any product. They'll appear here for easy access.</p>
+    <a routerLink="/shop" class="btn btn-primary btn-lg">
+      <i class="bi bi-bag me-2"></i> Browse Products
+    </a>
+  </div>
+</div>

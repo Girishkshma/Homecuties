@@ -1,0 +1,59 @@
+<div class="auth-page">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-6 col-lg-5 col-xl-4">
+        <div class="auth-card">
+          <div class="auth-header">
+            <div class="auth-logo mb-3">
+              <i class="bi bi-box-seam"></i>
+            </div>
+            <h2>Welcome Back</h2>
+            <p>Sign in to your account to continue</p>
+          </div>
+
+          <!-- Shown when a guarded page (e.g. checkout) sent the guest here -->
+          <div *ngIf="returnUrl" class="alert alert-info" role="alert">
+            <i class="bi bi-info-circle me-1"></i>
+            Please sign in to continue. Your cart and favourites will be moved to your account.
+          </div>
+
+          <!--
+            Google / Facebook sign-in is intentionally NOT shown yet: the API does not verify the
+            social token signature (GoogleLoginService only base64-decodes the id_token), so these
+            must not be used to sign customers in. Re-enable the buttons (and the handlers
+            LoginComponent.loginWithGoogle / loginWithFacebook) once server-side verification exists.
+          -->
+
+          <!-- Email Login Form -->
+          <form (ngSubmit)="login()">
+            <!-- Error Message -->
+            <div *ngIf="errorMessage" class="alert alert-danger" role="alert">
+              {{ errorMessage }}
+            </div>
+
+            <div class="mb-3">
+              <label for="email" class="form-label">Email Address</label>
+              <input type="email" class="form-control" id="email" placeholder="you@example.com"
+                     [(ngModel)]="email" name="email" required>
+            </div>
+            <div class="mb-4">
+              <label for="password" class="form-label">Password</label>
+              <input type="password" class="form-control" id="password" placeholder="Enter your password"
+                     [(ngModel)]="password" name="password" required>
+              <div class="text-end mt-1">
+                <a routerLink="/forgot-password" class="forgot-password-link">Forgot password?</a>
+              </div>
+            </div>
+            <button type="submit" class="btn-submit" [disabled]="isLoading">
+              <i class="bi bi-box-arrow-in-right me-2"></i> Sign In
+            </button>
+          </form>
+
+          <div class="auth-footer">
+            Don't have an account? <a routerLink="/register">Create one</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

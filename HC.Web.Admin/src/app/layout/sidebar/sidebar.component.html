@@ -1,0 +1,51 @@
+<div class="sidebar">
+  <div class="sidebar-header">
+    <h1>HC Admin</h1>
+  </div>
+
+  <!-- User Profile Section -->
+  <div class="sidebar-user" *ngIf="user">
+    <div class="user-avatar">{{ getInitials(user.firstName, user.lastName) }}</div>
+    <div class="user-info">
+      <div class="user-name">{{ user.firstName }} {{ user.lastName }}</div>
+      <div class="user-roles">
+        <span *ngFor="let role of user.roles" class="user-role-badge">{{ role.roleName }}</span>
+      </div>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <a class="nav-item" [routerLink]="['/dashboard']" routerLinkActive="active">
+      <span class="nav-icon">📊</span>
+      <span class="nav-label">Dashboard</span>
+    </a>
+
+    <div *ngFor="let menu of menus" class="nav-section">
+      <div class="nav-item" (click)="menu.children.length > 0 ? toggleMenu(menu.menuId) : navigate(menu.menuUrl)"
+           [class.has-children]="menu.children.length > 0"
+           [class.active]="router.url === menu.menuUrl">
+        <span class="nav-icon">{{ getMenuIcon(menu.menuTitle) }}</span>
+        <span class="nav-label">{{ menu.menuTitle }}</span>
+        <span *ngIf="menu.children.length > 0" class="nav-arrow" [class.expanded]="isExpanded(menu.menuId)">
+          ▶
+        </span>
+      </div>
+
+      <div *ngIf="menu.children.length > 0 && isExpanded(menu.menuId)" class="nav-children">
+        <a *ngFor="let child of menu.children"
+           class="nav-item nav-child"
+           [routerLink]="[child.menuUrl]"
+           routerLinkActive="active">
+          <span class="nav-label">{{ child.menuTitle }}</span>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <button class="logout-btn" (click)="logout()">
+      <span>🚪</span>
+      <span>Logout</span>
+    </button>
+  </div>
+</div>

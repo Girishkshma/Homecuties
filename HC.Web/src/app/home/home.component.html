@@ -1,0 +1,325 @@
+<!-- Hero Banner -->
+<section class="hero-banner">
+  <div class="hero-bg-overlay"></div>
+  <div class="hero-particles">
+    <span class="particle"></span>
+    <span class="particle"></span>
+    <span class="particle"></span>
+    <span class="particle"></span>
+    <span class="particle"></span>
+  </div>
+  <div class="container">
+    <div class="row align-items-center min-vh-60">
+      <div class="col-lg-6">
+        <div class="hero-badge">
+          <i class="bi bi-star-fill me-1"></i> New Collection 2026
+        </div>
+        <h1>Handcrafted <span class="text-accent">Home Decor</span><br>That Tells a Story</h1>
+        <p class="hero-description">Discover exquisite woodwork and home decor pieces, each meticulously crafted to bring warmth, character, and timeless elegance to every corner of your home.</p>
+        <div class="hero-actions">
+          <a routerLink="/shop" class="btn-hero">
+            <i class="bi bi-bag-check"></i> Shop Now
+          </a>
+          <a routerLink="/shop" class="btn-hero-outline">
+            <i class="bi bi-play-circle me-1"></i> See Collection
+          </a>
+        </div>
+        <div class="hero-stats">
+          <div class="stat-item">
+            <span class="stat-number">{{ stats ? (stats.ProductCount | number) : '—' }}</span>
+            <span class="stat-label">Products</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-number">{{ stats ? (stats.CustomerCount | number) : '—' }}</span>
+            <span class="stat-label">Happy Customers</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-number">{{ stats ? (stats.CategoryCount | number) : '—' }}</span>
+            <span class="stat-label">Categories</span>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="hero-visual">
+          <div class="hero-image-showcase">
+            <div class="showcase-card showcase-card-main">
+              <img src="https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=600&q=80" alt="Beautiful home decor living room" loading="lazy">
+              <div class="showcase-tag">
+                <i class="bi bi-star-fill"></i> Best Seller
+              </div>
+            </div>
+            <div class="showcase-card showcase-card-sm showcase-card-top">
+              <img src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=300&q=80" alt="Wooden decorative items" loading="lazy">
+            </div>
+            <div class="showcase-card showcase-card-sm showcase-card-bottom">
+              <img src="https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=300&q=80" alt="Woodwork craft" loading="lazy">
+            </div>
+          </div>
+          <div class="hero-floating-badge badge-2">
+            <i class="bi bi-shield-check"></i>
+            <span>Secure</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Trust Badges -->
+<section class="trust-badges">
+  <div class="container">
+    <div class="row g-3 justify-content-center">
+      <div class="col-md-4 col-6">
+        <div class="trust-item">
+          <div class="trust-icon">
+            <i class="bi bi-shield-check"></i>
+          </div>
+          <div class="trust-text">
+            <strong>Secure Payment</strong>
+            <span>100% secure checkout</span>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4 col-6">
+        <div class="trust-item">
+          <div class="trust-icon">
+            <i class="bi bi-arrow-return-left"></i>
+          </div>
+          <div class="trust-text">
+            <strong>Easy Returns</strong>
+            <span>30-day return policy</span>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4 col-6">
+        <div class="trust-item">
+          <div class="trust-icon">
+            <i class="bi bi-headset"></i>
+          </div>
+          <div class="trust-text">
+            <strong>24/7 Support</strong>
+            <span>Dedicated support team</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Categories Section -->
+<section class="section categories-section" *ngIf="categories.length > 0">
+  <div class="container">
+    <div class="section-header text-center">
+      <div>
+        <span class="section-subtitle">Categories</span>
+        <h2 class="section-title">Shop by Category</h2>
+        <p class="section-description">Browse our curated collection of home decor categories</p>
+      </div>
+    </div>
+    <div class="row g-4">
+      <div *ngFor="let category of categories" class="col-lg-3 col-md-4 col-6">
+        <a [routerLink]="['/shop', category.CategoryID]" class="category-card">
+          <div class="category-image-wrapper">
+            <img [src]="getCategoryImage(category)" alt="{{ category.CategoryName }}" class="category-img" loading="lazy">
+            <div class="category-overlay"></div>
+          </div>
+          <div class="category-info">
+            <h4>{{ category.CategoryName }}</h4>
+            <span class="category-link">
+              Browse <i class="bi bi-arrow-right"></i>
+            </span>
+          </div>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Featured Products -->
+<section class="section" *ngIf="!loading && products.length > 0">
+  <div class="container">
+    <div class="section-header">
+      <div>
+        <span class="section-subtitle">Featured</span>
+        <h2 class="section-title">Featured Products</h2>
+        <p class="section-description">Handpicked favorites just for you</p>
+      </div>
+      <a routerLink="/shop" class="btn btn-outline-primary btn-sm d-none d-md-inline-flex">
+        View All <i class="bi bi-arrow-right ms-1"></i>
+      </a>
+    </div>
+
+    <div class="row g-4">
+      <div *ngFor="let product of products.slice(0, 8)" class="col-xl-3 col-lg-4 col-md-6">
+        <div class="product-card">
+          <div class="product-image">
+            <img [src]="product.PromoImage | productImage" alt="{{ product.ProductName }}">
+            <span class="product-badge" *ngIf="product.DiscountPercent > 0">{{ product.DiscountPercent }}% OFF</span>
+            <span class="product-badge badge-new" *ngIf="!product.DiscountPercent || product.DiscountPercent === 0">New</span>
+            <div class="product-actions">
+              <button class="btn-action" [class.active]="favoriteProductIds.has(product.ProductID)"
+                      title="{{ favoriteProductIds.has(product.ProductID) ? 'Remove from Favorites' : 'Add to Favorites' }}"
+                      (click)="toggleFavorite(product.ProductID)">
+                <i class="bi" [class.bi-heart]="!favoriteProductIds.has(product.ProductID)" [class.bi-heart-fill]="favoriteProductIds.has(product.ProductID)"></i>
+              </button>
+            </div>
+          </div>
+          <div class="product-body">
+            <div class="product-category" *ngIf="product.Categories && product.Categories.length > 0">
+              {{ product.Categories[0].CategoryName }}
+            </div>
+            <h3 class="product-name">
+              <a [routerLink]="['/product', product.ProductID]">{{ product.ProductTitle }}</a>
+            </h3>
+            <p class="product-description">{{ product.ProductDescription | slice:0:120 }}{{ product.ProductDescription.length > 120 ? '...' : '' }}</p>
+            <div class="stock-info" [class.out-of-stock]="!product.IsInStock"
+                 [class.low-stock]="product.IsInStock && product.AvailableQty > 0 && product.AvailableQty <= 3">
+              <i class="bi" [class.bi-check-circle-fill]="product.IsInStock"
+                 [class.bi-x-circle-fill]="!product.IsInStock"></i>
+              <span *ngIf="product.IsInStock; else noStock">
+                {{ product.AvailableQty <= 3 ? 'Only ' + product.AvailableQty + ' left' : product.AvailableQty + ' in stock' }}
+              </span>
+              <ng-template #noStock><span>Out of Stock</span></ng-template>
+            </div>
+            <div class="product-footer">
+              <div class="product-price">
+                <span class="current-price">{{ UtilityService.currencyFormat(product.PostAdditionalDiscountSalesPrice) }}</span>
+                <span class="original-price" *ngIf="product.PostDiscountSalesPrice !== product.PostAdditionalDiscountSalesPrice">
+                  {{ UtilityService.currencyFormat(product.PostDiscountSalesPrice) }}
+                </span>
+                <span class="discount-badge" *ngIf="product.AdditionalDiscountPercent > 0">
+                  Extra {{ product.AdditionalDiscountPercent }}% off
+                </span>
+              </div>
+              <ng-container *ngIf="cartQuantities.has(product.ProductID); else addToCartBtn">
+                <a [routerLink]="['/cart']" class="btn btn-success btn-sm btn-add-cart">
+                  <i class="bi bi-cart-check me-1"></i> In Cart ({{ cartQuantities.get(product.ProductID) }})
+                </a>
+              </ng-container>
+              <ng-template #addToCartBtn>
+                <button *ngIf="product.IsInStock; else outOfStock" class="btn btn-primary btn-sm btn-add-cart" (click)="addToCart(product.ProductID)">
+                  <i class="bi bi-cart-plus me-1"></i> Add to Cart
+                </button>
+                <ng-template #outOfStock>
+                  <button class="btn btn-secondary btn-sm btn-add-cart" disabled>
+                    <i class="bi bi-x-circle me-1"></i> Out of Stock
+                  </button>
+                </ng-template>
+              </ng-template>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="text-center mt-4 d-md-none">
+      <a routerLink="/shop" class="btn btn-outline-primary">
+        View All Products <i class="bi bi-arrow-right ms-1"></i>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- Loading State -->
+<section class="section" *ngIf="loading">
+  <div class="container">
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading products...</p>
+    </div>
+  </div>
+</section>
+
+<!-- Error State -->
+<section class="section" *ngIf="error">
+  <div class="container">
+    <div class="alert-custom alert-error">
+      <i class="bi bi-exclamation-circle me-2"></i>{{ error }}
+    </div>
+  </div>
+</section>
+
+<!-- Benefits Section -->
+<section class="section benefits-section">
+  <div class="container">
+    <div class="row g-5 align-items-center">
+      <div class="col-lg-6">
+        <div class="benefits-content">
+          <span class="section-subtitle">Why Choose Us</span>
+          <h2 class="section-title">We Make Your Home Beautiful</h2>
+          <p>At Homecuties, we believe every home deserves to be beautiful. We carefully select each product to ensure quality, style, and value.</p>
+          <div class="benefits-list">
+            <div class="benefit-item">
+              <div class="benefit-check">
+                <i class="bi bi-check-lg"></i>
+              </div>
+              <div>
+                <strong>Curated Collections</strong>
+                <p>Every item is handpicked by our team of design experts to ensure quality and style.</p>
+              </div>
+            </div>
+            <div class="benefit-item">
+              <div class="benefit-check">
+                <i class="bi bi-check-lg"></i>
+              </div>
+              <div>
+                <strong>Premium Quality</strong>
+                <p>We partner with trusted manufacturers to bring you products that last.</p>
+              </div>
+            </div>
+            <div class="benefit-item">
+              <div class="benefit-check">
+                <i class="bi bi-check-lg"></i>
+              </div>
+              <div>
+                <strong>Best Prices</strong>
+                <p>Get the best value for your money with our competitive pricing and regular deals.</p>
+              </div>
+            </div>
+            <div class="benefit-item">
+              <div class="benefit-check">
+                <i class="bi bi-check-lg"></i>
+              </div>
+              <div>
+                <strong>Fast Delivery</strong>
+                <p>We process and ship orders quickly so you can enjoy your new decor sooner.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="benefits-image">
+          <div class="benefits-image-grid">
+            <div class="benefits-image-main">
+              <img src="https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=600&q=80" alt="Beautiful home decor" loading="lazy">
+            </div>
+            <div class="benefits-image-sm benefits-image-sm-1">
+              <img src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=300&q=80" alt="Wooden decorative items" loading="lazy">
+            </div>
+            <div class="benefits-image-sm benefits-image-sm-2">
+              <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=300&q=80" alt="Modern home interior" loading="lazy">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Newsletter CTA -->
+<section class="section newsletter-cta">
+  <div class="container">
+    <div class="newsletter-cta-card">
+      <div class="row align-items-center g-4">
+        <div class="col-lg-7">
+          <h2>Stay in the Loop</h2>
+          <p>Subscribe to our newsletter and be the first to know about new arrivals, exclusive deals, and design inspiration.</p>
+        </div>
+        <div class="col-lg-5">
+          <app-newsletter></app-newsletter>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

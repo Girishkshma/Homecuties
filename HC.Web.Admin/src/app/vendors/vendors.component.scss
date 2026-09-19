@@ -1,0 +1,249 @@
+/* Component-specific styles only - table styles are centralized in _tables.scss */
+
+.definition-card {
+  background: #e8f5e9;
+  border: 1px solid #c8e6c9;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+
+  p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #2e7d32;
+    line-height: 1.6;
+  }
+
+  strong {
+    color: #1b5e20;
+  }
+}
+
+.detail-panel {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e0e0e0;
+
+  h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: #333;
+  }
+}
+
+.btn-close {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: #666;
+  padding: 4px 8px;
+  border-radius: 4px;
+
+  &:hover {
+    background: #e0e0e0;
+    color: #333;
+  }
+}
+
+.detail-body {
+  padding: 20px;
+
+  h3 {
+    margin: 20px 0 12px;
+    font-size: 1.1rem;
+    color: #555;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 8px;
+  }
+}
+
+.detail-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  label {
+    font-weight: 600;
+    color: #555;
+    min-width: 120px;
+    font-size: 0.875rem;
+  }
+
+  span {
+    color: #333;
+    font-size: 0.875rem;
+  }
+}
+
+.empty-section {
+  padding: 16px;
+  color: #999;
+  font-style: italic;
+  text-align: center;
+}
+
+.text-muted {
+  color: #999;
+  font-size: 0.8rem;
+}
+
+// Modal
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 520px;
+  max-height: 92vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #eee;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 2;
+
+  h2 {
+    margin: 0;
+    font-size: 20px;
+    color: #1a1a2e;
+  }
+
+  .btn-close {
+    background: none;
+    border: none;
+    font-size: 28px;
+    cursor: pointer;
+    color: #999;
+    padding: 0;
+    line-height: 1;
+
+    &:hover { color: #333; }
+  }
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  position: sticky;
+  bottom: 0;
+  background: #fff;
+}
+
+// Form
+.form-group {
+  margin-bottom: 16px;
+
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 6px;
+
+    .req {
+      color: #dc3545;
+    }
+  }
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease;
+  font-family: inherit;
+
+  &:focus {
+    border-color: #4a6cf7;
+    box-shadow: 0 0 0 2px rgba(74, 108, 247, 0.1);
+  }
+}
+
+textarea.form-input {
+  resize: vertical;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #333;
+  cursor: pointer;
+  user-select: none;
+
+  input[type='checkbox'] {
+    width: 16px;
+    height: 16px;
+    accent-color: #4a6cf7;
+    cursor: pointer;
+  }
+}
+
+.form-message {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  background: #d4edda;
+  color: #155724;
+
+  &.error {
+    background: #f8d7da;
+    color: #721c24;
+  }
+}

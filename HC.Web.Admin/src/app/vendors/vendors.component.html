@@ -1,0 +1,159 @@
+<div class="page-container">
+  <div class="page-header">
+    <h1>Vendors</h1>
+    <div class="header-actions">
+      <button class="btn-primary" (click)="openAddModal()">+ Add Vendor</button>
+    </div>
+  </div>
+
+  <!-- Definition -->
+  <div class="definition-card">
+    <p><strong>Vendors</strong> are suppliers who provide raw materials, ingredients, or products to the partners (sellers) on the Homecuties platform. Unlike partners who sell directly to customers, vendors supply the inventory that partners then list and sell. Each vendor can have multiple users assigned with different roles who manage purchase orders, supply deliveries, and vendor relationships.</p>
+  </div>
+
+  <!-- Detail View -->
+  <div *ngIf="showDetail && selectedVendor" class="detail-panel">
+    <div class="detail-header">
+      <h2>{{ selectedVendor.vendorName }}</h2>
+      <button class="btn-close" (click)="closeDetail()">✕</button>
+    </div>
+    <div class="detail-body">
+      <div class="detail-info">
+        <div class="info-row"><label>Vendor ID:</label><span>{{ selectedVendor.vendorId }}</span></div>
+        <div class="info-row"><label>Address:</label><span>{{ selectedVendor.vendorAddress || '-' }}</span></div>
+        <div class="info-row"><label>Mobile:</label><span>{{ selectedVendor.mobile }}</span></div>
+        <div class="info-row"><label>Remarks:</label><span>{{ selectedVendor.remarks || '-' }}</span></div>
+        <div class="info-row"><label>Active:</label><span>{{ selectedVendor.isActive ? '✅ Yes' : '❌ No' }}</span></div>
+        <div class="info-row"><label>Purchase Count:</label><span>{{ selectedVendor.purchaseCount }}</span></div>
+      </div>
+
+      <h3>Users & Roles</h3>
+      <div *ngIf="selectedVendor.users.length === 0" class="empty-section">No users assigned to this vendor.</div>
+      <table class="data-table" *ngIf="selectedVendor.users.length > 0">
+        <thead>
+          <tr><th>Name</th><th>Login ID</th><th>Email</th><th>Mobile</th><th>Active</th><th>Roles</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let u of selectedVendor.users">
+            <td>{{ u.userName }}</td>
+            <td>{{ u.loginId }}</td>
+            <td>{{ u.emailId || '-' }}</td>
+            <td>{{ u.mobileNumber || '-' }}</td>
+            <td>{{ u.isActive ? '✅' : '❌' }}</td>
+            <td>
+              <span *ngFor="let role of u.roles" class="role-tag">{{ role }}</span>
+              <span *ngIf="u.roles.length === 0" class="text-muted">No roles</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- List View -->
+  <div *ngIf="isLoading" class="loading">Loading vendors...</div>
+  <div *ngIf="!isLoading && !showDetail" class="table-container">
+    <table class="data-table">
+      <thead>
+        <tr><th>ID</th><th>Name</th><th>Address</th><th>Mobile</th><th>Active</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let v of paginatedVendors">
+          <td>{{ v.vendorId }}</td>
+          <td>{{ v.vendorName }}</td>
+          <td>{{ v.vendorAddress || '-' }}</td>
+          <td>{{ v.mobile }}</td>
+          <td>{{ v.isActive ? '✅' : '❌' }}</td>
+          <td class="actions">
+            <button class="btn-sm btn-view" (click)="viewDetail(v.vendorId)">View Details</button>
+            <button class="btn-sm btn-edit" (click)="openEditModal(v.vendorId)">✏️ Edit</button>
+          </td>
+        </tr>
+        <tr *ngIf="vendors.length === 0"><td colspan="6" class="empty">No vendors found.</td></tr>
+      </tbody>
+    </table>
+
+    <!-- Pagination -->
+    <div class="pagination" *ngIf="vendors.length > 0">
+      <div class="pagination-info">
+        Showing <strong>{{ startRecord }}</strong> to <strong>{{ endRecord }}</strong> of <strong>{{ vendors.length }}</strong> vendors
+      </div>
+      <div class="pagination-controls">
+        <button class="nav-btn" [disabled]="currentPage === 1" (click)="goToPage(1)">&laquo;</button>
+        <button class="nav-btn" [disabled]="currentPage === 1" (click)="goToPage(currentPage - 1)">&lsaquo;</button>
+        <ng-container *ngFor="let p of getPageNumbers()">
+          <span class="page-ellipsis" *ngIf="p === '...'">...</span>
+          <button *ngIf="p !== '...'" [class.active]="p === currentPage" (click)="goToPage(p)">{{ p }}</button>
+        </ng-container>
+        <button class="nav-btn" [disabled]="currentPage === totalPages" (click)="goToPage(currentPage + 1)">&rsaquo;</button>
+        <button class="nav-btn" [disabled]="currentPage === totalPages" (click)="goToPage(totalPages)">&raquo;</button>
+      </div>
+      <div class="pagination-size">
+        <span>Rows:</span>
+        <select [ngModel]="pageSize" (ngModelChange)="changePageSize($event)">
+
+          <option *ngFor="let size of pageSizeOptions" [value]="size">{{ size }}</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Add / Edit Vendor Modal -->
+<div class="modal-overlay" *ngIf="showFormModal" (click)="closeFormModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>{{ isEditMode ? 'Edit Vendor' : 'Add Vendor' }}</h2>
+      <button class="btn-close" (click)="closeFormModal()">&times;</button>
+    </div>
+
+    <div *ngIf="isLoadingDetail" class="modal-body">
+      <div class="loading">Loading vendor details...</div>
+    </div>
+
+    <form *ngIf="!isLoadingDetail" (ngSubmit)="saveVendor()">
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="vendorName">Vendor Name <span class="req">*</span></label>
+          <input id="vendorName" type="text" maxlength="50" placeholder="Vendor name"
+            [(ngModel)]="vendorForm.vendorName" name="vendorName" class="form-input">
+        </div>
+
+        <div class="form-group">
+          <label for="mobile">Mobile Number <span class="req">*</span></label>
+          <input id="mobile" type="text" maxlength="10" placeholder="10-digit mobile"
+            [(ngModel)]="vendorForm.mobile" name="mobile" class="form-input">
+        </div>
+
+        <div class="form-group">
+          <label for="vendorAddress">Address</label>
+          <textarea id="vendorAddress" rows="3" maxlength="500" placeholder="Vendor address"
+            [(ngModel)]="vendorForm.vendorAddress" name="vendorAddress" class="form-input"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="remarks">Remarks</label>
+          <textarea id="remarks" rows="2" maxlength="500" placeholder="Optional remarks"
+            [(ngModel)]="vendorForm.remarks" name="remarks" class="form-input"></textarea>
+        </div>
+
+        <div class="form-group checkbox-row">
+          <label class="checkbox-item">
+            <input type="checkbox" [(ngModel)]="vendorForm.isActive" name="isActive">
+            <span>Active</span>
+          </label>
+        </div>
+
+        <div *ngIf="formMessage" class="form-message" [class.error]="formError">
+          {{ formMessage }}
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" (click)="closeFormModal()">Cancel</button>
+        <button type="submit" class="btn-primary" [disabled]="isSaving">
+          {{ isSaving ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Create Vendor') }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

@@ -1,0 +1,90 @@
+<div class="dashboard">
+  <div class="page-header">
+    <h1>Dashboard</h1>
+    <p *ngIf="user">Welcome back, {{ user.firstName }} {{ user.lastName }}</p>
+  </div>
+
+  <!-- User Profile Card -->
+  <div class="user-profile-card" *ngIf="user">
+    <div class="user-profile-avatar">{{ getInitials(user.firstName, user.lastName) }}</div>
+    <div class="user-profile-details">
+      <h2>{{ user.firstName }} {{ user.middleName }} {{ user.lastName }}</h2>
+      <div class="user-profile-meta">
+        <span *ngIf="user.emailId"><strong>Email:</strong> {{ user.emailId }}</span>
+        <span *ngIf="user.mobileNumber"><strong>Mobile:</strong> {{ user.mobileNumber }}</span>
+        <span><strong>Login ID:</strong> {{ user.loginId }}</span>
+      </div>
+      <div class="user-profile-roles">
+        <span *ngFor="let role of user.roles" class="role-badge">{{ role.roleName }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="isLoading" class="loading">Loading dashboard data...</div>
+
+  <div *ngIf="!isLoading" class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon products">🛍️</div>
+      <div class="stat-info">
+        <h3>{{ stats.totalProducts }}</h3>
+        <p>Total Products</p>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon orders">📦</div>
+      <div class="stat-info">
+        <h3>{{ stats.totalOrders }}</h3>
+        <p>Total Orders</p>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon customers">👥</div>
+      <div class="stat-info">
+        <h3>{{ stats.totalCustomers }}</h3>
+        <p>Total Customers</p>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon partners">🤝</div>
+      <div class="stat-info">
+        <h3>{{ stats.totalPartners }}</h3>
+        <p>Total Partners</p>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon vendors">🏪</div>
+      <div class="stat-info">
+        <h3>{{ stats.totalVendors }}</h3>
+        <p>Total Vendors</p>
+      </div>
+    </div>
+
+    <div class="stat-card warning">
+      <div class="stat-icon pending">⏳</div>
+      <div class="stat-info">
+        <h3>{{ stats.pendingOrders }}</h3>
+        <p>Pending Orders</p>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon revenue">💰</div>
+      <div class="stat-info">
+        <h3>{{ stats.todayRevenue | currency:'INR' }}</h3>
+        <p>Today's Revenue</p>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon revenue">📈</div>
+      <div class="stat-info">
+        <h3>{{ stats.monthlyRevenue | currency:'INR' }}</h3>
+        <p>Monthly Revenue</p>
+      </div>
+    </div>
+  </div>
+</div>

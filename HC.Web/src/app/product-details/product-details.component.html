@@ -1,0 +1,139 @@
+<div class="container product-detail">
+  <!-- Breadcrumb -->
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a routerLink="/">Home</a></li>
+      <li class="breadcrumb-item"><a routerLink="/shop">Shop</a></li>
+      <li class="breadcrumb-item active" *ngIf="product">{{ product.ProductTitle }}</li>
+    </ol>
+  </nav>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-state">
+    <div class="spinner"></div>
+    <p>Loading product details...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error" class="alert-custom alert-error">
+    <i class="bi bi-exclamation-circle me-2"></i>{{ error }}
+  </div>
+
+  <!-- Product Detail -->
+  <div *ngIf="!loading && !error && product" class="row g-5">
+    <!-- Gallery -->
+    <div class="col-lg-6">
+      <div class="product-gallery"
+           (mouseenter)="onMouseEnter()"
+           (mouseleave)="onMouseLeave()">
+        <!-- Main square image with nav arrows -->
+        <div class="main-image-square">
+          <img [src]="selectedImage | productImage" alt="{{ product.ProductName }}">
+
+          <!-- Left/Right navigation arrows -->
+          <button class="carousel-arrow carousel-arrow-left" *ngIf="hasMultipleImages"
+                  (click)="prevImage()" aria-label="Previous image">
+            <i class="bi bi-chevron-left"></i>
+          </button>
+          <button class="carousel-arrow carousel-arrow-right" *ngIf="hasMultipleImages"
+                  (click)="nextImage()" aria-label="Next image">
+            <i class="bi bi-chevron-right"></i>
+          </button>
+
+          <!-- Image counter -->
+          <span class="image-counter" *ngIf="hasMultipleImages">
+            {{ currentIndex + 1 }} / {{ images.length }}
+          </span>
+        </div>
+
+        <!-- Thumbnails -->
+        <div class="thumbnail-list" *ngIf="hasMultipleImages">
+          <div *ngFor="let img of images; let i = index" class="thumbnail"
+               [class.active]="selectedImage === img" (click)="selectImage(img)">
+            <img [src]="img | productImage" alt="Product thumbnail">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Info -->
+    <div class="col-lg-6">
+      <div class="product-info">
+        <h1 class="product-title">{{ product.ProductTitle }}</h1>
+        <p class="product-subtitle">{{ product.ProductName }}</p>
+
+        <div class="product-price-section">
+          <span class="price-current">{{ UtilityService.currencyFormat(product.PostAdditionalDiscountSalesPrice) }}</span>
+          <span class="price-original" *ngIf="product.PostDiscountSalesPrice !== product.PostAdditionalDiscountSalesPrice">
+            {{ UtilityService.currencyFormat(product.PostDiscountSalesPrice) }}
+          </span>
+          <span class="price-discount" *ngIf="product.DiscountPercent > 0">
+            {{ product.DiscountPercent }}% OFF
+          </span>
+          <div *ngIf="product.AdditionalDiscountPercent > 0" class="mt-1">
+            <span class="price-discount">Extra {{ product.AdditionalDiscountPercent }}% off</span>
+          </div>
+        </div>
+
+        <p class="product-description">{{ product.ProductDescription }}</p>
+
+        <!-- Features -->
+        <div class="product-features" *ngIf="product.Features && product.Features.length > 0">
+          <h5><i class="bi bi-check2-circle me-2"></i>Features</h5>
+          <ul>
+            <li *ngFor="let feature of product.Features">
+              <i class="bi bi-check-circle-fill"></i> {{ feature.Feature }}
+            </li>
+          </ul>
+        </div>
+
+        <!-- Categories -->
+        <div class="product-categories" *ngIf="product.Categories && product.Categories.length > 0">
+          <span class="category-tag" *ngFor="let category of product.Categories">
+            <i class="bi bi-tag me-1"></i>{{ category.CategoryName }}
+          </span>
+        </div>
+
+        <!-- Stock availability -->
+        <div class="stock-availability" [class.out]="!product.IsInStock">
+          <i class="bi" [class.bi-check-circle-fill]="product.IsInStock"
+             [class.bi-x-circle-fill]="!product.IsInStock"></i>
+          <ng-container *ngIf="product.IsInStock; else outOfStockText">
+            In Stock — <strong>{{ product.AvailableQty }}</strong> available
+          </ng-container>
+          <ng-template #outOfStockText>Out of Stock</ng-template>
+        </div>
+
+        <!-- Actions -->
+        <div class="product-actions">
+          <ng-container *ngIf="product.IsInStock; else outOfStockBlock">
+            <div class="quantity-control">
+              <button (click)="decrementQuantity()" [disabled]="quantity <= 1">−</button>
+              <input type="number" [(ngModel)]="quantity" min="1" [max]="maxQuantity" readonly>
+              <button (click)="incrementQuantity()" [disabled]="isAtMaxQuantity">+</button>
+            </div>
+            <button class="btn-add-to-cart" (click)="addToCart()" [disabled]="addedToCart">
+              <i class="bi" [class.bi-cart-plus]="!addedToCart" [class.bi-check-lg]="addedToCart"></i>
+              {{ addedToCart ? 'Added to Cart!' : 'Add to Cart' }}
+            </button>
+          </ng-container>
+          <ng-template #outOfStockBlock>
+            <div class="out-of-stock-badge">
+              <i class="bi bi-x-circle me-2"></i> Out of Stock
+            </div>
+          </ng-template>
+          <button class="btn-favorite" (click)="toggleFavorite()"
+                  [class.active]="isFavorite"
+                  title="{{ isFavorite ? 'Remove from Favorites' : 'Add to Favorites' }}">
+            <i class="bi" [class.bi-heart]="!isFavorite" [class.bi-heart-fill]="isFavorite"></i>
+            {{ isFavorite ? 'Favorited' : 'Add to Favorites' }}
+          </button>
+        </div>
+
+        <a routerLink="/cart" class="btn btn-outline-primary w-100" *ngIf="addedToCart">
+          <i class="bi bi-cart me-1"></i> View Cart
+        </a>
+      </div>
+    </div>
+  </div>
+</div>

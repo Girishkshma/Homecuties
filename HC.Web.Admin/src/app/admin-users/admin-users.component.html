@@ -1,0 +1,173 @@
+<div class="page-container">
+  <div class="page-header">
+    <h1>Admin Users</h1>
+    <div class="header-actions">
+      <div class="filter-group" role="group" aria-label="Filter users by status">
+        <button type="button" class="filter-btn" [class.active]="statusFilter === 'all'"
+          (click)="setStatusFilter('all')">All ({{ users.length }})</button>
+        <button type="button" class="filter-btn" [class.active]="statusFilter === 'active'"
+          (click)="setStatusFilter('active')">Active ({{ activeCount }})</button>
+        <button type="button" class="filter-btn" [class.active]="statusFilter === 'inactive'"
+          (click)="setStatusFilter('inactive')">Inactive ({{ inactiveCount }})</button>
+      </div>
+      <button class="btn-primary" (click)="openAddModal()">+ Add User</button>
+    </div>
+  </div>
+
+  <div *ngIf="isLoading" class="loading">Loading users...</div>
+
+  <div *ngIf="!isLoading" class="table-container">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Login ID</th>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Roles</th>
+          <th>Active</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let u of paginatedUsers">
+          <td>{{ u.userId }}</td>
+          <td>{{ u.loginId }}</td>
+          <td>{{ u.firstName }} {{ u.lastName }}</td>
+          <td>{{ u.emailId || '-' }}</td>
+          <td><span class="role-badge" *ngFor="let role of u.roles">{{ role }}</span></td>
+          <td>{{ u.isActive ? '✅' : '❌' }}</td>
+          <td class="actions">
+            <button class="btn-sm btn-edit" (click)="openEditModal(u.userId)" title="Edit User">✏️ Edit</button>
+          </td>
+        </tr>
+        <tr *ngIf="filteredUsers.length === 0">
+          <td colspan="7" class="empty">No admin users found.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Pagination -->
+    <div class="pagination" *ngIf="filteredUsers.length > 0">
+      <div class="pagination-info">
+        Showing <strong>{{ startRecord }}</strong> to <strong>{{ endRecord }}</strong> of <strong>{{ filteredUsers.length }}</strong> users
+      </div>
+      <div class="pagination-controls">
+        <button class="nav-btn" [disabled]="currentPage === 1" (click)="goToPage(1)">&laquo;</button>
+        <button class="nav-btn" [disabled]="currentPage === 1" (click)="goToPage(currentPage - 1)">&lsaquo;</button>
+        <ng-container *ngFor="let p of getPageNumbers()">
+          <span class="page-ellipsis" *ngIf="p === '...'">...</span>
+          <button *ngIf="p !== '...'" [class.active]="p === currentPage" (click)="goToPage(p)">{{ p }}</button>
+        </ng-container>
+        <button class="nav-btn" [disabled]="currentPage === totalPages" (click)="goToPage(currentPage + 1)">&rsaquo;</button>
+        <button class="nav-btn" [disabled]="currentPage === totalPages" (click)="goToPage(totalPages)">&raquo;</button>
+      </div>
+      <div class="pagination-size">
+        <span>Rows:</span>
+        <select [ngModel]="pageSize" (ngModelChange)="changePageSize($event)">
+          <option *ngFor="let size of pageSizeOptions" [value]="size">{{ size }}</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Add / Edit Admin User Modal -->
+<div class="modal-overlay" *ngIf="showFormModal" (click)="closeFormModal()">
+  <div class="modal-content modal-lg" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>{{ isEditMode ? 'Edit Admin User' : 'Add Admin User' }}</h2>
+      <button class="btn-close" (click)="closeFormModal()">&times;</button>
+    </div>
+
+    <div *ngIf="isLoadingDetail" class="modal-body">
+      <div class="loading">Loading user details...</div>
+    </div>
+
+    <form *ngIf="!isLoadingDetail" (ngSubmit)="saveUser()">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="loginId">Login ID <span class="req">*</span></label>
+            <input id="loginId" type="text" maxlength="20" placeholder="e.g. john.doe"
+              [(ngModel)]="form.loginId" name="loginId" class="form-input">
+          </div>
+          <div class="form-group">
+            <label for="firstName">First Name <span class="req">*</span></label>
+            <input id="firstName" type="text" maxlength="50" placeholder="First name"
+              [(ngModel)]="form.firstName" name="firstName" class="form-input">
+          </div>
+          <div class="form-group">
+            <label for="middleName">Middle Name</label>
+            <input id="middleName" type="text" maxlength="50" placeholder="Middle name"
+              [(ngModel)]="form.middleName" name="middleName" class="form-input">
+          </div>
+          <div class="form-group">
+            <label for="lastName">Last Name</label>
+            <input id="lastName" type="text" maxlength="50" placeholder="Last name"
+              [(ngModel)]="form.lastName" name="lastName" class="form-input">
+          </div>
+          <div class="form-group">
+            <label for="emailId">Email</label>
+            <input id="emailId" type="email" maxlength="150" placeholder="user@example.com"
+              [(ngModel)]="form.emailId" name="emailId" class="form-input">
+          </div>
+          <div class="form-group">
+            <label for="mobileNumber">Mobile Number</label>
+            <input id="mobileNumber" type="text" maxlength="10" placeholder="10-digit mobile"
+              [(ngModel)]="form.mobileNumber" name="mobileNumber" class="form-input">
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <h3>Account</h3>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="password">{{ isEditMode ? 'New Password' : 'Password' }} <span class="req" *ngIf="!isEditMode">*</span></label>
+              <input id="password" type="password" maxlength="50" autocomplete="new-password"
+                [placeholder]="isEditMode ? 'Leave blank to keep current password' : 'Min 6 characters'"
+                [(ngModel)]="form.password" name="password" class="form-input">
+            </div>
+            <div class="form-group">
+              <label for="confirmPassword">Confirm Password</label>
+              <input id="confirmPassword" type="password" maxlength="50" autocomplete="new-password"
+                placeholder="Re-enter password" [(ngModel)]="confirmPassword" name="confirmPassword" class="form-input">
+            </div>
+          </div>
+          <div class="checkbox-row">
+            <label class="checkbox-item">
+              <input type="checkbox" [(ngModel)]="form.isActive" name="isActive">
+              <span>Active (can log in)</span>
+            </label>
+            <label class="checkbox-item">
+              <input type="checkbox" [(ngModel)]="form.mustChangePassword" name="mustChangePassword">
+              <span>Must change password at next login</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <h3>Roles</h3>
+          <div *ngIf="roles.length === 0" class="no-data">No roles available.</div>
+          <div class="checkbox-grid">
+            <label class="checkbox-item" *ngFor="let role of roles">
+              <input type="checkbox" [checked]="isRoleSelected(role.roleId)"
+                (change)="toggleRole(role.roleId, $event)">
+              <span>{{ role.roleName }}</span>
+            </label>
+          </div>
+        </div>
+
+        <div *ngIf="formMessage" class="form-message" [class.error]="formError">
+          {{ formMessage }}
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" (click)="closeFormModal()">Cancel</button>
+        <button type="submit" class="btn-primary" [disabled]="isSaving">
+          {{ isSaving ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Create User') }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

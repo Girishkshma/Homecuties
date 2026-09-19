@@ -1,0 +1,250 @@
+/* Product add/edit form styles */
+
+.product-form {
+  max-width: 1100px;
+}
+
+.form-section {
+  background: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: 10px;
+  padding: 20px 24px;
+  margin-bottom: 18px;
+
+  h2 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1a1a2e;
+    margin: 0 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #eee;
+  }
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+
+  .form-full {
+    grid-column: 1 / -1;
+  }
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+
+  label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 6px;
+
+    .req {
+      color: #dc3545;
+    }
+  }
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease;
+  font-family: inherit;
+
+  &:focus {
+    border-color: #4a6cf7;
+    box-shadow: 0 0 0 2px rgba(74, 108, 247, 0.1);
+  }
+}
+
+textarea.form-input {
+  resize: vertical;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+}
+
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #333;
+  cursor: pointer;
+  user-select: none;
+
+  input[type='checkbox'] {
+    width: 16px;
+    height: 16px;
+    accent-color: #4a6cf7;
+    cursor: pointer;
+  }
+}
+
+.no-data {
+  color: #999;
+  font-style: italic;
+  padding: 8px 0;
+}
+
+// Dynamic repeat rows (features/images)
+.repeat-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+
+  .form-input {
+    flex: 1;
+  }
+
+  .image-type {
+    max-width: 180px;
+    flex: 0 0 180px;
+  }
+
+  .image-index {
+    max-width: 90px;
+    flex: 0 0 90px;
+  }
+
+  .checkbox-item {
+    white-space: nowrap;
+  }
+}
+
+.btn-add-row {
+  margin-top: 4px;
+}
+
+// Image upload cards
+.image-card {
+  background: #f8f9fc;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+
+.image-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.image-preview-box {
+  width: 72px;
+  height: 72px;
+  border: 1px dashed #ced4da;
+  border-radius: 6px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex: 0 0 72px;
+
+  .image-preview {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .preview-note {
+    font-size: 11px;
+    color: #999;
+    text-align: center;
+    padding: 4px;
+    line-height: 1.3;
+  }
+}
+
+.upload-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 200px;
+  flex: 1;
+}
+
+.file-input {
+  display: none;
+}
+
+.upload-status {
+  font-size: 12px;
+  color: #28a745;
+  word-break: break-all;
+
+  &.uploading {
+    color: #4a6cf7;
+  }
+
+  &.error {
+    color: #dc3545;
+  }
+}
+
+.image-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+
+  .image-type {
+    max-width: 180px;
+  }
+
+  .image-index {
+    max-width: 90px;
+  }
+}
+
+.form-message {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  background: #d4edda;
+  color: #155724;
+
+  &.error {
+    background: #f8d7da;
+    color: #721c24;
+  }
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 8px 0 24px;
+}
+
+@media (max-width: 640px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .repeat-row {
+    flex-wrap: wrap;
+  }
+}

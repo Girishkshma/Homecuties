@@ -1,0 +1,200 @@
+<div class="page-container">
+  <div class="page-header">
+    <h1>Customers</h1>
+    <div class="header-actions">
+      <div class="search-box">
+        <input type="text" [(ngModel)]="searchTerm" placeholder="Search by name, email or mobile..."
+          (keyup.enter)="search()" class="search-input">
+        <button (click)="search()" class="btn-search">Search</button>
+        <button *ngIf="searchTerm" (click)="clearSearch()" class="btn-clear">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="isLoading" class="loading">Loading customers...</div>
+
+  <div *ngIf="!isLoading" class="table-container">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Mobile</th>
+          <th>Verified</th>
+          <th>Created</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let c of paginatedCustomers">
+          <td>{{ c.customerId }}</td>
+          <td>{{ c.firstName }} {{ c.middleName ? c.middleName + ' ' : '' }}{{ c.lastName }}</td>
+          <td>{{ c.emailId }}</td>
+          <td>{{ c.mobileNumber || '-' }}</td>
+          <td>
+            <span class="verified-icon" [class.verified]="c.emailVerified" title="Email Verified">📧</span>
+            <span class="verified-icon" [class.verified]="c.mobileVerified" title="Mobile Verified">📱</span>
+          </td>
+          <td>{{ c.createdOn | date:'medium' }}</td>
+          <td><span [class]="getStatusBadgeClass(c.status)">{{ c.status }}</span></td>
+          <td class="actions">
+            <button (click)="viewDetail(c.customerId)" class="btn-sm btn-view" title="View Details">👁️</button>
+            <button (click)="openStatusModal(c)" class="btn-sm btn-edit" title="Change Status">🔄</button>
+          </td>
+        </tr>
+        <tr *ngIf="customers.length === 0">
+          <td colspan="8" class="empty">No customers found.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Pagination -->
+    <div class="pagination" *ngIf="customers.length > 0">
+      <div class="pagination-info">
+        Showing <strong>{{ startRecord }}</strong> to <strong>{{ endRecord }}</strong> of <strong>{{ customers.length }}</strong> customers
+      </div>
+      <div class="pagination-controls">
+        <button class="nav-btn" [disabled]="currentPage === 1" (click)="goToPage(1)">&laquo;</button>
+        <button class="nav-btn" [disabled]="currentPage === 1" (click)="goToPage(currentPage - 1)">&lsaquo;</button>
+        <ng-container *ngFor="let p of getPageNumbers()">
+          <span class="page-ellipsis" *ngIf="p === '...'">...</span>
+          <button *ngIf="p !== '...'" [class.active]="p === currentPage" (click)="goToPage(p)">{{ p }}</button>
+        </ng-container>
+        <button class="nav-btn" [disabled]="currentPage === totalPages" (click)="goToPage(currentPage + 1)">&rsaquo;</button>
+        <button class="nav-btn" [disabled]="currentPage === totalPages" (click)="goToPage(totalPages)">&raquo;</button>
+      </div>
+      <div class="pagination-size">
+        <span>Rows:</span>
+        <select [ngModel]="pageSize" (ngModelChange)="changePageSize($event)">
+
+          <option *ngFor="let size of pageSizeOptions" [value]="size">{{ size }}</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Customer Detail Modal -->
+<div class="modal-overlay" *ngIf="showDetailModal" (click)="closeDetail()">
+  <div class="modal-content modal-lg" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Customer Details</h2>
+      <button class="btn-close" (click)="closeDetail()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div *ngIf="isLoadingDetail" class="loading">Loading details...</div>
+      <div *ngIf="!isLoadingDetail && selectedCustomer">
+        <!-- Customer Info -->
+        <div class="detail-section">
+          <h3>Personal Information</h3>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <label>Name</label>
+              <span>{{ selectedCustomer.firstName }} {{ selectedCustomer.middleName ? selectedCustomer.middleName + ' ' : '' }}{{ selectedCustomer.lastName }}</span>
+            </div>
+            <div class="detail-item">
+              <label>Email</label>
+              <span>{{ selectedCustomer.emailId }}</span>
+            </div>
+            <div class="detail-item">
+              <label>Mobile</label>
+              <span>{{ selectedCustomer.mobileNumber || '-' }}</span>
+            </div>
+            <div class="detail-item">
+              <label>Status</label>
+              <span [class]="getStatusBadgeClass(selectedCustomer.status)">{{ selectedCustomer.status }}</span>
+            </div>
+            <div class="detail-item">
+              <label>Email Verified</label>
+              <span>{{ selectedCustomer.emailVerified ? '✅ Yes' : '❌ No' }}</span>
+            </div>
+            <div class="detail-item">
+              <label>Mobile Verified</label>
+              <span>{{ selectedCustomer.mobileVerified ? '✅ Yes' : '❌ No' }}</span>
+            </div>
+            <div class="detail-item">
+              <label>Created On</label>
+              <span>{{ selectedCustomer.createdOn | date:'medium' }}</span>
+            </div>
+            <div class="detail-item">
+              <label>Last Modified</label>
+              <span>{{ selectedCustomer.modifiedOn | date:'medium' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Order Stats -->
+        <div class="detail-section">
+          <h3>Order Statistics</h3>
+          <div class="stats-row">
+            <div class="stat-card">
+              <span class="stat-value">{{ selectedCustomer.orderCount }}</span>
+              <span class="stat-label">Total Orders</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-value">{{ selectedCustomer.totalSpent | currency:'INR' }}</span>
+              <span class="stat-label">Total Spent</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Addresses -->
+        <div class="detail-section">
+          <h3>Saved Addresses ({{ selectedCustomer.addresses.length }})</h3>
+          <div *ngIf="selectedCustomer.addresses.length === 0" class="no-data">No addresses saved.</div>
+          <div class="addresses-grid">
+            <div class="address-card" *ngFor="let addr of selectedCustomer.addresses">
+              <div class="address-title">{{ addr.addressTitle }}</div>
+              <div class="address-detail">{{ addr.contactName }}</div>
+              <div class="address-detail">{{ addr.addressLine1 }}</div>
+              <div class="address-detail" *ngIf="addr.addressLine2">{{ addr.addressLine2 }}</div>
+              <div class="address-detail">{{ addr.city }}, {{ addr.state }} - {{ addr.zipcode }}</div>
+              <div class="address-detail">{{ addr.country }}</div>
+              <div class="address-detail">📞 {{ addr.mobileNumber }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="closeDetail()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Status Update Modal -->
+<div class="modal-overlay" *ngIf="showStatusModal" (click)="closeStatusModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Update Customer Status</h2>
+      <button class="btn-close" (click)="closeStatusModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div *ngIf="selectedCustomer" class="status-update-info">
+        <p><strong>Customer:</strong> {{ selectedCustomer.firstName }} {{ selectedCustomer.lastName }}</p>
+        <p><strong>Current Status:</strong> <span [class]="getStatusBadgeClass(selectedCustomer.status)">{{ selectedCustomer.status }}</span></p>
+      </div>
+      <div class="form-group">
+        <label>New Status</label>
+        <select [(ngModel)]="selectedStatusId" class="form-select">
+          <option value="0">-- Select Status --</option>
+          <option value="1">Active</option>
+          <option value="2">Inactive</option>
+          <option value="3">Blocked</option>
+          <option value="4">Pending</option>
+        </select>
+      </div>
+      <div *ngIf="statusUpdateMessage" class="status-message" [class.error]="statusUpdateError">
+        {{ statusUpdateMessage }}
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="closeStatusModal()">Cancel</button>
+      <button class="btn-primary" (click)="updateStatus()" [disabled]="isUpdatingStatus || !selectedStatusId">
+        {{ isUpdatingStatus ? 'Updating...' : 'Update Status' }}
+      </button>
+    </div>
+  </div>
+</div>

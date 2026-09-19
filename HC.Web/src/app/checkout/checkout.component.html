@@ -1,0 +1,212 @@
+<div class="checkout-page">
+  <div class="container">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a routerLink="/">Home</a></li>
+        <li class="breadcrumb-item"><a routerLink="/cart">Cart</a></li>
+        <li class="breadcrumb-item active">Checkout</li>
+      </ol>
+    </nav>
+
+    <h2 class="section-title">Checkout</h2>
+
+    <!-- Loading State -->
+    <div *ngIf="loading" class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading cart...</p>
+    </div>
+
+    <!-- Error State -->
+    <div *ngIf="error && !loading" class="alert-custom alert-error">
+      <i class="bi bi-exclamation-circle me-2"></i>{{ error }}
+    </div>
+
+    <!-- Stock Warning -->
+    <div *ngIf="!loading && showStockWarning" class="stock-warning-card">
+      <div class="stock-warning-header">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <h5>Items Updated</h5>
+      </div>
+      <div class="stock-warning-body">
+        <p *ngIf="removedItems.length > 0">
+          <strong>Out of stock - removed from order:</strong>
+        </p>
+        <ul *ngIf="removedItems.length > 0" class="stock-warning-list">
+          <li *ngFor="let item of removedItems">
+            <i class="bi bi-x-circle text-danger me-2"></i>{{ item }}
+          </li>
+        </ul>
+        <p *ngIf="adjustedItems.length > 0">
+          <strong>Quantity adjusted due to limited stock:</strong>
+        </p>
+        <ul *ngIf="adjustedItems.length > 0" class="stock-warning-list">
+          <li *ngFor="let item of adjustedItems">
+            <i class="bi bi-arrow-up-circle text-warning me-2"></i>{{ item }}
+          </li>
+        </ul>
+        <p class="stock-warning-note">Your cart has been updated. Only in-stock items are shown below.</p>
+      </div>
+    </div>
+
+    <!-- Empty Cart -->
+    <div *ngIf="!loading && !orderSuccess && getFilteredCartItems().length === 0" class="empty-state">
+      <div class="empty-icon">
+        <i class="bi bi-cart-x"></i>
+      </div>
+      <h4>No items available for checkout</h4>
+      <p *ngIf="removedItems.length > 0">The items in your cart are currently out of stock.</p>
+      <p *ngIf="removedItems.length === 0">Your cart is empty. Add some items before proceeding to checkout.</p>
+      <a routerLink="/shop" class="btn btn-primary btn-lg">
+        <i class="bi bi-bag me-2"></i> Start Shopping
+      </a>
+    </div>
+
+    <!-- Order Success -->
+    <div *ngIf="orderSuccess" class="order-success">
+      <div class="success-icon">
+        <i class="bi bi-check-circle-fill"></i>
+      </div>
+      <h3>Order Placed Successfully!</h3>
+      <p class="order-number-text">Order Number: <strong>{{ orderNumber }}</strong></p>
+      <p>Thank you for your purchase! We'll send you a confirmation email shortly.</p>
+      <button class="btn btn-primary btn-lg" (click)="continueShopping()">
+        <i class="bi bi-bag me-2"></i> Continue Shopping
+      </button>
+    </div>
+
+    <!-- Checkout Form -->
+    <div *ngIf="!loading && !orderSuccess && getFilteredCartItems().length > 0" class="row g-4">
+      <!-- Shipping Details -->
+      <div class="col-lg-7">
+        <div class="checkout-form-card">
+          <h5 class="card-title">
+            <i class="bi bi-geo-alt me-2"></i>Shipping Details
+          </h5>
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Address *</label>
+              <textarea
+                class="form-control"
+                rows="2"
+                [(ngModel)]="shippingAddress"
+                placeholder="Street address, apartment, suite, etc."
+              ></textarea>
+            </div>
+            <div class="col-md-5">
+              <label class="form-label">City *</label>
+              <input
+                type="text"
+                class="form-control"
+                [(ngModel)]="city"
+                placeholder="City"
+              />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">State *</label>
+              <input
+                type="text"
+                class="form-control"
+                [(ngModel)]="state"
+                placeholder="State"
+              />
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">ZIP Code *</label>
+              <input
+                type="text"
+                class="form-control"
+                [(ngModel)]="zipCode"
+                placeholder="ZIP Code"
+              />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Phone Number *</label>
+              <input
+                type="tel"
+                class="form-control"
+                [(ngModel)]="phoneNumber"
+                placeholder="Phone Number"
+              />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Email *</label>
+              <input
+                type="email"
+                class="form-control"
+                [(ngModel)]="email"
+                placeholder="Email"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- Payment Method -->
+        <div class="checkout-form-card">
+          <h5 class="card-title">
+            <i class="bi bi-credit-card me-2"></i>Payment Method
+          </h5>
+          <div class="payment-method-card selected">
+            <div class="payment-radio">
+              <i class="bi bi-credit-card-2-front"></i>
+            </div>
+            <div class="payment-info">
+              <h6>Razorpay</h6>
+              <small>Pay via UPI, Credit/Debit Card, Net Banking, or Wallet</small>
+            </div>
+            <div class="payment-badge">
+              <span class="badge bg-success">Secure</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Order Summary -->
+      <div class="col-lg-5">
+        <div class="checkout-summary-card">
+          <h5 class="card-title">Order Summary</h5>
+          <div class="checkout-items">
+            <div class="checkout-item" *ngFor="let item of getFilteredCartItems()">
+              <img [src]="item.Image | productImage" alt="{{ item.ProductName }}" class="checkout-item-img">
+              <div class="checkout-item-info">
+                <h6>{{ item.ProductTitle }}</h6>
+                <small>{{ item.ProductName }}</small>
+                <span class="checkout-item-qty">Qty: {{ item.Quantity }}</span>
+              </div>
+              <span class="checkout-item-price">{{ UtilityService.currencyFormat(item.Price * item.Quantity) }}</span>
+            </div>
+          </div>
+          <hr>
+          <div class="checkout-summary-row">
+            <span>Subtotal</span>
+            <span>{{ UtilityService.currencyFormat(getSubtotal()) }}</span>
+          </div>
+          <div class="checkout-summary-row">
+            <span>Shipping</span>
+            <span class="text-success">Free</span>
+          </div>
+          <hr>
+          <div class="checkout-summary-row checkout-summary-total">
+            <span>Total</span>
+            <span class="fw-bold text-accent">{{ UtilityService.currencyFormat(getSubtotal()) }}</span>
+          </div>
+          <button
+            class="btn btn-primary btn-lg w-100 mt-3"
+            (click)="placeOrder()"
+            [disabled]="placingOrder || !isFormValid()"
+          >
+            <span *ngIf="!placingOrder">
+              <i class="bi bi-shield-lock me-2"></i> Place Order
+            </span>
+            <span *ngIf="placingOrder">
+              <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+              Processing...
+            </span>
+          </button>
+          <a routerLink="/cart" class="btn btn-outline-primary w-100 mt-2">
+            <i class="bi bi-arrow-left me-1"></i> Back to Cart
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

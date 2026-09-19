@@ -1,0 +1,448 @@
+<div class="page-container">
+  <div class="page-header">
+    <h1>Purchases</h1>
+    <div class="header-actions">
+      <button class="btn-primary" (click)="openAddModal()">+ Add Purchase</button>
+      <div class="search-box">
+        <input type="text" [(ngModel)]="searchTerm" placeholder="Search by purchase #, vendor, purchaser or status..."
+          (keyup.enter)="search()" class="search-input">
+        <button (click)="search()" class="btn-search">Search</button>
+        <button *ngIf="searchTerm" (click)="clearSearch()" class="btn-clear">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="isLoading" class="loading">Loading purchases...</div>
+
+  <div *ngIf="!isLoading" class="table-container">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Purchase #</th>
+          <th>Vendor</th>
+          <th>Purchased By</th>
+          <th>Date</th>
+          <th>Items</th>
+          <th>Total</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let p of paginatedPurchases">
+          <td>{{ p.purchaseNumber }}</td>
+          <td>{{ p.vendorName }}</td>
+          <td>{{ p.purchaserName }}</td>
+          <td>{{ p.purchaseDate | date:'medium' }}</td>
+          <td>{{ p.itemCount }}</td>
+          <td>{{ p.totalAmount | currency:'INR' }}</td>
+          <td><span [class]="getStatusBadgeClass(p.status)">{{ p.status }}</span></td>
+          <td class="actions">
+            <button (click)="viewDetail(p.purchaseId)" class="btn-sm btn-view" title="View Details">👁️ View</button>
+            <button (click)="openEditModal(p.purchaseId)" class="btn-sm btn-edit" title="Edit / Change Status">✏️ Edit</button>
+          </td>
+        </tr>
+        <tr *ngIf="filteredPurchases.length === 0">
+          <td colspan="8" class="empty">No purchases found.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Pagination -->
+    <div class="pagination" *ngIf="filteredPurchases.length > 0">
+      <div class="pagination-info">
+        Showing <strong>{{ startRecord }}</strong> to <strong>{{ endRecord }}</strong> of <strong>{{ filteredPurchases.length }}</strong> purchases
+      </div>
+      <div class="pagination-controls">
+        <button class="nav-btn" [disabled]="currentPage === 1" (click)="goToPage(1)">&laquo;</button>
+        <button class="nav-btn" [disabled]="currentPage === 1" (click)="goToPage(currentPage - 1)">&lsaquo;</button>
+        <ng-container *ngFor="let pg of getPageNumbers()">
+          <span class="page-ellipsis" *ngIf="pg === '...'">...</span>
+          <button *ngIf="pg !== '...'" [class.active]="pg === currentPage" (click)="goToPage(pg)">{{ pg }}</button>
+        </ng-container>
+        <button class="nav-btn" [disabled]="currentPage === totalPages" (click)="goToPage(currentPage + 1)">&rsaquo;</button>
+        <button class="nav-btn" [disabled]="currentPage === totalPages" (click)="goToPage(totalPages)">&raquo;</button>
+      </div>
+      <div class="pagination-size">
+        <span>Rows:</span>
+        <select [ngModel]="pageSize" (ngModelChange)="changePageSize($event)">
+          <option *ngFor="let size of pageSizeOptions" [value]="size">{{ size }}</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Purchase Detail Modal -->
+<div class="modal-overlay" *ngIf="showDetailModal" (click)="closeDetail()">
+  <div class="modal-content modal-lg" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Purchase {{ selectedPurchase?.purchaseNumber }}</h2>
+      <button class="btn-close" (click)="closeDetail()">&times;</button>
+    </div>
+
+    <div *ngIf="isLoadingDetail" class="modal-body">
+      <div class="loading">Loading purchase details...</div>
+    </div>
+
+    <div *ngIf="!isLoadingDetail && selectedPurchase" class="modal-body">
+      <!-- Purchase Summary -->
+      <div class="detail-section">
+        <h3>Purchase Information</h3>
+        <div class="detail-grid">
+          <div class="detail-item">
+            <label>Vendor</label>
+            <span>{{ selectedPurchase.vendorName }}</span>
+          </div>
+          <div class="detail-item">
+            <label>Purchased By</label>
+            <span>{{ selectedPurchase.purchaserName }}</span>
+          </div>
+          <div class="detail-item">
+            <label>Purchase Date</label>
+            <span>{{ selectedPurchase.purchaseDate | date:'medium' }}</span>
+          </div>
+          <div class="detail-item">
+            <label>Status</label>
+            <span><span [class]="getStatusBadgeClass(selectedPurchase.status)">{{ selectedPurchase.status }}</span></span>
+          </div>
+          <div class="detail-item">
+            <label>Added By</label>
+            <span>{{ selectedPurchase.addedByName }} on {{ selectedPurchase.addedOn | date:'medium' }}</span>
+          </div>
+          <div class="detail-item">
+            <label>Last Modified</label>
+            <span>{{ selectedPurchase.lastModifiedByName }} on {{ selectedPurchase.lastModifiedOn | date:'medium' }}</span>
+          </div>
+          <div class="detail-item" *ngIf="selectedPurchase.invoicePath">
+            <label>Invoice</label>
+            <span>{{ selectedPurchase.invoicePath }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Purchased Items -->
+      <div class="detail-section">
+        <h3>Items ({{ selectedPurchase.items.length }})</h3>
+        <div *ngIf="selectedPurchase.items.length === 0" class="no-data">No items recorded for this purchase.</div>
+        <table *ngIf="selectedPurchase.items.length > 0" class="data-table modal-table">
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Qty</th>
+              <th>Unit Price</th>
+              <th>GST %</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of selectedPurchase.items">
+              <td>{{ item.productName }}</td>
+              <td>{{ item.quantity }}</td>
+              <td>{{ item.unitPrice | currency:'INR' }}</td>
+              <td>{{ item.gst }}%</td>
+              <td>{{ itemSubtotal(item) | currency:'INR' }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="total-row" *ngIf="selectedPurchase.items.length > 0">
+          <div class="total-line"><span>Subtotal</span><strong>{{ itemTotalAmount | currency:'INR' }}</strong></div>
+          <div class="total-line"><span>GST</span><strong>{{ itemTotalGst | currency:'INR' }}</strong></div>
+          <div class="total-line grand"><span>Grand Total</span><strong>{{ itemGrandTotal | currency:'INR' }}</strong></div>
+        </div>
+      </div>
+
+      <!-- Comments -->
+      <div class="detail-section">
+        <h3>Comments ({{ selectedPurchase.comments.length }})</h3>
+        <div *ngIf="selectedPurchase.comments.length === 0" class="no-data">No comments for this purchase.</div>
+        <div class="comment-card" *ngFor="let comment of selectedPurchase.comments">
+          <div class="comment-text">{{ comment.comments }}</div>
+          <div class="comment-meta">{{ comment.addedByName }} · {{ comment.addedOn | date:'medium' }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="closeDetail()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Purchase Modal -->
+<div class="modal-overlay" *ngIf="showFormModal" (click)="closeFormModal()">
+  <div class="modal-content modal-lg" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Add Purchase</h2>
+      <button class="btn-close" (click)="closeFormModal()">&times;</button>
+    </div>
+
+    <form (ngSubmit)="savePurchase()">
+      <div class="modal-body">
+        <!-- Purchase Information -->
+        <div class="detail-section">
+          <h3>Purchase Information</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="vendorId">Vendor <span class="req">*</span></label>
+              <select id="vendorId" name="vendorId" class="form-input" [(ngModel)]="purchaseForm.vendorId">
+                <option [ngValue]="0" disabled>Select vendor</option>
+                <option *ngFor="let v of vendors" [ngValue]="v.vendorId">{{ v.vendorName }}</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="purchaserId">Purchaser <span class="req">*</span></label>
+              <select id="purchaserId" name="purchaserId" class="form-input" [(ngModel)]="purchaseForm.purchaserId">
+                <option [ngValue]="0" disabled>Select purchaser</option>
+                <option *ngFor="let p of purchasers" [ngValue]="p.purchaserId">{{ p.purchaserName }} ({{ p.partnerName }})</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="purchaseDate">Purchase Date <span class="req">*</span></label>
+              <input id="purchaseDate" name="purchaseDate" type="date" class="form-input"
+                [(ngModel)]="purchaseForm.purchaseDate">
+            </div>
+
+            <div class="form-group">
+              <label for="invoicePath">Invoice Reference</label>
+              <input id="invoicePath" name="invoicePath" type="text" maxlength="500"
+                placeholder="Optional invoice reference" class="form-input" [(ngModel)]="purchaseForm.invoicePath">
+            </div>
+          </div>
+        </div>
+
+        <!-- Items -->
+        <div class="detail-section">
+          <h3>Items <span class="req">*</span></h3>
+          <table class="data-table modal-table">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th class="col-qty">Qty</th>
+                <th class="col-price">Unit Price</th>
+                <th class="col-gst">GST %</th>
+                <th class="col-total">Total</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of purchaseForm.items; let i = index">
+                <td>
+                  <select class="form-input" [name]="'product' + i" [(ngModel)]="item.productId"
+                    (ngModelChange)="onProductChange(i)">
+                    <option [ngValue]="0" disabled>Select product</option>
+                    <option *ngFor="let p of products" [ngValue]="p.productId">{{ p.productName }}</option>
+                  </select>
+                </td>
+                <td>
+                  <input type="number" class="form-input qty-input" min="1" max="32767"
+                    [name]="'qty' + i" [(ngModel)]="item.quantity">
+                </td>
+                <td>
+                  <input type="number" class="form-input price-input" min="0" step="0.01"
+                    [name]="'price' + i" [(ngModel)]="item.unitPrice">
+                </td>
+                <td>
+                  <input type="number" class="form-input gst-input" min="0" step="0.01"
+                    [name]="'gst' + i" [(ngModel)]="item.gst">
+                </td>
+                <td class="line-total">{{ formItemAmount(item) | currency:'INR' }}</td>
+                <td class="actions">
+                  <button type="button" class="btn-sm btn-delete" (click)="removeItem(i)" title="Remove item">✕</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <button type="button" class="btn-secondary btn-add-item" (click)="addItem()">+ Add Item</button>
+
+          <div class="total-row">
+            <div class="total-line"><span>Subtotal</span><strong>{{ formTotalAmount | currency:'INR' }}</strong></div>
+            <div class="total-line"><span>GST</span><strong>{{ formTotalGst | currency:'INR' }}</strong></div>
+            <div class="total-line grand"><span>Grand Total</span><strong>{{ formGrandTotal | currency:'INR' }}</strong></div>
+          </div>
+        </div>
+
+        <div *ngIf="formMessage" class="form-message" [class.error]="formError">{{ formMessage }}</div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" (click)="closeFormModal()">Cancel</button>
+        <button type="submit" class="btn-primary" [disabled]="isSaving">
+          {{ isSaving ? 'Saving...' : 'Create Purchase' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Purchase Modal: details, items, status workflow and comments -->
+<div class="modal-overlay" *ngIf="showEditModal" (click)="closeEditModal()">
+  <div class="modal-content modal-lg" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Manage Purchase {{ editPurchaseNumber }}</h2>
+      <button class="btn-close" (click)="closeEditModal()">&times;</button>
+    </div>
+
+    <div *ngIf="isLoadingEdit" class="modal-body">
+      <div class="loading">Loading purchase...</div>
+    </div>
+
+    <div *ngIf="!isLoadingEdit" class="modal-body">
+      <!-- Status workflow -->
+      <div class="detail-section">
+        <h3>Status</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Current Status</label>
+            <input type="text" class="form-input" [value]="currentEditStatusName" readonly>
+          </div>
+          <div class="form-group">
+            <label for="editNewStatus">New Status</label>
+            <select id="editNewStatus" name="editNewStatus" class="form-input" [(ngModel)]="editStatusId">
+              <option [ngValue]="0">{{ purchaseStatuses.length === 0 ? 'No status change available' : 'Select new status' }}</option>
+              <option *ngFor="let s of purchaseStatuses" [ngValue]="s.purchaseStatusId">{{ s.purchaseStatusName }}</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="editStatusComment">Status Comment (optional)</label>
+          <input id="editStatusComment" name="editStatusComment" type="text" maxlength="2000" class="form-input"
+            [(ngModel)]="editStatusComment" placeholder="Reason for the status change">
+        </div>
+        <div class="inline-actions">
+          <button type="button" class="btn-primary" [disabled]="isSavingEdit || !editStatusId" (click)="changePurchaseStatus()">
+            Change Status
+          </button>
+        </div>
+      </div>
+
+      <!-- Purchase information -->
+      <div class="detail-section">
+        <h3>Purchase Information</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="editVendorId">Vendor</label>
+            <select id="editVendorId" name="editVendorId" class="form-input" [disabled]="!canEditPurchaseDetails"
+              [(ngModel)]="editForm.vendorId">
+              <option [ngValue]="0" disabled>Select vendor</option>
+              <option *ngFor="let v of vendors" [ngValue]="v.vendorId">{{ v.vendorName }}</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="editPurchaserId">Purchaser</label>
+            <select id="editPurchaserId" name="editPurchaserId" class="form-input" [disabled]="!canEditPurchaseDetails"
+              [(ngModel)]="editForm.purchaserId">
+              <option [ngValue]="0" disabled>Select purchaser</option>
+              <option *ngFor="let p of purchasers" [ngValue]="p.purchaserId">{{ p.purchaserName }} ({{ p.partnerName }})</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="editPurchaseDate">Purchase Date</label>
+            <input id="editPurchaseDate" name="editPurchaseDate" type="date" class="form-input"
+              [disabled]="!canEditPurchaseDetails" [(ngModel)]="editForm.purchaseDate">
+          </div>
+          <div class="form-group">
+            <label for="editInvoicePath">Invoice Reference</label>
+            <input id="editInvoicePath" name="editInvoicePath" type="text" maxlength="500" class="form-input"
+              [disabled]="!canEditPurchaseDetails" [(ngModel)]="editForm.invoicePath">
+          </div>
+        </div>
+        <p class="hint" *ngIf="!canEditPurchaseDetails">
+          Details and items can be changed only while the purchase is in ADDED or RETURNED status.
+        </p>
+      </div>
+
+      <!-- Items -->
+      <div class="detail-section">
+        <h3>Items</h3>
+        <table class="data-table modal-table">
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th class="col-qty">Qty</th>
+              <th class="col-price">Unit Price</th>
+              <th class="col-gst">GST %</th>
+              <th class="col-total">Total</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of editItems; let i = index">
+              <td>
+                <select class="form-input" [name]="'editProduct' + i" [disabled]="!canEditPurchaseDetails"
+                  [(ngModel)]="item.productId" (ngModelChange)="onEditProductChange(i)">
+                  <option [ngValue]="0" disabled>Select product</option>
+                  <option *ngFor="let p of products" [ngValue]="p.productId">{{ p.productName }}</option>
+                </select>
+              </td>
+              <td>
+                <input type="number" class="form-input qty-input" min="1" max="32767"
+                  [disabled]="!canEditPurchaseDetails" [name]="'editQty' + i" [(ngModel)]="item.quantity">
+              </td>
+              <td>
+                <input type="number" class="form-input price-input" min="0" step="0.01"
+                  [disabled]="!canEditPurchaseDetails" [name]="'editPrice' + i" [(ngModel)]="item.unitPrice">
+              </td>
+              <td>
+                <input type="number" class="form-input gst-input" min="0" step="0.01"
+                  [disabled]="!canEditPurchaseDetails" [name]="'editGst' + i" [(ngModel)]="item.gst">
+              </td>
+              <td class="line-total">{{ editItemAmount(item) | currency:'INR' }}</td>
+              <td class="actions">
+                <button type="button" class="btn-sm btn-delete" [disabled]="!canEditPurchaseDetails"
+                  (click)="removeEditItem(i)" title="Remove item">✕</button>
+              </td>
+            </tr>
+            <tr *ngIf="editItems.length === 0">
+              <td colspan="6" class="empty">No items recorded for this purchase.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <button type="button" class="btn-secondary btn-add-item" [disabled]="!canEditPurchaseDetails"
+          (click)="addEditItem()">+ Add Item</button>
+
+        <div class="total-row" *ngIf="editItems.length > 0">
+          <div class="total-line"><span>Subtotal</span><strong>{{ editTotalAmount | currency:'INR' }}</strong></div>
+          <div class="total-line"><span>GST</span><strong>{{ editTotalGst | currency:'INR' }}</strong></div>
+          <div class="total-line grand"><span>Grand Total</span><strong>{{ editGrandTotal | currency:'INR' }}</strong></div>
+        </div>
+      </div>
+
+      <!-- Comments / audit trail -->
+      <div class="detail-section">
+        <h3>Comments ({{ editComments.length }})</h3>
+        <div *ngIf="editComments.length === 0" class="no-data">No comments for this purchase.</div>
+        <div class="comment-card" *ngFor="let comment of editComments">
+          <div class="comment-text">{{ comment.comments }}</div>
+          <div class="comment-meta">{{ comment.addedByName }} · {{ comment.addedOn | date:'medium' }}</div>
+        </div>
+
+        <div class="form-group comment-input">
+          <label for="newPurchaseComment">Add Comment</label>
+          <textarea id="newPurchaseComment" name="newPurchaseComment" rows="2" maxlength="2000" class="form-input"
+            [(ngModel)]="newComment" placeholder="Add a comment to the audit trail"></textarea>
+        </div>
+        <div class="inline-actions">
+          <button type="button" class="btn-primary" [disabled]="isSavingEdit || !newComment" (click)="addEditComment()">
+            Add Comment
+          </button>
+        </div>
+      </div>
+
+      <div *ngIf="editMessage" class="form-message" [class.error]="editError">{{ editMessage }}</div>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn-secondary" (click)="closeEditModal()">Close</button>
+      <button type="button" class="btn-primary" *ngIf="canEditPurchaseDetails" [disabled]="isSavingEdit"
+        (click)="saveEditDetails()">
+        {{ isSavingEdit ? 'Saving...' : 'Save Details & Items' }}
+      </button>
+    </div>
+  </div>
+</div>

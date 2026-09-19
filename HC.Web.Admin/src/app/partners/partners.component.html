@@ -1,0 +1,140 @@
+<div class="page-container">
+  <div class="page-header">
+    <h1>Partners</h1>
+    <div class="header-actions">
+      <button class="btn-primary" (click)="openAddModal()">+ Add Partner</button>
+    </div>
+  </div>
+
+  <!-- Definition -->
+  <div class="definition-card">
+    <p><strong>Partners</strong> are business entities (sellers/merchants) who list and sell their products on the Homecuties platform. Each partner can have multiple users assigned with different roles (e.g., Admin, Manager, Inventory Clerk) who manage their inventory, orders, and product listings. Partners are the primary sellers on the platform and are responsible for fulfilling orders placed by customers.</p>
+  </div>
+
+  <!-- Detail View -->
+  <div *ngIf="showDetail && selectedPartner" class="detail-panel">
+    <div class="detail-header">
+      <h2>{{ selectedPartner.partnerName }}</h2>
+      <button class="btn-close" (click)="closeDetail()">✕</button>
+    </div>
+    <div class="detail-body">
+      <div class="detail-info">
+        <div class="info-row"><label>Partner ID:</label><span>{{ selectedPartner.partnerId }}</span></div>
+        <div class="info-row"><label>Status:</label><span class="badge">{{ selectedPartner.status }}</span></div>
+        <div class="info-row"><label>Last Modified:</label><span>{{ selectedPartner.lastModifiedOn | date:'medium' }}</span></div>
+        <div class="info-row"><label>Inventory Count:</label><span>{{ selectedPartner.inventoryCount }}</span></div>
+        <div class="info-row"><label>Order Count:</label><span>{{ selectedPartner.orderCount }}</span></div>
+      </div>
+
+      <h3>Users & Roles</h3>
+      <div *ngIf="selectedPartner.users.length === 0" class="empty-section">No users assigned to this partner.</div>
+      <table class="data-table" *ngIf="selectedPartner.users.length > 0">
+        <thead>
+          <tr><th>Name</th><th>Login ID</th><th>Email</th><th>Mobile</th><th>Active</th><th>Roles</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let u of selectedPartner.users">
+            <td>{{ u.userName }}</td>
+            <td>{{ u.loginId }}</td>
+            <td>{{ u.emailId || '-' }}</td>
+            <td>{{ u.mobileNumber || '-' }}</td>
+            <td>{{ u.isActive ? '✅' : '❌' }}</td>
+            <td>
+              <span *ngFor="let role of u.roles" class="role-tag">{{ role }}</span>
+              <span *ngIf="u.roles.length === 0" class="text-muted">No roles</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- List View -->
+  <div *ngIf="isLoading" class="loading">Loading partners...</div>
+  <div *ngIf="!isLoading && !showDetail" class="table-container">
+    <table class="data-table">
+      <thead>
+        <tr><th>ID</th><th>Name</th><th>Status</th><th>Last Modified</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let p of paginatedPartners">
+          <td>{{ p.partnerId }}</td>
+          <td>{{ p.partnerName }}</td>
+          <td><span class="badge">{{ p.status }}</span></td>
+          <td>{{ p.lastModifiedOn | date:'medium' }}</td>
+          <td class="actions">
+            <button class="btn-sm btn-view" (click)="viewDetail(p.partnerId)">View Details</button>
+            <button class="btn-sm btn-edit" (click)="openEditModal(p.partnerId)">✏️ Edit</button>
+          </td>
+        </tr>
+        <tr *ngIf="partners.length === 0"><td colspan="5" class="empty">No partners found.</td></tr>
+      </tbody>
+    </table>
+
+    <!-- Pagination -->
+    <div class="pagination" *ngIf="partners.length > 0">
+      <div class="pagination-info">
+        Showing <strong>{{ startRecord }}</strong> to <strong>{{ endRecord }}</strong> of <strong>{{ partners.length }}</strong> partners
+      </div>
+      <div class="pagination-controls">
+        <button class="nav-btn" [disabled]="currentPage === 1" (click)="goToPage(1)">&laquo;</button>
+        <button class="nav-btn" [disabled]="currentPage === 1" (click)="goToPage(currentPage - 1)">&lsaquo;</button>
+        <ng-container *ngFor="let p of getPageNumbers()">
+          <span class="page-ellipsis" *ngIf="p === '...'">...</span>
+          <button *ngIf="p !== '...'" [class.active]="p === currentPage" (click)="goToPage(p)">{{ p }}</button>
+        </ng-container>
+        <button class="nav-btn" [disabled]="currentPage === totalPages" (click)="goToPage(currentPage + 1)">&rsaquo;</button>
+        <button class="nav-btn" [disabled]="currentPage === totalPages" (click)="goToPage(totalPages)">&raquo;</button>
+      </div>
+      <div class="pagination-size">
+        <span>Rows:</span>
+        <select [ngModel]="pageSize" (ngModelChange)="changePageSize($event)">
+
+          <option *ngFor="let size of pageSizeOptions" [value]="size">{{ size }}</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Add / Edit Partner Modal -->
+<div class="modal-overlay" *ngIf="showFormModal" (click)="closeFormModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>{{ isEditMode ? 'Edit Partner' : 'Add Partner' }}</h2>
+      <button class="btn-close" (click)="closeFormModal()">&times;</button>
+    </div>
+
+    <div *ngIf="isLoadingDetail" class="modal-body">
+      <div class="loading">Loading partner details...</div>
+    </div>
+
+    <form *ngIf="!isLoadingDetail" (ngSubmit)="savePartner()">
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="partnerName">Partner Name <span class="req">*</span></label>
+          <input id="partnerName" type="text" maxlength="100" placeholder="Partner name"
+            [(ngModel)]="partnerForm.partnerName" name="partnerName" class="form-input">
+        </div>
+
+        <div class="form-group">
+          <label for="partnerStatusId">Status <span class="req">*</span></label>
+          <select id="partnerStatusId" [(ngModel)]="partnerForm.partnerStatusId" name="partnerStatusId" class="form-input">
+            <option [ngValue]="0">-- Select Status --</option>
+            <option *ngFor="let s of partnerStatuses" [ngValue]="s.partnerStatusId">{{ s.partnerStatus }}</option>
+          </select>
+        </div>
+
+        <div *ngIf="formMessage" class="form-message" [class.error]="formError">
+          {{ formMessage }}
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" (click)="closeFormModal()">Cancel</button>
+        <button type="submit" class="btn-primary" [disabled]="isSaving">
+          {{ isSaving ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Create Partner') }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

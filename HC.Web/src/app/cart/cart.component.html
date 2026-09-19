@@ -1,0 +1,173 @@
+<div class="cart-page">
+  <div class="container">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a routerLink="/">Home</a></li>
+        <li class="breadcrumb-item active">Shopping Cart</li>
+      </ol>
+    </nav>
+
+    <h2 class="section-title">Shopping Cart</h2>
+
+    <!-- Loading State -->
+    <div *ngIf="loading" class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading cart...</p>
+    </div>
+
+    <!-- Error State -->
+    <div *ngIf="error" class="alert-custom alert-error">
+      <i class="bi bi-exclamation-circle me-2"></i>{{ error }}
+    </div>
+
+    <!-- Empty Cart -->
+    <div *ngIf="!loading && !error && cartItems.length === 0" class="empty-state">
+      <div class="empty-icon">
+        <i class="bi bi-cart-x"></i>
+      </div>
+      <h4>Your cart is empty</h4>
+      <p>Looks like you haven't added anything yet. Browse our collection and find something you love!</p>
+      <a routerLink="/shop" class="btn btn-primary btn-lg">
+        <i class="bi bi-bag me-2"></i> Start Shopping
+      </a>
+    </div>
+
+    <!-- Cart Items -->
+    <div *ngIf="!loading && !error && cartItems.length > 0" class="row g-4">
+      <div class="col-lg-8">
+        <div class="table-responsive">
+          <table class="table cart-table">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Price</th>
+                <th>Quantity</th>
+                <th>Total</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of cartItems" [class.updating]="updatingItems.has(item.ProductID)">
+                <td>
+                  <div class="cart-product">
+                    <img [src]="item.Image | productImage" alt="{{ item.ProductName }}">
+                    <div class="product-info">
+                      <h6>{{ item.ProductTitle }}</h6>
+                      <small>{{ item.ProductName }}</small>
+                      <!-- Stock Warning -->
+                      <div *ngIf="!item.IsInStock" class="stock-warning mt-1">
+                        <i class="bi bi-exclamation-circle"></i> Out of Stock
+                      </div>
+                      <div *ngIf="item.IsInStock && item.Quantity > item.AvailableQty" class="stock-warning mt-1">
+                        <i class="bi bi-exclamation-circle"></i> Only {{ item.AvailableQty }} available
+                      </div>
+                      <!-- Move to Favorites (only for out-of-stock items not already in favorites) -->
+                      <button *ngIf="!item.IsInStock && !favoriteProductIds.has(item.ProductID)"
+                              class="btn btn-sm btn-outline-danger mt-2"
+                              (click)="moveToFavorites(item)"
+                              [disabled]="updatingItems.has(item.ProductID)">
+                        <i class="bi bi-heart me-1"></i>
+                        <span *ngIf="!updatingItems.has(item.ProductID)">Move to Favorites</span>
+                        <span *ngIf="updatingItems.has(item.ProductID)">Moving...</span>
+                      </button>
+                    </div>
+                  </div>
+                </td>
+                <td class="fw-medium">{{ UtilityService.currencyFormat(item.Price) }}</td>
+                <td>
+                  <div class="cart-quantity-control">
+                    <button class="qty-btn" (click)="decreaseQuantity(item)" [disabled]="updatingItems.has(item.ProductID)">
+                      <i class="bi" [class.bi-dash]="item.Quantity > 1" [class.bi-trash]="item.Quantity <= 1"></i>
+                    </button>
+                    <span class="qty-value">{{ item.Quantity }}</span>
+                    <button class="qty-btn" (click)="increaseQuantity(item)"
+                            [disabled]="updatingItems.has(item.ProductID) || !canIncreaseQuantity(item)">
+                      <i class="bi bi-plus"></i>
+                    </button>
+                  </div>
+                </td>
+                <td class="fw-bold text-accent">{{ UtilityService.currencyFormat(item.Price * item.Quantity) }}</td>
+                <td>
+                  <button class="btn-remove" (click)="promptRemoveItem(item)" [disabled]="updatingItems.has(item.ProductID)" title="Remove item">
+                    <i class="bi bi-x-lg"></i>
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="col-lg-4">
+        <div class="cart-summary-card">
+          <h5 class="cart-summary-title">Order Summary</h5>
+          <div class="cart-summary-row">
+            <span>Subtotal</span>
+            <span class="fw-medium">{{ UtilityService.currencyFormat(getSubtotal()) }}</span>
+          </div>
+          <div class="cart-summary-row">
+            <span>Shipping</span>
+            <span class="text-success fw-medium">Free</span>
+          </div>
+          <hr>
+          <div class="cart-summary-row cart-summary-total">
+            <span>Total</span>
+            <span class="fw-bold text-accent">{{ UtilityService.currencyFormat(getSubtotal()) }}</span>
+          </div>
+          <p class="guest-checkout-note" *ngIf="isGuestUser">
+            <i class="bi bi-info-circle"></i>
+            <span>You'll be asked to sign in or register before checkout. Your cart and favourites will be moved to your account.</span>
+          </p>
+          <div class="checkout-blocked" *ngIf="hasStockIssue">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <span>
+              <ng-container *ngIf="hasOutOfStockItem && hasQuantityMismatch">
+                Some items are out of stock or exceed the available quantity —
+              </ng-container>
+              <ng-container *ngIf="hasOutOfStockItem && !hasQuantityMismatch">
+                Some items are out of stock —
+              </ng-container>
+              <ng-container *ngIf="!hasOutOfStockItem && hasQuantityMismatch">
+                Some quantities exceed the available stock —
+              </ng-container>
+              please fix them before checking out.
+            </span>
+          </div>
+          <button type="button" class="btn btn-primary btn-lg w-100 mt-3"
+                  [disabled]="hasStockIssue || cartItems.length === 0"
+                  (click)="proceedToCheckout()">
+            <i class="bi bi-credit-card me-2"></i> Proceed to Checkout
+          </button>
+          <a routerLink="/shop" class="btn btn-outline-primary w-100 mt-2">
+            <i class="bi bi-arrow-left me-1"></i> Continue Shopping
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="cart-toast" *ngIf="toastMessage" [class.toast-success]="toastType === 'success'" [class.toast-error]="toastType === 'error'">
+    <i class="bi" [class.bi-check-circle]="toastType === 'success'" [class.bi-exclamation-circle]="toastType === 'error'"></i>
+    <span>{{ toastMessage }}</span>
+  </div>
+
+  <!-- Remove Confirmation Modal -->
+  <div class="confirm-overlay" *ngIf="itemToRemove" (click)="cancelRemove()">
+    <div class="confirm-modal" (click)="$event.stopPropagation()">
+      <div class="confirm-icon">
+        <i class="bi bi-exclamation-triangle"></i>
+      </div>
+      <h5 class="confirm-title">Remove Item?</h5>
+      <p class="confirm-text">
+        Are you sure you want to remove <strong>{{ itemToRemove.ProductTitle }}</strong> from your cart?
+      </p>
+      <div class="confirm-actions">
+        <button class="btn btn-outline-secondary" (click)="cancelRemove()">Cancel</button>
+        <button class="btn btn-danger" (click)="confirmRemove()">
+          <i class="bi bi-trash me-1"></i> Remove
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,77 @@
+<div class="auth-page">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-8 col-lg-6 col-xl-5">
+        <div class="auth-card">
+          <div class="auth-header">
+            <div class="auth-logo mb-3">
+              <i class="bi bi-person-plus"></i>
+            </div>
+            <h2>Create Account</h2>
+            <p>Join Homecuties and start shopping</p>
+          </div>
+
+          <!-- Shown when a guarded page (e.g. checkout) sent the guest here -->
+          <div *ngIf="returnUrl" class="alert alert-info" role="alert">
+            <i class="bi bi-info-circle me-1"></i>
+            Create your account to continue. Your cart and favourites will be moved to it automatically.
+          </div>
+
+          <form (ngSubmit)="register()">
+            <!-- Error Message -->
+            <div *ngIf="errorMessage" class="alert alert-danger" role="alert">
+              {{ errorMessage }}
+            </div>
+
+            <!-- Success Message -->
+            <div *ngIf="successMessage" class="alert alert-success" role="alert">
+              {{ successMessage }}
+            </div>
+
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="firstName" class="form-label">First Name</label>
+                <input type="text" class="form-control" id="firstName" placeholder="John"
+                       [(ngModel)]="firstName" name="firstName" required
+                       [disabled]="isLoading">
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="lastName" class="form-label">Last Name</label>
+                <input type="text" class="form-control" id="lastName" placeholder="Doe"
+                       [(ngModel)]="lastName" name="lastName" required
+                       [disabled]="isLoading">
+              </div>
+            </div>
+            <div class="mb-3">
+              <label for="email" class="form-label">Email Address</label>
+              <input type="email" class="form-control" id="email" placeholder="you@example.com"
+                     [(ngModel)]="email" name="email" required
+                     [disabled]="isLoading">
+            </div>
+            <div class="mb-3">
+              <label for="password" class="form-label">Password</label>
+              <input type="password" class="form-control" id="password" placeholder="Create a strong password"
+                     [(ngModel)]="password" name="password" required
+                     [disabled]="isLoading">
+            </div>
+            <div class="mb-4">
+              <label for="confirmPassword" class="form-label">Confirm Password</label>
+              <input type="password" class="form-control" id="confirmPassword" placeholder="Re-enter your password"
+                     [(ngModel)]="confirmPassword" name="confirmPassword" required
+                     [disabled]="isLoading">
+            </div>
+            <button type="submit" class="btn-submit" [disabled]="isLoading">
+              <span *ngIf="isLoading" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+              <i *ngIf="!isLoading" class="bi bi-person-check me-2"></i>
+              {{ isLoading ? 'Creating Account...' : 'Create Account' }}
+            </button>
+          </form>
+
+          <div class="auth-footer">
+            Already have an account? <a routerLink="/login">Sign in</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

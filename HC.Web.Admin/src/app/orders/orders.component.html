@@ -1,0 +1,63 @@
+<div class="page-container">
+  <div class="page-header">
+    <h1>Orders</h1>
+  </div>
+
+  <div *ngIf="isLoading" class="loading">Loading orders...</div>
+
+  <div *ngIf="!isLoading" class="table-container">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Order #</th>
+          <th>Date</th>
+          <th>Customer</th>
+          <th>Items</th>
+          <th>Total</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let order of paginatedOrders">
+          <td>{{ order.orderNumber }}</td>
+          <td>{{ order.orderDate | date:'medium' }}</td>
+          <td>{{ order.customerName }}</td>
+          <td>{{ order.itemCount }}</td>
+          <td>{{ order.totalAmount | currency:'INR' }}</td>
+          <td><span class="badge">{{ order.status }}</span></td>
+          <td>
+            <button class="btn-sm btn-view" [routerLink]="['/orders', order.orderId]">View</button>
+          </td>
+        </tr>
+        <tr *ngIf="orders.length === 0">
+          <td colspan="7" class="empty">No orders found.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Pagination -->
+    <div class="pagination" *ngIf="orders.length > 0">
+      <div class="pagination-info">
+        Showing <strong>{{ startRecord }}</strong> to <strong>{{ endRecord }}</strong> of <strong>{{ orders.length }}</strong> orders
+      </div>
+      <div class="pagination-controls">
+        <button class="nav-btn" [disabled]="currentPage === 1" (click)="goToPage(1)">&laquo;</button>
+        <button class="nav-btn" [disabled]="currentPage === 1" (click)="goToPage(currentPage - 1)">&lsaquo;</button>
+        <ng-container *ngFor="let p of getPageNumbers()">
+          <span class="page-ellipsis" *ngIf="p === '...'">...</span>
+          <button *ngIf="p !== '...'" [class.active]="p === currentPage" (click)="goToPage(p)">{{ p }}</button>
+        </ng-container>
+        <button class="nav-btn" [disabled]="currentPage === totalPages" (click)="goToPage(currentPage + 1)">&rsaquo;</button>
+        <button class="nav-btn" [disabled]="currentPage === totalPages" (click)="goToPage(totalPages)">&raquo;</button>
+      </div>
+      <div class="pagination-size">
+        <span>Rows:</span>
+        <select [ngModel]="pageSize" (ngModelChange)="changePageSize($event)">
+
+          <option *ngFor="let size of pageSizeOptions" [value]="size">{{ size }}</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>

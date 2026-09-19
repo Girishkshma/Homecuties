@@ -1,0 +1,114 @@
+<header class="site-header">
+  <div class="container">
+    <div class="header-inner">
+      <!-- Logo -->
+      <a routerLink="/" class="header-logo">
+        <img src="images/logo.png" alt="Homecuties">
+        <span class="logo-fallback">Homecuties</span>
+      </a>
+
+      <!-- Desktop Navigation -->
+      <nav class="header-nav">
+        <a routerLink="/" class="nav-item" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
+          <i class="bi bi-house me-1"></i> Home
+        </a>
+        <a routerLink="/shop" class="nav-item" routerLinkActive="active">
+          <i class="bi bi-grid me-1"></i> Shop
+        </a>
+        <div class="nav-dropdown" *ngIf="categories.length > 0">
+          <a class="nav-item nav-dropdown-toggle">
+            <i class="bi bi-tags me-1"></i> Categories
+          </a>
+          <div class="nav-dropdown-menu">
+            <a *ngFor="let category of categories" [routerLink]="['/shop', category.CategoryID]" class="nav-dropdown-item" (click)="closeMenu()">
+              {{ category.CategoryName }}
+            </a>
+          </div>
+        </div>
+      </nav>
+
+      <!-- Header Actions -->
+      <div class="header-actions">
+        <a routerLink="/favorites" class="action-btn" title="Favorites">
+          <i class="bi" [class.bi-heart]="favoritesCount === 0" [class.bi-heart-fill]="favoritesCount > 0"></i>
+          <span class="action-badge" *ngIf="favoritesCount > 0">{{ favoritesCount }}</span>
+        </a>
+        <a routerLink="/cart" class="action-btn" title="Cart">
+          <i class="bi bi-cart3"></i>
+          <span class="action-badge" *ngIf="cartItemCount > 0">{{ cartItemCount }}</span>
+        </a>
+
+        <!-- Auth Buttons / User Info -->
+        <div class="auth-buttons" *ngIf="!currentCustomer">
+          <a routerLink="/login" class="btn btn-login">
+            <i class="bi bi-person me-1"></i> Sign In
+          </a>
+          <a routerLink="/register" class="btn btn-register">
+            Sign Up
+          </a>
+        </div>
+        <div class="auth-buttons" *ngIf="currentCustomer">
+          <span class="user-greeting">
+            <i class="bi bi-person-circle me-1"></i> Hi, {{ currentCustomer.FirstName }}
+          </span>
+          <a routerLink="/logout" class="btn btn-logout" (click)="logout()">
+            <i class="bi bi-box-arrow-right me-1"></i> Logout
+          </a>
+        </div>
+
+        <!-- Mobile Menu Toggle -->
+        <button class="menu-toggle" (click)="toggleMenu()" aria-label="Toggle menu">
+          <span class="hamburger-line" [class.open]="isMenuOpen"></span>
+          <span class="hamburger-line" [class.open]="isMenuOpen"></span>
+          <span class="hamburger-line" [class.open]="isMenuOpen"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- Mobile Menu -->
+<div class="mobile-menu" [class.open]="isMenuOpen" (click)="closeMenu()">
+  <div class="container">
+    <div class="mobile-nav">
+      <a routerLink="/" class="mobile-nav-item" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" (click)="closeMenu()">
+        <i class="bi bi-house"></i> Home
+      </a>
+      <a routerLink="/shop" class="mobile-nav-item" routerLinkActive="active" (click)="closeMenu()">
+        <i class="bi bi-grid"></i> Shop
+      </a>
+
+      <div class="mobile-nav-divider">Categories</div>
+      <a *ngFor="let category of categories" [routerLink]="['/shop', category.CategoryID]" class="mobile-nav-item mobile-category" (click)="closeMenu()">
+        <i class="bi bi-chevron-right"></i> {{ category.CategoryName }}
+      </a>
+
+      <div class="mobile-nav-divider">Account</div>
+      <a routerLink="/favorites" class="mobile-nav-item" (click)="closeMenu()">
+        <i class="bi" [class.bi-heart]="favoritesCount === 0" [class.bi-heart-fill]="favoritesCount > 0"></i> Favorites
+        <span class="badge bg-accent ms-auto" *ngIf="favoritesCount > 0">{{ favoritesCount }}</span>
+      </a>
+      <a routerLink="/cart" class="mobile-nav-item" (click)="closeMenu()">
+        <i class="bi bi-cart3"></i> Cart
+        <span class="badge bg-accent ms-auto" *ngIf="cartItemCount > 0">{{ cartItemCount }}</span>
+      </a>
+
+      <div class="mobile-auth" *ngIf="!currentCustomer">
+        <a routerLink="/login" class="mobile-nav-item" (click)="closeMenu()">
+          <i class="bi bi-box-arrow-in-right"></i> Sign In
+        </a>
+        <a routerLink="/register" class="mobile-nav-item" (click)="closeMenu()">
+          <i class="bi bi-person-plus"></i> Create Account
+        </a>
+      </div>
+      <div class="mobile-auth" *ngIf="currentCustomer">
+        <div class="mobile-nav-item user-greeting-mobile">
+          <i class="bi bi-person-circle"></i> Hi, {{ currentCustomer.FirstName }}
+        </div>
+        <a routerLink="/logout" class="mobile-nav-item" (click)="logout()">
+          <i class="bi bi-box-arrow-right"></i> Logout
+        </a>
+      </div>
+    </div>
+  </div>
+</div>

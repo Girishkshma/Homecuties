@@ -1,0 +1,195 @@
+<div class="page-container">
+  <div class="page-header">
+    <h1>{{ isEditMode ? 'Edit Product' : 'Add Product' }}</h1>
+    <div class="header-actions">
+      <button type="button" class="btn-secondary" (click)="goBack()">← Back to Products</button>
+    </div>
+  </div>
+
+  <div *ngIf="isLoading" class="loading">Loading...</div>
+
+  <form *ngIf="!isLoading" (ngSubmit)="saveProduct()" class="product-form">
+    <!-- Basic -->
+    <div class="form-section">
+      <h2>Basic Information</h2>
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="productName">Product Name <span class="req">*</span></label>
+          <input id="productName" type="text" maxlength="50" placeholder="Product name"
+            [(ngModel)]="form.productName" name="productName" class="form-input">
+        </div>
+        <div class="form-group">
+          <label for="productStatusId">Status <span class="req">*</span></label>
+          <select id="productStatusId" [(ngModel)]="form.productStatusId" name="productStatusId" class="form-input">
+            <option [ngValue]="0">-- Select Status --</option>
+            <option *ngFor="let s of options.statuses" [ngValue]="s.productStatusId">{{ s.productStatusName }}</option>
+          </select>
+        </div>
+        <div class="form-group form-full">
+          <label for="productTitle">Product Title <span class="req">*</span></label>
+          <input id="productTitle" type="text" maxlength="200" placeholder="Product title"
+            [(ngModel)]="form.productTitle" name="productTitle" class="form-input">
+        </div>
+        <div class="form-group form-full">
+          <label for="productDescription">Description</label>
+          <textarea id="productDescription" rows="4" maxlength="2000" placeholder="Product description"
+            [(ngModel)]="form.productDescription" name="productDescription" class="form-input"></textarea>
+        </div>
+        <div class="form-group checkbox-row">
+          <label class="checkbox-item">
+            <input type="checkbox" [(ngModel)]="form.displayOnHomePage" name="displayOnHomePage">
+            <span>Display on Home Page</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pricing -->
+    <div class="form-section">
+      <h2>Pricing & Charges</h2>
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="unitPrice">Unit Price (₹) <span class="req">*</span></label>
+          <input id="unitPrice" type="number" step="0.01" min="0" placeholder="0.00"
+            [(ngModel)]="form.unitPrice" name="unitPrice" class="form-input">
+        </div>
+        <div class="form-group">
+          <label for="hsncode">HSN Code</label>
+          <input id="hsncode" type="text" maxlength="10" placeholder="HSN"
+            [(ngModel)]="form.hsncode" name="hsncode" class="form-input">
+        </div>
+        <div class="form-group">
+          <label for="discountPercent">Discount (%)</label>
+          <input id="discountPercent" type="number" step="0.01" min="0" placeholder="0"
+            [(ngModel)]="form.discountPercent" name="discountPercent" class="form-input">
+        </div>
+        <div class="form-group">
+          <label for="additionalDiscountPercent">Additional Discount (%)</label>
+          <input id="additionalDiscountPercent" type="number" step="0.01" min="0" placeholder="0"
+            [(ngModel)]="form.additionalDiscountPercent" name="additionalDiscountPercent" class="form-input">
+        </div>
+        <div class="form-group">
+          <label for="packagingCharge">Packaging Charge (₹)</label>
+          <input id="packagingCharge" type="number" step="0.01" min="0" placeholder="0"
+            [(ngModel)]="form.packagingCharge" name="packagingCharge" class="form-input">
+        </div>
+        <div class="form-group">
+          <label for="storageCharge">Storage Charge (₹)</label>
+          <input id="storageCharge" type="number" step="0.01" min="0" placeholder="0"
+            [(ngModel)]="form.storageCharge" name="storageCharge" class="form-input">
+        </div>
+        <div class="form-group">
+          <label for="deliveryCharge">Delivery Charge (₹)</label>
+          <input id="deliveryCharge" type="number" step="0.01" min="0" placeholder="0"
+            [(ngModel)]="form.deliveryCharge" name="deliveryCharge" class="form-input">
+        </div>
+        <div class="form-group">
+          <label for="profitMarginPercent">Profit Margin (%)</label>
+          <input id="profitMarginPercent" type="number" step="0.01" min="0" placeholder="0"
+            [(ngModel)]="form.profitMarginPercent" name="profitMarginPercent" class="form-input">
+        </div>
+      </div>
+    </div>
+
+    <!-- Taxes -->
+    <div class="form-section">
+      <h2>Taxes</h2>
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="cgstpercent">CGST (%)</label>
+          <input id="cgstpercent" type="number" step="0.01" min="0" placeholder="0"
+            [(ngModel)]="form.cgstpercent" name="cgstpercent" class="form-input">
+        </div>
+        <div class="form-group">
+          <label for="sgstpercent">SGST (%)</label>
+          <input id="sgstpercent" type="number" step="0.01" min="0" placeholder="0"
+            [(ngModel)]="form.sgstpercent" name="sgstpercent" class="form-input">
+        </div>
+        <div class="form-group">
+          <label for="igstpercent">IGST (%)</label>
+          <input id="igstpercent" type="number" step="0.01" min="0" placeholder="0"
+            [(ngModel)]="form.igstpercent" name="igstpercent" class="form-input">
+        </div>
+      </div>
+    </div>
+<!-- Categories -->
+    <div class="form-section">
+      <h2>Categories</h2>
+      <div *ngIf="categories.length === 0" class="no-data">No categories available.</div>
+      <div class="checkbox-grid">
+        <label class="checkbox-item" *ngFor="let cat of categories">
+          <input type="checkbox" [checked]="isCategorySelected(cat.categoryId)"
+            (change)="toggleCategory(cat.categoryId, $event)">
+          <span>{{ categoryLabel(cat) }}</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Features -->
+    <div class="form-section">
+      <h2>Features</h2>
+      <div *ngIf="form.features.length === 0" class="no-data">No features added.</div>
+      <div class="repeat-row" *ngFor="let feature of form.features; let i = index">
+        <input type="text" maxlength="100" placeholder="Feature text" class="form-input"
+          [(ngModel)]="feature.feature" [name]="'feature' + i">
+        <label class="checkbox-item">
+          <input type="checkbox" [(ngModel)]="feature.isActive" [name]="'featureActive' + i">
+          <span>Active</span>
+        </label>
+        <button type="button" class="btn-sm btn-delete" (click)="removeFeature(i)" title="Remove">✕</button>
+      </div>
+      <button type="button" class="btn-secondary btn-add-row" (click)="addFeature()">+ Add Feature</button>
+    </div>
+<!-- Images -->
+    <div class="form-section">
+      <h2>Images</h2>
+      <div *ngIf="form.images.length === 0" class="no-data">No images added.</div>
+
+      <div class="image-card" *ngFor="let img of form.images; let i = index">
+        <div class="image-upload-row">
+          <div class="image-preview-box">
+            <img *ngIf="img.previewUrl" [src]="img.previewUrl" class="image-preview" alt="Product image preview">
+            <span *ngIf="!img.previewUrl && img.imageUrl" class="preview-note">No local preview for this image</span>
+            <span *ngIf="!img.imageUrl && !img.uploading" class="preview-note">No image uploaded</span>
+          </div>
+          <div class="upload-actions">
+            <button type="button" class="btn-sm btn-view" [disabled]="img.uploading"
+              (click)="fileInput.click()">📤 Upload Image</button>
+            <input #fileInput type="file" accept="image/*" class="file-input"
+              (change)="onImageSelected(i, $event)">
+            <span *ngIf="img.uploading" class="upload-status uploading">Uploading…</span>
+            <span *ngIf="img.uploadError" class="upload-status error">{{ img.uploadError }}</span>
+            <span *ngIf="img.imageUrl && !img.uploading" class="upload-status">✓ {{ img.imageUrl }}</span>
+          </div>
+        </div>
+        <div class="image-controls">
+          <select class="form-input image-type" [(ngModel)]="img.imageTypeId" [name]="'imageType' + i">
+            <option *ngFor="let t of options.imageTypes" [ngValue]="t.imageTypeId">{{ imageTypeName(t.imageTypeId) }}</option>
+          </select>
+          <input type="number" min="1" placeholder="Index" class="form-input image-index"
+            [(ngModel)]="img.imageIndex" [name]="'imageIndex' + i">
+          <label class="checkbox-item">
+            <input type="checkbox" [(ngModel)]="img.isPromoImage" [name]="'isPromo' + i">
+            <span>Promo</span>
+          </label>
+          <label class="checkbox-item">
+            <input type="checkbox" [(ngModel)]="img.isActive" [name]="'imgActive' + i">
+            <span>Active</span>
+          </label>
+          <button type="button" class="btn-sm btn-delete" (click)="removeImage(i)" title="Remove">✕ Remove</button>
+        </div>
+      </div>
+
+      <button type="button" class="btn-secondary btn-add-row" (click)="addImage()">+ Add Image</button>
+    </div>
+
+    <div *ngIf="message" class="form-message" [class.error]="isError">{{ message }}</div>
+
+    <div class="form-actions">
+      <button type="button" class="btn-secondary" (click)="goBack()">Cancel</button>
+      <button type="submit" class="btn-primary" [disabled]="isSaving">
+        {{ isSaving ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Create Product') }}
+      </button>
+    </div>
+  </form>
+</div>

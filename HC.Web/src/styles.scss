@@ -1,0 +1,17 @@
+/* You can add global styles to this file, and also import other style files */
+
+/* ===== Import Bootstrap ===== */
+/* Bootstrap is imported via angular.json */
+
+/* ===== Import Custom Styles ===== */
+@use 'scss/variables';
+@use 'scss/base';
+@use 'scss/layout';
+@use 'scss/components';
+@use 'scss/header';
+@use 'scss/hero';
+@use 'scss/sections';
+@use 'scss/auth';
+@use 'scss/cart';
+@use 'scss/static-pages';
+@use 'scss/responsive';

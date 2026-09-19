@@ -1,0 +1,85 @@
+/* ===== Newsletter Form ===== */
+.newsletter-form {
+  width: 100%;
+}
+
+.newsletter-input-wrapper {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: border-color 0.2s ease, background 0.2s ease;
+
+  &:focus-within {
+    border-color: var(--accent);
+    background: rgba(255, 255, 255, 0.15);
+  }
+}
+
+.newsletter-icon {
+  padding: 0 0 0 0.75rem;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.newsletter-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--white);
+  font-size: 0.875rem;
+  padding: 0.7rem 0.5rem;
+  outline: none;
+  min-width: 0;
+
+  &::placeholder {
+    color: rgba(255, 255, 255, 0.45);
+  }
+}
+
+.newsletter-btn {
+  flex-shrink: 0;
+  border: none;
+  background: var(--accent);
+  color: var(--white);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 0.7rem 1.125rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+
+  &:hover {
+    background: var(--accent-dark);
+  }
+
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+}
+
+.newsletter-message {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+
+  i {
+    font-size: 0.85rem;
+  }
+
+  &.success {
+    color: #4ade80;
+  }
+
+  &.error {
+    color: #f87171;
+  }
+}

@@ -1,0 +1,15 @@
+<div class="newsletter-form">
+  <div class="newsletter-input-wrapper">
+    <i class="bi bi-envelope newsletter-icon"></i>
+    <input type="email" class="newsletter-input" placeholder="Enter your email"
+           [(ngModel)]="email" (keyup.enter)="subscribe()">
+    <button class="newsletter-btn" type="button" (click)="subscribe()" [disabled]="submitting">
+      <span *ngIf="!submitting">Subscribe</span>
+      <span *ngIf="submitting" class="spinner-border spinner-border-sm"></span>
+    </button>
+  </div>
+  <div *ngIf="message" class="newsletter-message" [class.success]="message.includes('Thank')" [class.error]="message.includes('valid') || message.includes('Error')">
+    <i class="bi" [class.bi-check-circle-fill]="message.includes('Thank')" [class.bi-exclamation-circle-fill]="message.includes('valid') || message.includes('Error')"></i>
+    {{ message }}
+  </div>
+</div>
