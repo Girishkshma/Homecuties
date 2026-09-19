@@ -1,5 +1,7 @@
 using HC.Business;
+using HC.Business.Security;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 
 namespace HC.Services.Controllers;
 
@@ -7,11 +9,15 @@ namespace HC.Services.Controllers;
 [Route("api/[controller]")]
 public class CustomerController : ControllerBase
 {
-    private readonly ICustomerService _customerService;
+    private const string DefaultJwtSecret = "123456789abcdefgh";
 
-    public CustomerController(ICustomerService customerService)
+    private readonly ICustomerService _customerService;
+    private readonly string _jwtSecret;
+
+    public CustomerController(ICustomerService customerService, IConfiguration configuration)
     {
         _customerService = customerService;
+        _jwtSecret = configuration["JWTSecret"] ?? DefaultJwtSecret;
     }
 
     [HttpPost("GetCustomer")]
@@ -74,6 +80,32 @@ public class CustomerController : ControllerBase
         var result = await _customerService.ResetPasswordAsync(request.Token, request.NewPassword);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Sets the internal password of the signed-in customer - used right after a first Google
+    /// sign-in (which creates the account without a password) and for later password changes.
+    /// </summary>
+    [HttpPost("SetPassword")]
+    public async Task<ActionResult> SetPassword([FromBody] SetPasswordRequest request)
+    {
+        // The customer is identified by the signed-in token, never by the request body.
+        var customerId = GetTokenCustomerId();
+        if (customerId == null)
+            return Unauthorized(new { Result = 0, Messages = new[] { "Please sign in again." } });
+
+        var result = await _customerService.SetPasswordAsync(customerId.Value, request.CurrentPassword, request.NewPassword);
+        return Ok(result);
+    }
+
+    /// <summary>Reads "Authorization: Bearer &lt;token&gt;" and returns the signed-in customer id when it is valid.</summary>
+    private long? GetTokenCustomerId()
+    {
+        var header = Request.Headers["Authorization"].ToString();
+        if (string.IsNullOrWhiteSpace(header) || !header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        return CustomerTokenService.Validate(header["Bearer ".Length..].Trim(), _jwtSecret);
+    }
 }
 
 public class GetCustomerRequest
@@ -121,5 +153,12 @@ public class ForgotPasswordRequest
 public class ResetPasswordRequest
 {
     public string Token { get; set; } = "";
+    public string NewPassword { get; set; } = "";
+}
+
+public class SetPasswordRequest
+{
+    /// <summary>Only required when the account already has a password (i.e. when changing it).</summary>
+    public string? CurrentPassword { get; set; }
     public string NewPassword { get; set; } = "";
 }

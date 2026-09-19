@@ -24,6 +24,7 @@ import { NewsletterComponent } from './newsletter/newsletter.component';
 import { ProductImagePipe } from './pipes/product-image.pipe';
 import { ForgotPasswordComponent } from './forgot-password/forgot-password.component';
 import { ResetPasswordComponent } from './reset-password/reset-password.component';
+import { SetPasswordComponent } from './set-password/set-password.component';
 import { customerTokenInterceptor } from './interceptors/customer-token.interceptor';
 
 @NgModule({
@@ -45,7 +46,8 @@ import { customerTokenInterceptor } from './interceptors/customer-token.intercep
     NewsletterComponent,
     ProductImagePipe,
     ForgotPasswordComponent,
-    ResetPasswordComponent
+    ResetPasswordComponent,
+    SetPasswordComponent
   ],
   imports: [
     BrowserModule,

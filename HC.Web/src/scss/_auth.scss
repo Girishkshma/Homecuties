@@ -28,6 +28,26 @@
     }
   }
 
+  /* ===== Google Sign-In (Identity Services renders its own iframe button) ===== */
+  .oauth-section {
+    /* Tighten the default spacing so the button and "or" divider sit close to the form. */
+    margin-bottom: 0.5rem;
+
+    .oauth-buttons {
+      margin-bottom: 1rem;
+    }
+
+    .oauth-divider {
+      margin-bottom: 0;
+    }
+  }
+
+  .google-signin-slot {
+    display: flex;
+    justify-content: center;
+    min-height: 40px;
+  }
+
   /* ===== OAuth Buttons ===== */
   .oauth-buttons {
     display: flex;

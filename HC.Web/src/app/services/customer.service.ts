@@ -55,4 +55,16 @@ export class CustomerService {
       NewPassword: newPassword
     });
   }
+
+  /**
+   * Sets the internal password of the signed-in customer. The customer is identified by the
+   * Authorization token, which customerTokenInterceptor attaches automatically.
+   * CurrentPassword is only needed when the account already has a password.
+   */
+  setPassword(newPassword: string, currentPassword?: string): Observable<any> {
+    return this.http.post(this.config.getBaseServUrl() + 'Customer/SetPassword', {
+      CurrentPassword: currentPassword || '',
+      NewPassword: newPassword
+    });
+  }
 }

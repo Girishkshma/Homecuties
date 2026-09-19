@@ -78,8 +78,27 @@ export class AuthService {
   clearSession(): void {
     if (this.isBrowser) {
       localStorage.removeItem(AuthService.TokenKey);
+      AuthService.disableGoogleAutoSelect();
     }
     this.clearCurrentCustomer();
+  }
+
+  /**
+   * Asks Google Identity Services to forget the "auto select" state for this browser.
+   *
+   * This cannot sign the customer out of Google itself (that session belongs to google.com - only
+   * the customer can end it), but it stops One Tap / FedCM from silently re-using the previously
+   * chosen account after a logout. Safe to call when Google's script was never loaded.
+   */
+  private static disableGoogleAutoSelect(): void {
+    try {
+      const gis = (window as any).google;
+      if (gis?.accounts?.id?.disableAutoSelect) {
+        gis.accounts.id.disableAutoSelect();
+      }
+    } catch {
+      // Google Identity Services is not present (the login page was never opened) - nothing to reset.
+    }
   }
 
   clearCurrentCustomer(): void {

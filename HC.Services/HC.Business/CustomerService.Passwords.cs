@@ -117,4 +117,56 @@ public partial class CustomerService : ICustomerService
             Messages = new[] { "Password has been reset successfully. You can now log in with your new password." }
         };
     }
+
+    /// <summary>
+    /// Sets (or changes) the internal password of the signed-in customer.
+    ///
+    /// Accounts created through an external provider (Google) start without a password and can set
+    /// one here - the storefront asks them to right after their first sign-in, so they can also log
+    /// in with e-mail/password later. When a password already exists the current one must be
+    /// supplied, so a hijacked session cannot silently take the account over.
+    /// </summary>
+    public async Task<ResultDto> SetPasswordAsync(long customerId, string? currentPassword, string newPassword)
+    {
+        newPassword ??= "";
+
+        if (newPassword.Length < 6)
+            return ErrorResult("Password must be at least 6 characters long.");
+
+        var customer = await _context.Customers
+            .FirstOrDefaultAsync(c => c.CustomerId == customerId);
+
+        if (customer == null)
+            return ErrorResult("Customer not found.");
+
+        if (customer.CustomerStatusId != CustomerStatusActive)
+            return ErrorResult("Your account is not active. Please contact support.");
+
+        if (!string.IsNullOrEmpty(customer.Password) &&
+            (string.IsNullOrEmpty(currentPassword) ||
+             !CustomerPasswordHasher.Verify(customer.Password, currentPassword, out _)))
+        {
+            return ErrorResult("Your current password is incorrect. Use 'Forgot password' to reset it.");
+        }
+
+        customer.Password = CustomerPasswordHasher.Hash(newPassword);
+        customer.ModifiedOn = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return new ResultDto
+        {
+            Result = 1,
+            Messages = new[] { "Password set successfully. You can now sign in with your email and password too." }
+        };
+    }
+
+    private static ResultDto ErrorResult(string message)
+    {
+        return new ResultDto
+        {
+            Result = 0,
+            Messages = new[] { message }
+        };
+    }
 }

@@ -18,11 +18,17 @@
           </div>
 
           <!--
-            Google / Facebook sign-in is intentionally NOT shown yet: the API does not verify the
-            social token signature (GoogleLoginService only base64-decodes the id_token), so these
-            must not be used to sign customers in. Re-enable the buttons (and the handlers
-            LoginComponent.loginWithGoogle / loginWithFacebook) once server-side verification exists.
+            Google sign-in. Google Identity Services renders its official "Continue with Google"
+            button into the slot below; the id_token it returns is verified server-side (signature,
+            audience and expiry) by GoogleLoginService before the customer is signed in.
+            Facebook stays hidden until the API verifies its access token in the same way.
           -->
+          <div class="oauth-section" [style.display]="googleReady ? null : 'none'">
+            <div class="oauth-buttons">
+              <div #googleButton class="google-signin-slot"></div>
+            </div>
+            <div class="oauth-divider">or</div>
+          </div>
 
           <!-- Email Login Form -->
           <form (ngSubmit)="login()">

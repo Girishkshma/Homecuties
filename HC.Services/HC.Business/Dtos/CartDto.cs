@@ -77,4 +77,9 @@ public class LoginCustomerResponseDto
     /// <summary>HMAC-signed token proving the signed-in customer (sent as 'Authorization: Bearer ...').</summary>
     public string? Token { get; set; }
     public DateTime? ExpiresOn { get; set; }
+    /// <summary>
+    /// True when the customer authenticated through an external provider (e.g. Google) but has no
+    /// internal password yet, so the storefront asks them to set one before continuing.
+    /// </summary>
+    public bool RequiresPasswordSetup { get; set; }
 }

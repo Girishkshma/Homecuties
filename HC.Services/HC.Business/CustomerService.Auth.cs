@@ -132,7 +132,94 @@ public partial class CustomerService : ICustomerService
         return Success(customer, "Login successful.");
     }
 
-    private LoginCustomerResponseDto Success(Customer customer, string message)
+    /// <summary>
+    /// Signs a customer in through an external identity provider (e.g. Google). The provider has
+    /// already proven the e-mail address, so no password is checked: an existing account is reused
+    /// and a placeholder row (created by guest checkout / a social login) is filled in. New
+    /// customers are created active, and the same signed token as a password login is issued.
+    /// </summary>
+    public async Task<LoginCustomerResponseDto> SignInExternalAsync(string email, string firstName, string lastName, string? externalPayload)
+    {
+        email = (email ?? "").Trim();
+        firstName = (firstName ?? "").Trim();
+        lastName = (lastName ?? "").Trim();
+
+        if (string.IsNullOrWhiteSpace(email))
+            return Error("The external account did not provide an email address.");
+
+        var customer = await _context.Customers
+            .FirstOrDefaultAsync(c => c.EmailId == email);
+
+        if (customer == null)
+        {
+            customer = new Customer
+            {
+                EmailId = email,
+                FirstName = string.IsNullOrEmpty(firstName) ? email.Split('@')[0] : firstName,
+                LastName = lastName,
+                EmailVerfied = true,
+                GooglePayLoad = externalPayload,
+                CreatedOn = DateTime.UtcNow,
+                ModifiedOn = DateTime.UtcNow,
+                CustomerStatusId = CustomerStatusActive
+            };
+
+            _context.Customers.Add(customer);
+            await _context.SaveChangesAsync();
+
+            // Brand new social account: no internal password yet, so the storefront asks for one.
+            return Success(customer, "Login successful.", requiresPasswordSetup: true);
+        }
+
+        // Same status rules as a password login, so a blocked account cannot bypass them.
+        if (customer.CustomerStatusId != CustomerStatusActive)
+        {
+            return customer.CustomerStatusId switch
+            {
+                2 => Error("Your account has been deactivated. Please contact support."),
+                3 => Error("Your account has been suspended. Please contact support."),
+                _ => Error("Your account is not active. Please contact support.")
+            };
+        }
+
+        var changed = false;
+
+        if (string.IsNullOrWhiteSpace(customer.FirstName) && !string.IsNullOrEmpty(firstName))
+        {
+            customer.FirstName = firstName;
+            changed = true;
+        }
+
+        if (string.IsNullOrWhiteSpace(customer.LastName) && !string.IsNullOrEmpty(lastName))
+        {
+            customer.LastName = lastName;
+            changed = true;
+        }
+
+        if (!string.IsNullOrEmpty(externalPayload) && customer.GooglePayLoad != externalPayload)
+        {
+            customer.GooglePayLoad = externalPayload;
+            changed = true;
+        }
+
+        if (!customer.EmailVerfied)
+        {
+            customer.EmailVerfied = true;
+            changed = true;
+        }
+
+        if (changed)
+        {
+            customer.ModifiedOn = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+        }
+
+        // Accounts that never got an internal password (e.g. created by an earlier social
+        // sign-in or by guest checkout) are asked to set one as well.
+        return Success(customer, "Login successful.", requiresPasswordSetup: string.IsNullOrEmpty(customer.Password));
+    }
+
+    private LoginCustomerResponseDto Success(Customer customer, string message, bool requiresPasswordSetup = false)
     {
         // Every successful login/registration issues a signed token that the customer APIs require.
         var (token, expiresOn) = CustomerTokenService.Create(customer.CustomerId, customer.EmailId, _jwtSecret);
@@ -143,6 +230,7 @@ public partial class CustomerService : ICustomerService
             Messages = new[] { message },
             Token = token,
             ExpiresOn = expiresOn,
+            RequiresPasswordSetup = requiresPasswordSetup,
             Customer = new CustomerDto
             {
                 CustomerID = customer.CustomerId,

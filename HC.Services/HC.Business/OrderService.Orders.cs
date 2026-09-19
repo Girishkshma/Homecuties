@@ -10,6 +10,7 @@ using HC.Data;
 using HC.Data.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace HC.Business;
 
@@ -60,6 +61,23 @@ public partial class OrderService : IOrderService
 
     private async Task<CreateOrderResponse> CreateOrderInternalAsync(CreateOrderRequest request)
     {
+        // Refuse an online-payment order before anything is reserved or written when the gateway is
+        // not configured. Otherwise the customer is handed a payment order that Razorpay rejects
+        // (its API answers 401 for unknown keys) - and nothing could ever be paid for it.
+        if (string.Equals(request.PaymentMethod, "razorpay", StringComparison.OrdinalIgnoreCase) &&
+            !IsRazorpayConfigured)
+        {
+            _logger.LogError(
+                "Order rejected: 'Razorpay:KeyId'/'Razorpay:KeySecret' are not configured, so the " +
+                "payment gateway cannot be called.");
+
+            return new CreateOrderResponse
+            {
+                Result = 0,
+                Messages = new[] { "Online payment is not available right now. Please contact support." }
+            };
+        }
+
         // Get the cart items
         CartResponseDto cartResponse;
         if (request.IsGuest)
@@ -359,18 +377,28 @@ public partial class OrderService : IOrderService
         }
         await _context.SaveChangesAsync();
 
-        // Create Razorpay order
-        var razorpayKey = _configuration["Razorpay:KeyId"] ?? "rzp_test_placeholder";
-        var razorpaySecret = _configuration["Razorpay:KeySecret"] ?? "test_secret";
+        // Create the Razorpay order through their REST API (no official .NET SDK is referenced).
         var totalAmount = cartResponse.Calculation.GrandTotal;
         var amountInPaise = (int)(totalAmount * 100);
 
         // Generate a unique receipt number
         var receipt = $"HC{order.OrderId:D6}";
 
-        // For Razorpay, we need to create an order via their API
-        // Since we don't have the Razorpay .NET SDK installed, we'll use HttpClient
-        var razorpayOrderId = await CreateRazorpayOrder(razorpayKey, razorpaySecret, amountInPaise, receipt);
+        var (razorpayOrderId, razorpayError) = await CreateRazorpayOrder(
+            _razorpayKeyId, _razorpayKeySecret, amountInPaise, receipt, order.OrderId);
+
+        if (string.IsNullOrEmpty(razorpayOrderId))
+        {
+            // Result = 0 rolls the whole transaction back: no stock is consumed and no unpaid
+            // order is left behind.
+            _logger.LogError("Razorpay order creation failed for receipt {Receipt}: {Error}", receipt, razorpayError);
+
+            return new CreateOrderResponse
+            {
+                Result = 0,
+                Messages = new[] { "We could not start the payment. You have not been charged - please try again." }
+            };
+        }
 
         return new CreateOrderResponse
         {
@@ -380,7 +408,7 @@ public partial class OrderService : IOrderService
             OrderNumber = receipt,
             Amount = totalAmount,
             RazorpayOrderId = razorpayOrderId,
-            RazorpayKey = razorpayKey,
+            RazorpayKey = _razorpayKeyId,
             RemovedItems = removedItems.ToArray(),
             AdjustedItems = adjustedItems.ToArray()
         };

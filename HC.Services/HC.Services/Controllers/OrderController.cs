@@ -3,6 +3,7 @@ using HC.Business.Dtos;
 using HC.Business.Security;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
+using System.Text;
 
 namespace HC.Services.Controllers;
 
@@ -39,11 +40,38 @@ public class OrderController : ControllerBase
     [HttpPost("VerifyPayment")]
     public async Task<ActionResult> VerifyPayment([FromBody] VerifyPaymentRequest request)
     {
-        if (GetTokenCustomerId() == null)
+        var customerId = GetTokenCustomerId();
+        if (customerId == null)
             return Unauthorized(new { Result = 0, Messages = new[] { "Please sign in to continue." } });
 
-        var result = await _orderService.VerifyPaymentAsync(request);
+        // The order is always verified against the signed-in customer, never on the body alone.
+        var result = await _orderService.VerifyPaymentAsync(request, customerId.Value);
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Razorpay webhook: configure this URL in the Razorpay Dashboard (Account &amp; Settings →
+    /// Webhooks) and set 'Razorpay:WebhookSecret'. The body is read RAW because the signature is
+    /// calculated over the exact bytes Razorpay sent - parsing it first would break the check.
+    /// </summary>
+    [HttpPost("Webhook")]
+    public async Task<ActionResult> Webhook()
+    {
+        string rawBody;
+        using (var reader = new StreamReader(Request.Body, Encoding.UTF8))
+        {
+            rawBody = await reader.ReadToEndAsync();
+        }
+
+        var signature = Request.Headers["X-Razorpay-Signature"].ToString();
+        var result = await _orderService.HandlePaymentWebhookAsync(rawBody, signature);
+
+        // Deliberate: only a bad signature is rejected (400) so Razorpay retries a genuine
+        // delivery; anything we handled or deliberately ignored answers 200 to stop retries.
+        var invalidSignature = result.Result == 0 &&
+            result.Messages.Any(message => message.Contains("signature", StringComparison.OrdinalIgnoreCase));
+
+        return invalidSignature ? BadRequest(result) : Ok(result);
     }
 
     [HttpPost("GetOrders")]

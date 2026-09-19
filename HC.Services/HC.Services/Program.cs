@@ -82,6 +82,47 @@ if (usingLegacyConnectionName)
         DatabaseConnectionSelector.ProviderConfigurationKey);
 }
 
+// Log the configured Google client id (a public value, it also ships in the browser bundle) so a
+// mismatch with the deployed storefront build is obvious at a glance.
+var googleClientId = builder.Configuration["Google:ClientId"];
+if (string.IsNullOrWhiteSpace(googleClientId))
+{
+    app.Logger.LogWarning(
+        "Google sign-in is DISABLED: 'Google:ClientId' is not configured. Set it to the storefront's " +
+        "OAuth client id to enable the 'Continue with Google' button.");
+}
+else
+{
+    app.Logger.LogInformation("Google sign-in client id: {ClientId}", googleClientId);
+}
+
+// Log whether the payment gateway is configured. The key id is public (it is sent to the browser
+// with every checkout); the secret is never logged.
+var razorpayKeyId = builder.Configuration["Razorpay:KeyId"];
+var razorpaySecretConfigured = !string.IsNullOrWhiteSpace(builder.Configuration["Razorpay:KeySecret"]);
+if (string.IsNullOrWhiteSpace(razorpayKeyId) || !razorpaySecretConfigured)
+{
+    app.Logger.LogWarning(
+        "Razorpay is NOT configured: set 'Razorpay:KeyId' and 'Razorpay:KeySecret' (or the " +
+        "environment variables 'Razorpay__KeyId' / 'Razorpay__KeySecret') - online payments will " +
+        "be refused with 'Online payment is not available right now.'");
+}
+else
+{
+    app.Logger.LogInformation("Razorpay key id: {KeyId} (secret configured: true)", razorpayKeyId);
+}
+
+if (string.IsNullOrWhiteSpace(builder.Configuration["Razorpay:WebhookSecret"]))
+{
+    app.Logger.LogWarning(
+        "Razorpay webhook secret is not configured ('Razorpay:WebhookSecret') - webhook deliveries " +
+        "will be rejected, so orders are only confirmed through the checkout callback.");
+}
+else
+{
+    app.Logger.LogInformation("Razorpay webhook endpoint: POST /api/Order/Webhook (signature validation on)");
+}
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
