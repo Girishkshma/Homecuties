@@ -74,4 +74,7 @@ public class LoginCustomerResponseDto
     public int Result { get; set; }
     public string[] Messages { get; set; } = Array.Empty<string>();
     public CustomerDto? Customer { get; set; }
+    /// <summary>HMAC-signed token proving the signed-in customer (sent as 'Authorization: Bearer ...').</summary>
+    public string? Token { get; set; }
+    public DateTime? ExpiresOn { get; set; }
 }

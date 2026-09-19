@@ -19,11 +19,9 @@ public partial class OrderService : IOrderService
     {
         var items = guestCart.GuestCartItems.Select(ci =>
         {
-            var availableSkus = ci.Product.PurchaseDetails
+            var availableQty = ci.Product.PurchaseDetails
                 .SelectMany(pd => pd.Skus)
-                .Where(s => !s.OrderItems.Any())
-                .ToList();
-            var availableQty = availableSkus.Count;
+                .Count(s => s.SkustatusId == AvailableSkuStatusId && !s.OrderItems.Any());
             return new CartItemDto
             {
                 ProductID = ci.ProductId,
@@ -54,11 +52,9 @@ public partial class OrderService : IOrderService
     {
         var items = cart.CartItems.Select(ci =>
         {
-            var availableSkus = ci.Product.PurchaseDetails
+            var availableQty = ci.Product.PurchaseDetails
                 .SelectMany(pd => pd.Skus)
-                .Where(s => !s.OrderItems.Any())
-                .ToList();
-            var availableQty = availableSkus.Count;
+                .Count(s => s.SkustatusId == AvailableSkuStatusId && !s.OrderItems.Any());
             return new CartItemDto
             {
                 ProductID = ci.ProductId,

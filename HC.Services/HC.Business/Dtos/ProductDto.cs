@@ -18,6 +18,8 @@ public class ProductDto
     public decimal SGSTPercent { get; set; }
     public decimal IGSTPercent { get; set; }
     public bool IsInStock { get; set; }
+    /// <summary>Number of sellable SKUs (Available status and not already reserved by an order).</summary>
+    public int AvailableQty { get; set; }
     public List<ProductFeatureDto> Features { get; set; } = new();
     public List<CategoryDto> Categories { get; set; } = new();
 }
@@ -34,4 +36,15 @@ public class CategoryDto
     public short CategoryID { get; set; }
     public string CategoryName { get; set; } = "";
     public short? ParentCategoryID { get; set; }
+}
+
+/// <summary>Live counts shown in the storefront hero section.</summary>
+public class HomeStatsDto
+{
+    /// <summary>Products that are not Suspended.</summary>
+    public int ProductCount { get; set; }
+    /// <summary>Categories that have at least one active product.</summary>
+    public int CategoryCount { get; set; }
+    /// <summary>Registered customers.</summary>
+    public int CustomerCount { get; set; }
 }

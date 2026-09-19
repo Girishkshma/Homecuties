@@ -20,6 +20,11 @@ public partial class CartService : ICartService
                 .Include(gc => gc.GuestCartItems)
                     .ThenInclude(ci => ci.Product)
                         .ThenInclude(p => p.ProductImages)
+                .Include(gc => gc.GuestCartItems)
+                    .ThenInclude(ci => ci.Product)
+                        .ThenInclude(p => p.PurchaseDetails)
+                            .ThenInclude(pd => pd.Skus)
+                                .ThenInclude(s => s.OrderItems)
                 .FirstOrDefaultAsync(gc => gc.CustomerId == customerId);
 
             if (guestCart == null)
@@ -27,11 +32,9 @@ public partial class CartService : ICartService
 
             var cartItems = guestCart.GuestCartItems.Select(ci =>
             {
-                var availableSkus = ci.Product.PurchaseDetails
+                var availableQty = ci.Product.PurchaseDetails
                     .SelectMany(pd => pd.Skus)
-                    .Where(s => !s.OrderItems.Any())
-                    .ToList();
-                var availableQty = availableSkus.Count;
+                    .Count(s => s.SkustatusId == AvailableSkuStatusId && !s.OrderItems.Any());
                 return new CartItemDto
                 {
                     ProductID = ci.ProductId,
@@ -57,6 +60,11 @@ public partial class CartService : ICartService
                 .Include(c => c.CartItems)
                     .ThenInclude(ci => ci.Product)
                         .ThenInclude(p => p.ProductImages)
+                .Include(c => c.CartItems)
+                    .ThenInclude(ci => ci.Product)
+                        .ThenInclude(p => p.PurchaseDetails)
+                            .ThenInclude(pd => pd.Skus)
+                                .ThenInclude(s => s.OrderItems)
                 .FirstOrDefaultAsync(c => c.CustomerId == customerId);
 
             if (cart == null)
@@ -64,11 +72,9 @@ public partial class CartService : ICartService
 
             var cartItems = cart.CartItems.Select(ci =>
             {
-                var availableSkus = ci.Product.PurchaseDetails
+                var availableQty = ci.Product.PurchaseDetails
                     .SelectMany(pd => pd.Skus)
-                    .Where(s => !s.OrderItems.Any())
-                    .ToList();
-                var availableQty = availableSkus.Count;
+                    .Count(s => s.SkustatusId == AvailableSkuStatusId && !s.OrderItems.Any());
                 return new CartItemDto
                 {
                     ProductID = ci.ProductId,

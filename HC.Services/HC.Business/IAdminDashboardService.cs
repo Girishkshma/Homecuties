@@ -28,6 +28,13 @@ public interface IAdminDashboardService
     Task<AdminResultDto> UpdateVendorAsync(short vendorId, VendorFormRequest request, long currentUserId);
     Task<List<AdminPurchaseListDto>> GetPurchasesAsync();
     Task<AdminPurchaseDetailDto?> GetPurchaseDetailAsync(long purchaseId);
+    Task<List<AdminPurchaserDto>> GetPurchasersAsync();
+    Task<AdminResultDto> CreatePurchaseAsync(AdminPurchaseCreateRequest request, long currentUserId);
+    Task<List<AdminPurchaseStatusDto>> GetPurchaseStatusesAsync(long purchaseId, long currentUserId);
+    Task<AdminResultDto> UpdatePurchaseStatusAsync(long purchaseId, AdminPurchaseStatusUpdateRequest request, long currentUserId);
+    Task<AdminResultDto> UpdatePurchaseAsync(long purchaseId, AdminPurchaseUpdateRequest request, long currentUserId);
+    Task<AdminResultDto> SavePurchaseItemsAsync(long purchaseId, AdminPurchaseItemsRequest request, long currentUserId);
+    Task<AdminResultDto> AddPurchaseCommentAsync(long purchaseId, AdminPurchaseCommentRequest request, long currentUserId);
     Task<List<AdminUserListDto>> GetAdminUsersAsync();
     Task<AdminUserDetailDto?> GetAdminUserAsync(long userId);
     Task<List<AdminRoleDto>> GetAdminRolesAsync();

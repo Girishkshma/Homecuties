@@ -334,6 +334,73 @@ public class AdminController : ControllerBase
         return Ok(purchase);
     }
 
+    [HttpGet("purchasers")]
+    public async Task<ActionResult> GetPurchasers()
+    {
+        var purchasers = await _adminDashboardService.GetPurchasersAsync();
+        return Ok(purchasers);
+    }
+
+    [HttpPost("purchases")]
+    public async Task<ActionResult> CreatePurchase([FromBody] AdminPurchaseCreateRequest request, [FromQuery] long userId)
+    {
+        if (userId <= 0)
+            return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
+
+        var result = await _adminDashboardService.CreatePurchaseAsync(request, userId);
+        return Ok(result);
+    }
+
+    [HttpGet("purchases/{id}/statuses")]
+    public async Task<ActionResult> GetPurchaseStatuses(long id, [FromQuery] long userId)
+    {
+        if (userId <= 0)
+            return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
+
+        var statuses = await _adminDashboardService.GetPurchaseStatusesAsync(id, userId);
+        return Ok(statuses);
+    }
+
+    [HttpPost("purchases/{id}/status")]
+    public async Task<ActionResult> UpdatePurchaseStatus(long id, [FromBody] AdminPurchaseStatusUpdateRequest request, [FromQuery] long userId)
+    {
+        if (userId <= 0)
+            return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
+
+        var result = await _adminDashboardService.UpdatePurchaseStatusAsync(id, request, userId);
+        return Ok(result);
+    }
+
+    [HttpPut("purchases/{id}")]
+    public async Task<ActionResult> UpdatePurchase(long id, [FromBody] AdminPurchaseUpdateRequest request, [FromQuery] long userId)
+    {
+        if (userId <= 0)
+            return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
+
+        var result = await _adminDashboardService.UpdatePurchaseAsync(id, request, userId);
+        return Ok(result);
+    }
+
+    [HttpPut("purchases/{id}/items")]
+    public async Task<ActionResult> SavePurchaseItems(long id, [FromBody] AdminPurchaseItemsRequest request, [FromQuery] long userId)
+    {
+        if (userId <= 0)
+            return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
+
+        var result = await _adminDashboardService.SavePurchaseItemsAsync(id, request, userId);
+        return Ok(result);
+    }
+
+    [HttpPost("purchases/{id}/comments")]
+    public async Task<ActionResult> AddPurchaseComment(long id, [FromBody] AdminPurchaseCommentRequest request, [FromQuery] long userId)
+    {
+        if (userId <= 0)
+            return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
+
+        var result = await _adminDashboardService.AddPurchaseCommentAsync(id, request, userId);
+        return Ok(result);
+    }
+
     #endregion
 
     #region Admin Users

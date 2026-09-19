@@ -40,7 +40,7 @@ public class WishListService : IWishListService
                     PostAdditionalDiscountSalesPrice = w.Product.UnitPrice - (w.Product.UnitPrice * (w.Product.DiscountPercent + w.Product.AdditionalDiscountPercent) / 100),
                     DiscountPercent = w.Product.DiscountPercent,
                     AdditionalDiscountPercent = w.Product.AdditionalDiscountPercent,
-                    IsInStock = w.Product.PurchaseDetails.Any(pd => pd.Skus.Any(s => !s.OrderItems.Any()))
+                    IsInStock = w.Product.PurchaseDetails.SelectMany(pd => pd.Skus).Any(s => s.SkustatusId == 1 && !s.OrderItems.Any())
                 })
                 .ToListAsync();
         }
@@ -68,7 +68,7 @@ public class WishListService : IWishListService
                     PostAdditionalDiscountSalesPrice = w.Product.UnitPrice - (w.Product.UnitPrice * (w.Product.DiscountPercent + w.Product.AdditionalDiscountPercent) / 100),
                     DiscountPercent = w.Product.DiscountPercent,
                     AdditionalDiscountPercent = w.Product.AdditionalDiscountPercent,
-                    IsInStock = w.Product.PurchaseDetails.Any(pd => pd.Skus.Any(s => !s.OrderItems.Any()))
+                    IsInStock = w.Product.PurchaseDetails.SelectMany(pd => pd.Skus).Any(s => s.SkustatusId == 1 && !s.OrderItems.Any())
                 })
                 .ToListAsync();
         }

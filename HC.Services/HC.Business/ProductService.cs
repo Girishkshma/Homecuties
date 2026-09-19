@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using HC.Business.Dtos;
 using HC.Data;
 using Microsoft.EntityFrameworkCore;
@@ -6,6 +7,10 @@ namespace HC.Business;
 
 public class ProductService : IProductService
 {
+    // SKUStatuses.SKUStatusID = 1 => "Available".
+    // Only Available SKUs that are not already reserved by an order count as sellable stock.
+    private const short AvailableSkuStatusId = 1;
+
     private readonly HomecutiesDbContext _context;
 
     public ProductService(HomecutiesDbContext context)
@@ -21,7 +26,19 @@ public class ProductService : IProductService
                 .ThenInclude(pc => pc.Category)
             .Include(p => p.ProductImages)
             .Include(p => p.ProductFeatures)
-            .Select(p => MapProduct(p))
+            .Select(ProductProjection)
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<ProductDto>> GetActiveProductsAsync()
+    {
+        return await _context.Products
+            .Where(p => p.ProductStatusId != 2) // 2 = Suspended (disabled)
+            .Include(p => p.ProductCategories)
+                .ThenInclude(pc => pc.Category)
+            .Include(p => p.ProductImages)
+            .Include(p => p.ProductFeatures)
+            .Select(ProductProjection)
             .ToListAsync();
     }
 
@@ -33,7 +50,7 @@ public class ProductService : IProductService
                 .ThenInclude(pc => pc.Category)
             .Include(p => p.ProductImages)
             .Include(p => p.ProductFeatures)
-            .Select(p => MapProduct(p))
+            .Select(ProductProjection)
             .FirstOrDefaultAsync();
     }
 
@@ -46,7 +63,7 @@ public class ProductService : IProductService
                 .ThenInclude(pc => pc.Category)
             .Include(p => p.ProductImages)
             .Include(p => p.ProductFeatures)
-            .Select(p => MapProduct(p))
+            .Select(ProductProjection)
             .ToListAsync();
     }
 
@@ -63,6 +80,25 @@ public class ProductService : IProductService
             .ToListAsync();
     }
 
+    /// <summary>Live counts for the storefront hero section, read straight from the database.</summary>
+    public async Task<HomeStatsDto> GetHomeStatsAsync()
+    {
+        var productCount = await _context.Products
+            .CountAsync(p => p.ProductStatusId != 2); // 2 = Suspended (disabled)
+
+        var categoryCount = await _context.Categories
+            .CountAsync(c => c.ProductCategories.Any(pc => pc.IsActive));
+
+        var customerCount = await _context.Customers.CountAsync();
+
+        return new HomeStatsDto
+        {
+            ProductCount = productCount,
+            CategoryCount = categoryCount,
+            CustomerCount = customerCount
+        };
+    }
+
     public async Task<CategoryDto?> GetCategoryAsync(short categoryId)
     {
         return await _context.Categories
@@ -76,7 +112,13 @@ public class ProductService : IProductService
             .FirstOrDefaultAsync();
     }
 
-    private static ProductDto MapProduct(Data.Entities.Product p) => new()
+    /// <summary>
+    /// Projection used by all product queries. It is an <see cref="Expression{TDelegate}"/> so
+    /// EF Core can translate it into SQL - including the stock calculation. A plain C# method
+    /// would be evaluated client-side after materialisation, where the (never Included)
+    /// PurchaseDetails collection is empty, which made every product report "Out of Stock".
+    /// </summary>
+    private static readonly Expression<Func<Data.Entities.Product, ProductDto>> ProductProjection = p => new ProductDto
     {
         ProductID = p.ProductId,
         ProductName = p.ProductName,
@@ -100,7 +142,8 @@ public class ProductService : IProductService
         CGSTPercent = p.Cgstpercent,
         SGSTPercent = p.Sgstpercent,
         IGSTPercent = p.Igstpercent,
-        IsInStock = p.PurchaseDetails.Any(pd => pd.Skus.Any(s => !s.OrderItems.Any())),
+        IsInStock = p.PurchaseDetails.SelectMany(pd => pd.Skus).Any(s => s.SkustatusId == AvailableSkuStatusId && !s.OrderItems.Any()),
+        AvailableQty = p.PurchaseDetails.SelectMany(pd => pd.Skus).Count(s => s.SkustatusId == AvailableSkuStatusId && !s.OrderItems.Any()),
         Features = p.ProductFeatures
             .Where(pf => pf.IsActive)
             .Select(pf => new ProductFeatureDto

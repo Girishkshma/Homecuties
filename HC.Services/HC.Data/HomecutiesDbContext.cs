@@ -757,7 +757,6 @@ public partial class HomecutiesDbContext : DbContext
             entity.ToTable("OrderHistory");
 
             entity.Property(e => e.HistoryId)
-                .ValueGeneratedNever()
                 .HasColumnName("HistoryID");
             entity.Property(e => e.Comments)
                 .HasMaxLength(2000)

@@ -4,6 +4,7 @@
 // ============================================================
 
 using HC.Business.Dtos;
+using HC.Business.Security;
 using HC.Data;
 using HC.Data.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -55,6 +56,15 @@ public partial class CustomerService : ICustomerService
 
     public async Task<ResultDto> ResetPasswordAsync(string token, string newPassword)
     {
+        if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 6)
+        {
+            return new ResultDto
+            {
+                Result = 0,
+                Messages = new[] { "Password must be at least 6 characters long." }
+            };
+        }
+
         // Find a valid reset request (within 24 hours)
         var resetRequest = await _context.PasswordResetRequests
             .Where(r => r.Jwt == token && !r.IsAdmin)
@@ -92,8 +102,8 @@ public partial class CustomerService : ICustomerService
             };
         }
 
-        // Update the password
-        customer.Password = newPassword;
+        // Update the password (always stored as a PBKDF2 hash)
+        customer.Password = CustomerPasswordHasher.Hash(newPassword);
         customer.ModifiedOn = DateTime.UtcNow;
 
         // Mark the token as used by clearing it

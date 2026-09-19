@@ -654,6 +654,8 @@ public class AdminPurchaseDetailDto
     public short VendorId { get; set; }
     [JsonPropertyName("vendorName")]
     public string VendorName { get; set; } = "";
+    [JsonPropertyName("purchaserId")]
+    public int PurchaserId { get; set; }
     [JsonPropertyName("purchaserName")]
     public string PurchaserName { get; set; } = "";
     [JsonPropertyName("purchaseDate")]
@@ -706,6 +708,100 @@ public class AdminPurchaseCommentDto
     public string AddedByName { get; set; } = "";
     [JsonPropertyName("addedOn")]
     public DateTime AddedOn { get; set; }
+}
+
+// Purchases (create)
+public class AdminPurchaseCreateRequest
+{
+    [JsonPropertyName("vendorId")]
+    public short VendorId { get; set; }
+    [JsonPropertyName("purchaserId")]
+    public int PurchaserId { get; set; }
+    [JsonPropertyName("purchaseDate")]
+    public DateTime PurchaseDate { get; set; }
+    [JsonPropertyName("invoicePath")]
+    public string? InvoicePath { get; set; }
+    [JsonPropertyName("purchaseStatusId")]
+    public short PurchaseStatusId { get; set; } = 1; // 1 = ADDED
+    [JsonPropertyName("items")]
+    public List<AdminPurchaseCreateItemDto> Items { get; set; } = new();
+}
+
+public class AdminPurchaseCreateItemDto
+{
+    [JsonPropertyName("productId")]
+    public int ProductId { get; set; }
+    [JsonPropertyName("quantity")]
+    public short Quantity { get; set; }
+    [JsonPropertyName("unitPrice")]
+    public decimal UnitPrice { get; set; }
+    [JsonPropertyName("gst")]
+    public decimal Gst { get; set; }
+}
+
+public class AdminPurchaserDto
+{
+    [JsonPropertyName("purchaserId")]
+    public int PurchaserId { get; set; }
+    [JsonPropertyName("purchaserName")]
+    public string PurchaserName { get; set; } = "";
+    [JsonPropertyName("partnerName")]
+    public string PartnerName { get; set; } = "";
+}
+
+// Purchases (status workflow & edit)
+public class AdminPurchaseStatusDto
+{
+    [JsonPropertyName("purchaseStatusId")]
+    public short PurchaseStatusId { get; set; }
+    [JsonPropertyName("purchaseStatusName")]
+    public string PurchaseStatusName { get; set; } = "";
+}
+
+public class AdminPurchaseStatusUpdateRequest
+{
+    [JsonPropertyName("statusId")]
+    public short StatusId { get; set; }
+    [JsonPropertyName("comments")]
+    public string? Comments { get; set; }
+}
+
+public class AdminPurchaseUpdateRequest
+{
+    [JsonPropertyName("vendorId")]
+    public short VendorId { get; set; }
+    [JsonPropertyName("purchaserId")]
+    public int PurchaserId { get; set; }
+    [JsonPropertyName("purchaseDate")]
+    public DateTime PurchaseDate { get; set; }
+    [JsonPropertyName("invoicePath")]
+    public string? InvoicePath { get; set; }
+}
+
+public class AdminPurchaseItemSaveDto
+{
+    [JsonPropertyName("purchaseDetailId")]
+    public long PurchaseDetailId { get; set; }
+    [JsonPropertyName("productId")]
+    public int ProductId { get; set; }
+    [JsonPropertyName("quantity")]
+    public short Quantity { get; set; }
+    [JsonPropertyName("unitPrice")]
+    public decimal UnitPrice { get; set; }
+    [JsonPropertyName("gst")]
+    public decimal Gst { get; set; }
+}
+
+public class AdminPurchaseItemsRequest
+{
+    [JsonPropertyName("items")]
+    public List<AdminPurchaseItemSaveDto> Items { get; set; } = new();
+}
+
+public class AdminPurchaseCommentRequest
+{
+    [JsonPropertyName("comments")]
+    public string Comments { get; set; } = "";
 }
 
 // Users (Admin Users)

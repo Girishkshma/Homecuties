@@ -21,6 +21,21 @@ public class ProductsController : ControllerBase
         return Ok(products);
     }
 
+    [HttpGet("GetActiveProducts")]
+    public async Task<ActionResult<IEnumerable<object>>> GetActiveProducts()
+    {
+        var products = await _productService.GetActiveProductsAsync();
+        return Ok(products);
+    }
+
+    /// <summary>Live counts (products / customers / categories) for the storefront hero section.</summary>
+    [HttpGet("GetHomeStats")]
+    public async Task<ActionResult<object>> GetHomeStats()
+    {
+        var stats = await _productService.GetHomeStatsAsync();
+        return Ok(stats);
+    }
+
     [HttpGet("GetProduct/{productId}")]
     public async Task<ActionResult<object>> GetProduct(string productId)
     {

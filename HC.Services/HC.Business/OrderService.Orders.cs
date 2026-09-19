@@ -15,7 +15,50 @@ namespace HC.Business;
 
 public partial class OrderService : IOrderService
 {
+    /// <summary>
+    /// Places an order. Everything - locking the required SKUs, creating the order and its items,
+    /// moving the SKUs to "Ordered" (with SKU history) and updating the cart - runs inside ONE
+    /// database transaction. If any stage fails the whole thing is rolled back, so no stock is
+    /// consumed and no half-built order is left behind.
+    /// </summary>
     public async Task<CreateOrderResponse> CreateOrderAsync(CreateOrderRequest request)
+    {
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+
+        try
+        {
+            var response = await CreateOrderInternalAsync(request);
+
+            if (response.Result == 1)
+            {
+                await transaction.CommitAsync();
+            }
+            else
+            {
+                await transaction.RollbackAsync();
+                _context.ChangeTracker.Clear();
+            }
+
+            return response;
+        }
+        catch (Exception ex)
+        {
+            await transaction.RollbackAsync();
+            _context.ChangeTracker.Clear();
+
+            return new CreateOrderResponse
+            {
+                Result = 0,
+                Messages = new[]
+                {
+                    "We could not place your order. Nothing was changed - your cart and the stock are exactly as they were. Please try again.",
+                    ex.GetBaseException().Message
+                }
+            };
+        }
+    }
+
+    private async Task<CreateOrderResponse> CreateOrderInternalAsync(CreateOrderRequest request)
     {
         // Get the cart items
         CartResponseDto cartResponse;
@@ -29,6 +72,7 @@ public partial class OrderService : IOrderService
                     .ThenInclude(ci => ci.Product)
                         .ThenInclude(p => p.PurchaseDetails)
                             .ThenInclude(pd => pd.Skus)
+                                .ThenInclude(s => s.OrderItems)
                 .FirstOrDefaultAsync(gc => gc.CustomerId == request.CustomerID);
 
             if (guestCart == null || !guestCart.GuestCartItems.Any())
@@ -46,6 +90,7 @@ public partial class OrderService : IOrderService
                     .ThenInclude(ci => ci.Product)
                         .ThenInclude(p => p.PurchaseDetails)
                             .ThenInclude(pd => pd.Skus)
+                                .ThenInclude(s => s.OrderItems)
                 .FirstOrDefaultAsync(c => c.CustomerId == request.CustomerID);
 
             if (cart == null || !cart.CartItems.Any())
@@ -159,10 +204,17 @@ public partial class OrderService : IOrderService
         cartResponse.Items = validItems;
         cartResponse.Calculation = RecalculateCart(validItems);
 
+        // Guests only exist in GuestCustomers, while Orders and CustomerAddresses have a foreign
+        // key to Customers. Resolve (or create) the matching customer record so a guest order
+        // can actually be persisted.
+        var orderCustomerId = request.IsGuest
+            ? await ResolveGuestCustomerIdAsync(request)
+            : request.CustomerID;
+
         // Create customer address
         var address = new CustomerAddress
         {
-            CustomerId = request.CustomerID,
+            CustomerId = orderCustomerId,
             AddressTitle = "Shipping",
             AddressLine1 = request.ShippingAddress,
             City = request.City,
@@ -179,7 +231,7 @@ public partial class OrderService : IOrderService
         // Create the order
         var order = new Order
         {
-            CustomerId = request.CustomerID,
+            CustomerId = orderCustomerId,
             SellerId = 1, // Default seller
             OrderDate = DateTime.UtcNow,
             BillingAddressId = address.AddressId,
@@ -189,26 +241,46 @@ public partial class OrderService : IOrderService
         _context.Orders.Add(order);
         await _context.SaveChangesAsync();
 
-        // Create order items and reserve SKUs
-        foreach (var item in validItems)
+        // Create order items and reserve SKUs.
+        // The required SKU rows are locked first, with (UPDLOCK, ROWLOCK, HOLDLOCK), and the locks
+        // are held until the surrounding transaction commits or rolls back. This is what stops two
+        // simultaneous checkouts from selling the same physical unit.
+        // Products are locked in a deterministic (ProductID) order to avoid deadlocks.
+        var reservedItems = new List<CartItemDto>();
+        var stockChangedItems = new List<string>();
+        var skuHistoryDate = DateTime.UtcNow;
+
+        foreach (var item in validItems.OrderBy(i => i.ProductID))
         {
-            // Get available SKUs for this product
             var product = await _context.Products
-                .Include(p => p.PurchaseDetails)
-                    .ThenInclude(pd => pd.Skus)
+                .Include(p => p.ProductCategories)
                 .FirstOrDefaultAsync(p => p.ProductId == item.ProductID);
 
-            if (product == null) continue;
-
-            var availableSkus = product.PurchaseDetails
-                .SelectMany(pd => pd.Skus)
-                .Where(s => !s.OrderItems.Any())
-                .Take(item.Quantity)
-                .ToList();
-
-            foreach (var sku in availableSkus)
+            if (product == null)
             {
-                var orderItem = new OrderItem
+                continue;
+            }
+
+            var reservedSkus = await LockAvailableSkusAsync(item.ProductID, item.Quantity);
+
+            if (reservedSkus.Count == 0)
+            {
+                // Stock disappeared while the customer was checking out.
+                stockChangedItems.Add($"{item.ProductTitle} (out of stock)");
+                continue;
+            }
+
+            if (reservedSkus.Count < item.Quantity)
+            {
+                // Only charge for the units we actually locked.
+                stockChangedItems.Add($"{item.ProductTitle} (requested {item.Quantity}, reserved {reservedSkus.Count})");
+                item.Quantity = reservedSkus.Count;
+            }
+
+            foreach (var sku in reservedSkus)
+            {
+                // Associate the physical unit with this order.
+                _context.OrderItems.Add(new OrderItem
                 {
                     OrderId = order.OrderId,
                     Sku = sku.Sku1,
@@ -227,11 +299,32 @@ public partial class OrderService : IOrderService
                     Cgstpercent = product.Cgstpercent,
                     Sgstpercent = product.Sgstpercent,
                     Igstpercent = product.Igstpercent
-                };
-                _context.OrderItems.Add(orderItem);
+                });
+
+                // The unit now belongs to this order: take it out of the available pool.
+                sku.SkustatusId = OrderedSkuStatusId;
+
+                _context.Skuhistories.Add(new Skuhistory
+                {
+                    Sku = sku.Sku1,
+                    InventoryId = sku.InventoryId,
+                    SkustatusId = OrderedSkuStatusId,
+                    HistoryDate = skuHistoryDate
+                });
             }
+
+            reservedItems.Add(item);
         }
         await _context.SaveChangesAsync();
+
+        if (stockChangedItems.Any())
+        {
+            messages.Add($"Stock changed while placing your order - adjusted for: {string.Join(", ", stockChangedItems)}");
+        }
+
+        // Charge only for the lines that actually got stock.
+        cartResponse.Items = reservedItems;
+        cartResponse.Calculation = RecalculateCart(reservedItems);
 
         // Add order history
         var history = new OrderHistory
@@ -321,5 +414,66 @@ public partial class OrderService : IOrderService
             }).ToList()
         }).ToList();
     }
+
+    /// <summary>
+    /// Guests are stored in GuestCustomers, but Orders/CustomerAddresses reference Customers.
+    /// Finds an existing customer by e-mail or mobile number (so repeat guest orders don't create
+    /// duplicates) and creates one when there is none, then returns the Customers.CustomerID to
+    /// use for the order and its address. Runs inside the caller's transaction.
+    /// </summary>
+    private async Task<long> ResolveGuestCustomerIdAsync(CreateOrderRequest request)
+    {
+        var email = (request.Email ?? "").Trim();
+        var mobile = (request.PhoneNumber ?? "").Trim();
+
+        var existing = await _context.Customers.FirstOrDefaultAsync(c =>
+            (!string.IsNullOrEmpty(email) && c.EmailId == email) ||
+            (!string.IsNullOrEmpty(mobile) && c.MobileNumber == mobile));
+
+        if (existing != null)
+        {
+            return existing.CustomerId;
+        }
+
+        var now = DateTime.UtcNow;
+        var customer = new Customer
+        {
+            FirstName = "Guest",
+            EmailId = string.IsNullOrEmpty(email) ? $"guest_{Guid.NewGuid():N}@homecuties.local" : email,
+            MobileNumber = string.IsNullOrEmpty(mobile) ? null : mobile,
+            EmailVerfied = false,
+            MobileVerified = false,
+            CustomerStatusId = 1, // 1 = ACTIVE
+            CreatedOn = now,
+            ModifiedOn = now
+        };
+
+        _context.Customers.Add(customer);
+        await _context.SaveChangesAsync();
+
+        return customer.CustomerId;
+    }
+
+    /// <summary>
+    /// Locks and returns up to <paramref name="quantity"/> sellable SKUs for a product.
+    /// The rows are taken with UPDLOCK/ROWLOCK/HOLDLOCK, so the locks are held until the
+    /// surrounding transaction commits or rolls back. A concurrent checkout asking for the same
+    /// units will block here and then see them as taken - it can never sell the same unit twice.
+    /// </summary>
+    private async Task<List<Sku>> LockAvailableSkusAsync(int productId, int quantity)
+    {
+        const string sql = @"
+SELECT TOP ({0}) * FROM [SKUs] AS s WITH (UPDLOCK, ROWLOCK, HOLDLOCK)
+WHERE s.[SKUStatusID] = {2}
+  AND s.[PurchaseDetailID] IN (SELECT pd.[PurchaseDetailID] FROM [PurchaseDetails] AS pd WHERE pd.[ProductID] = {1})
+  AND NOT EXISTS (SELECT 1 FROM [OrderItems] AS oi WHERE oi.[SKU] = s.[SKU])
+ORDER BY s.[SKU]";
+
+        return await _context.Skus
+            .FromSqlRaw(sql, quantity, productId, AvailableSkuStatusId)
+            .AsTracking()
+            .ToListAsync();
+    }
+
 
 }

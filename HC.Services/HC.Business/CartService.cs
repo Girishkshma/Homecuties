@@ -7,6 +7,9 @@ namespace HC.Business;
 
 public partial class CartService : ICartService
 {
+    // SKUStatuses.SKUStatusID = 1 => "Available"
+    private const short AvailableSkuStatusId = 1;
+
     private readonly HomecutiesDbContext _context;
 
     public CartService(HomecutiesDbContext context)
