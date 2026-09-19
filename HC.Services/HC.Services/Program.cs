@@ -2,6 +2,7 @@ using HC.Business;
 using HC.Data;
 using HC.Services;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 
@@ -19,9 +20,23 @@ builder.Services.AddControllers()
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
-// Configure DbContext
+// Configure DbContext.
+// The active database is selected by "Database:Provider" and can be switched without a rebuild
+// from any configuration source, e.g.:
+//   appsettings.json                 -> "Database": { "Provider": "Remote" }
+//   launch profile (F5 / dotnet run)  -> dotnet run --launch-profile Local
+//   environment variable              -> $env:Database__Provider = 'Local'
+//   command line argument             -> dotnet run --Database:Provider=Local
+var connectionName = DatabaseConnectionSelector.ResolveConnectionName(builder.Configuration);
+var usingLegacyConnectionName = connectionName == DatabaseConnectionSelector.LegacyConnectionName;
+var connectionString = builder.Configuration.GetConnectionString(connectionName)
+    ?? throw new InvalidOperationException(
+        $"Connection string '{connectionName}' is not configured. Add it under 'ConnectionStrings' " +
+        $"in appsettings.json or point '{DatabaseConnectionSelector.ProviderConfigurationKey}' at one of the " +
+        $"existing entries ({string.Join(", ", builder.Configuration.GetSection("ConnectionStrings").GetChildren().Select(section => section.Key))}).");
+
 builder.Services.AddDbContext<HomecutiesDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(connectionString));
 
 // Register Business Services
 builder.Services.AddScoped<IProductService, ProductService>();
@@ -47,6 +62,25 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+// Log which connection string is active (credentials are never logged).
+var connectionInfo = new SqlConnectionStringBuilder(connectionString);
+app.Logger.LogInformation(
+    "Active database connection: '{ConnectionName}' ({DataSource} / {InitialCatalog}).",
+    connectionName,
+    connectionInfo.DataSource,
+    connectionInfo.InitialCatalog);
+
+if (usingLegacyConnectionName)
+{
+    app.Logger.LogWarning(
+        "appsettings.json only defines the legacy '{LegacyConnection}'. Define '{LocalConnection}' and " +
+        "'{RemoteConnection}' and set '{ProviderKey}' to 'Local' or 'Remote' to switch between them.",
+        DatabaseConnectionSelector.LegacyConnectionName,
+        DatabaseConnectionSelector.LocalConnectionName,
+        DatabaseConnectionSelector.RemoteConnectionName,
+        DatabaseConnectionSelector.ProviderConfigurationKey);
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

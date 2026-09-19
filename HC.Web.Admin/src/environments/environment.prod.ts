@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  apiUrl: '/api/admin'
+  apiUrl: 'https://serv.homecuties.com/api/admin'
 };
