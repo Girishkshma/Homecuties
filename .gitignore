@@ -20,8 +20,12 @@ bld/
 
 # Visual Studio
 .vs/
+**/.vs/
 *.sln.ide/
 *.user
+*.csproj.user
+*.vbproj.user
+*.fsproj.user
 *.suo
 *.userosscache
 *.sln.docstates
@@ -118,12 +122,20 @@ jspm_packages/
 out-tsc/
 dist/
 tmp/
+*.tsbuildinfo
 
 # Angular
+.angular/
 .angular/cache/
 
 # Angular CLI generated
 /coverage
+/coverage/
+*.lcov
+
+# Linters / sass caches
+.eslintcache
+.sass-cache/
 
 # Yarn
 .yarn/
@@ -163,12 +175,36 @@ Thumbs.db
 *.swo
 *~
 
+# Merge / backup artifacts
+*.orig
+*.rej
+*.bak
+
 # ===========================
 # Environment / Config
 # ===========================
 .env
 .env.local
 .env.*.local
+.env.development.local
+.env.production.local
+
+# Local configuration overrides - never commit real secrets
+appsettings.Local.json
+appsettings.*.local.json
+secrets.json
+*.secrets.json
+*.pfx
+*.snk
+
+# ===========================
+# Runtime / Uploaded Content
+# ===========================
+
+# Product images are uploaded at runtime by the API (AdminController.UploadProductImage)
+# and served from wwwroot. Keep the folder via .gitkeep, but not the uploaded files.
+HC.Services/HC.Services/wwwroot/images/products/*
+!HC.Services/HC.Services/wwwroot/images/products/.gitkeep
 
 # ===========================
 # Docker
