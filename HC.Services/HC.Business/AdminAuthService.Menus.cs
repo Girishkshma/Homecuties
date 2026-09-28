@@ -30,6 +30,26 @@ public partial class AdminAuthService : IAdminAuthService
         return BuildMenuTree(menus.Where(m => m.ParentMenuId == null).ToList(), menus.ToList());
     }
 
+    /// <summary>
+    /// Menus granted to any one of the given roles. Used for the navigation of the signed-in admin:
+    /// the roles are taken from the validated token, never from the request body.
+    /// </summary>
+    public async Task<List<AdminMenuDto>> GetMenusByRolesAsync(IEnumerable<short> roleIds)
+    {
+        var ids = roleIds?.Distinct().ToList() ?? new List<short>();
+        if (ids.Count == 0)
+            return new List<AdminMenuDto>();
+
+        var menus = await _context.AdminMenus
+            .Where(m => m.IsActive &&
+                        m.AdminMenusRoles.Any(amr => amr.IsActive && amr.Role.IsActive && ids.Contains(amr.RoleId)))
+            .Include(m => m.InverseParentMenu)
+            .Include(m => m.AdminActivities.Where(a => a.IsActive))
+            .ToListAsync();
+
+        return BuildMenuTree(menus.Where(m => m.ParentMenuId == null).ToList(), menus);
+    }
+
     public async Task<List<AdminMenuDto>> GetAllMenusAsync()
     {
         var menus = await _context.AdminMenus

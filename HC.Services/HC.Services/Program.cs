@@ -1,6 +1,10 @@
 using HC.Business;
+using HC.Business.Security;
 using HC.Data;
 using HC.Services;
+using HC.Services.Authorization;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -73,7 +77,90 @@ builder.Services.AddCors(options =>
     });
 });
 
+// ---------------------------------------------------------------------------
+// Admin authentication and authorization.
+//
+// Logging in ('POST /api/admin/login') issues a signed JWT that carries the user id, the login id,
+// the roles and the login time/expiry. Every other admin endpoint is protected with [Authorize]:
+// the token has to be sent on every call in the 'Authorization: Bearer <token>' header, and it is
+// validated here (HS256 signature, issuer, audience, expiry) before an action is allowed to run.
+//
+// Beside being authenticated, an admin needs a role that is mapped to the section being called -
+// the mapping lives in 'AdminMenusRoles' (role -> menu, the same data the navigation is built from),
+// so the sections each admin can open are administrated in the database.
+// ---------------------------------------------------------------------------
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        // Keep the claim names exactly as they were issued ('userId', 'role', ...) instead of
+        // rewriting them to the legacy WS-Federation claim type URIs.
+        options.MapInboundClaims = false;
+        options.SaveToken = true;
+        options.TokenValidationParameters = AdminJwtTokenService.CreateValidationParameters(builder.Configuration);
+        options.Events = new JwtBearerEvents
+        {
+            // The signature only proves who signed in; the account itself is checked on every request
+            // so deactivating an admin takes effect immediately instead of after the token expires.
+            OnTokenValidated = async context =>
+            {
+                var dbContext = context.HttpContext.RequestServices.GetRequiredService<HomecutiesDbContext>();
+                var userId = AdminJwtTokenService.GetUserId(context.Principal);
+
+                if (userId <= 0)
+                {
+                    context.Fail("The access token does not identify an admin user.");
+                    return;
+                }
+
+                var isActiveAdmin = await dbContext.Users
+                    .AsNoTracking()
+                    .AnyAsync(u => u.UserId == userId && u.IsActive == true);
+
+                if (!isActiveAdmin)
+                    context.Fail("The admin account is no longer active.");
+            }
+        };
+    });
+
+builder.Services.AddAuthorization(options =>
+{
+    // Dashboard and navigation: the admin needs access to at least one section of the admin area.
+    options.AddPolicy(AdminPolicies.AdminArea, policy => policy
+        .RequireAuthenticatedUser()
+        .AddRequirements(new AdminMenuAccessRequirement()));
+
+    // One policy per section combination, named after the menu URL(s) it grants.
+    foreach (var policyName in AdminPolicies.SectionPolicies)
+    {
+        var sections = AdminPolicies.SectionsOf(policyName);
+        options.AddPolicy(policyName, policy => policy
+            .RequireAuthenticatedUser()
+            .AddRequirements(new AdminMenuAccessRequirement(sections)));
+    }
+});
+
+builder.Services.AddScoped<IAuthorizationHandler, AdminMenuAccessHandler>();
+
 var app = builder.Build();
+
+// Log the JWT settings (never the key itself) so a mismatch between the deployed API and the token
+// it issues is obvious at a glance.
+var jwtIssuer = AdminJwtTokenService.GetIssuer(builder.Configuration);
+var jwtAudience = AdminJwtTokenService.GetAudience(builder.Configuration);
+var jwtExpiryMinutes = AdminJwtTokenService.GetExpiryMinutes(builder.Configuration);
+app.Logger.LogInformation(
+    "Admin JWT authentication: issuer '{Issuer}', audience '{Audience}', sessions expire after {ExpiryMinutes} minute(s).",
+    jwtIssuer,
+    jwtAudience,
+    jwtExpiryMinutes);
+
+if (AdminJwtTokenService.IsWeakKey(AdminJwtTokenService.GetSigningKey(builder.Configuration)))
+{
+    app.Logger.LogWarning(
+        "The JWT signing key is shorter than {RecommendedBytes} bytes. Set a long, random 'Jwt:Key' " +
+        "(at least 32 characters) in appsettings.Production.json or appsettings.Local.json before deploying.",
+        AdminJwtTokenService.RecommendedKeyLengthInBytes);
+}
 
 // Log which connection string is active (credentials are never logged).
 var connectionInfo = new SqlConnectionStringBuilder(connectionString);
@@ -190,6 +277,9 @@ if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 
+// Admin requests carry a signed JWT: authenticate (validate the token) first, then authorize
+// (check the roles/sections it grants).
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

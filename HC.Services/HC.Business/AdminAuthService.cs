@@ -12,12 +12,14 @@ namespace HC.Business;
 public partial class AdminAuthService : IAdminAuthService
 {
     private readonly HomecutiesDbContext _context;
+    private readonly IConfiguration _configuration;
     private readonly string _jwtSecret;
     private readonly string _pwdSecret;
 
     public AdminAuthService(HomecutiesDbContext context, IConfiguration configuration)
     {
         _context = context;
+        _configuration = configuration;
         _jwtSecret = configuration["JWTSecret"] ?? "123456789abcdefgh";
         _pwdSecret = configuration["PWDSecret"] ?? "abcd1234!@#$";
     }

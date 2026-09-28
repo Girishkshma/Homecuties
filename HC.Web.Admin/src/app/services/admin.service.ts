@@ -56,6 +56,14 @@ export class AdminService {
     private authService: AuthService
   ) { }
 
+  /**
+   * The signed JWT the API issued on login. Every admin request must carry it as
+   * 'Authorization: Bearer <token>' - the adminTokenInterceptor adds it to each call, and the API
+   * answers 401 when it is missing, forged or expired.
+   *
+   * The '?userId=' values the mutating calls still send are informational only: the API always
+   * records the acting admin from the token, never from the query string.
+   */
   private getAuthHeaders(): HttpHeaders {
     const token = this.authService.getToken();
     return new HttpHeaders({

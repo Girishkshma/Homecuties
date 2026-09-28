@@ -152,6 +152,27 @@
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+/* End of the current admin session (the 'exp' claim of the JWT). */
+.session-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 10px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.session-label {
+  color: rgba(255, 255, 255, 0.45);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.session-time {
+  color: #a8b5ff;
+  font-weight: 600;
+}
+
 .logout-btn {
   display: flex;
   align-items: center;

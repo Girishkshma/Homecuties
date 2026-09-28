@@ -1,6 +1,6 @@
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
-import { HttpClientModule } from '@angular/common/http';
+import { HTTP_INTERCEPTORS, HttpClientModule } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 
 import { AppRoutingModule } from './app-routing.module';
@@ -20,6 +20,7 @@ import { PartnersComponent } from './partners/partners.component';
 import { VendorsComponent } from './vendors/vendors.component';
 import { PurchasesComponent } from './purchases/purchases.component';
 import { AdminUsersComponent } from './admin-users/admin-users.component';
+import { AdminTokenInterceptor } from './interceptors/admin-token.interceptor';
 
 @NgModule({
   declarations: [
@@ -46,7 +47,10 @@ import { AdminUsersComponent } from './admin-users/admin-users.component';
     HttpClientModule,
     FormsModule
   ],
-  providers: [],
+  providers: [
+    // Sends the admin JWT with every API call and signs the admin out when the API answers 401.
+    { provide: HTTP_INTERCEPTORS, useClass: AdminTokenInterceptor, multi: true }
+  ],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

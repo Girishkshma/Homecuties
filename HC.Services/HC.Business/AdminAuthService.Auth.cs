@@ -4,13 +4,11 @@
 // ============================================================
 
 using HC.Business.Dtos;
+using HC.Business.Security;
 using HC.Data;
 using HC.Data.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
 
 namespace HC.Business;
 
@@ -27,59 +25,53 @@ public partial class AdminAuthService : IAdminAuthService
                 u.IsActive == true);
 
         if (user == null)
-        {
-            return new AdminLoginResponse
-            {
-                Result = 0,
-                Messages = new[] { "Invalid login credentials." }
-            };
-        }
+            return InvalidCredentials();
 
         // Encrypt the provided password using HMACSHA256 and compare with stored hash
         var encryptedPassword = EncryptPassword(password);
         if (user.Password != encryptedPassword)
+            return InvalidCredentials();
+
+        var roles = GetActiveRoles(user);
+
+        // An admin area session always starts with a role: the role claims in the token are what
+        // authorize the individual sections of the admin area.
+        if (roles.Count == 0)
         {
             return new AdminLoginResponse
             {
                 Result = 0,
-                Messages = new[] { "Invalid login credentials." }
+                Messages = new[] { "Your account does not have an active admin role. Please ask a Super Admin to grant you access." }
             };
         }
 
-        // Generate JWT token matching old app format
-        var token = GenerateJwtToken(user.UserId, user.LoginId, "");
+        var adminUser = MapUser(user, roles);
+
+        // JWT carrying the user id, the login id, the roles and the login time/expiry (all UTC).
+        var (token, expiresOn) = AdminJwtTokenService.Create(adminUser, roles, _configuration);
 
         return new AdminLoginResponse
         {
             Result = 1,
             Messages = new[] { "Login successful." },
             Token = token,
-            ExpiresOn = DateTime.UtcNow.AddHours(1), // UTC, 1-hour session
-            User = new AdminUserDto
-            {
-                UserId = user.UserId,
-                LoginId = user.LoginId,
-                FirstName = user.FirstName,
-                MiddleName = user.MiddleName,
-                LastName = user.LastName,
-                EmailId = user.EmailId,
-                MobileNumber = user.MobileNumber,
-                IsActive = user.IsActive ?? false,
-                Roles = user.UserRoles
-                    .Where(ur => ur.IsActive)
-                    .Select(ur => new AdminRoleDto
-                    {
-                        RoleId = ur.Role.RoleId,
-                        RoleName = ur.Role.RoleName,
-                        RoleDescription = ur.Role.RoleDescription
-                    }).ToList()
-            }
+            ExpiresOn = expiresOn,
+            User = adminUser
         };
     }
 
     public string GenerateToken(long userId, string loginId, string ipAddress)
     {
-        return GenerateJwtToken(userId, loginId, ipAddress);
+        var user = _context.Users
+            .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+            .FirstOrDefault(u => u.UserId == userId);
+
+        if (user == null)
+            return string.Empty;
+
+        var roles = GetActiveRoles(user);
+        return AdminJwtTokenService.Create(MapUser(user, roles), roles, _configuration).Token;
     }
 
     public AdminUserDto? ValidateToken(string token)
@@ -89,49 +81,56 @@ public partial class AdminAuthService : IAdminAuthService
 
     public AdminUserDto? ValidateToken(string token, string ipAddress)
     {
-        try
-        {
-            var payload = ValidateJwtToken(token, ipAddress);
-            if (payload == null)
-                return null;
-
-            var p = payload.Value;
-            if (!p.TryGetProperty("UserId", out var userIdProp))
-                return null;
-
-            var userId = userIdProp.GetInt64();
-            var user = _context.Users
-                .Include(u => u.UserRoles)
-                    .ThenInclude(ur => ur.Role)
-                .FirstOrDefault(u => u.UserId == userId && u.IsActive == true);
-
-            if (user == null)
-                return null;
-
-            return new AdminUserDto
-            {
-                UserId = user.UserId,
-                LoginId = user.LoginId,
-                FirstName = user.FirstName,
-                MiddleName = user.MiddleName,
-                LastName = user.LastName,
-                EmailId = user.EmailId,
-                MobileNumber = user.MobileNumber,
-                IsActive = user.IsActive ?? false,
-                Roles = user.UserRoles
-                    .Where(ur => ur.IsActive)
-                    .Select(ur => new AdminRoleDto
-                    {
-                        RoleId = ur.Role.RoleId,
-                        RoleName = ur.Role.RoleName,
-                        RoleDescription = ur.Role.RoleDescription
-                    }).ToList()
-            };
-        }
-        catch
-        {
+        // Signature, issuer, audience and expiry are validated by the shared token service.
+        // The address the request came from is deliberately NOT part of the token any more: the API
+        // sits behind a reverse proxy, so the address the application sees is the proxy's.
+        var principal = AdminJwtTokenService.Validate(token, _configuration);
+        if (principal == null)
             return null;
-        }
+
+        var userId = AdminJwtTokenService.GetUserId(principal);
+        if (userId <= 0)
+            return null;
+
+        var user = _context.Users
+            .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+            .FirstOrDefault(u => u.UserId == userId && u.IsActive == true);
+
+        if (user == null)
+            return null;
+
+        return MapUser(user, GetActiveRoles(user));
     }
 
+    private static AdminLoginResponse InvalidCredentials() => new()
+    {
+        Result = 0,
+        Messages = new[] { "Invalid login credentials." }
+    };
+
+    private static List<AdminRoleDto> GetActiveRoles(User user) => user.UserRoles
+        .Where(ur => ur.IsActive)
+        .Select(ur => new AdminRoleDto
+        {
+            RoleId = ur.Role.RoleId,
+            RoleName = ur.Role.RoleName,
+            RoleDescription = ur.Role.RoleDescription
+        })
+        .ToList();
+
+    private static AdminUserDto MapUser(User user, List<AdminRoleDto> roles) => new()
+    {
+        UserId = user.UserId,
+        LoginId = user.LoginId,
+        FirstName = user.FirstName,
+        MiddleName = user.MiddleName,
+        LastName = user.LastName,
+        EmailId = user.EmailId,
+        MobileNumber = user.MobileNumber,
+        IsActive = user.IsActive ?? false,
+        Roles = roles
+    };
+
 }
+

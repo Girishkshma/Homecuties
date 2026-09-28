@@ -1,13 +1,28 @@
 using System.IO;
 using HC.Business;
 using HC.Business.Dtos;
+using HC.Business.Security;
+using HC.Services.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HC.Services.Controllers;
 
+/// <summary>
+/// Admin area API.
+///
+/// Every action requires the JWT that 'POST login' issued, sent as 'Authorization: Bearer &lt;token&gt;';
+/// the token is validated (signature, issuer, audience, expiry, active account) before the action runs.
+/// Beside being authenticated, the roles carried by the token decide which sections of the admin area
+/// may be called - the role to menu mapping lives in 'AdminMenusRoles'.
+///
+/// Only login, forgot-password, reset-password and validate-token are anonymous, and the acting user id
+/// is always taken from the token (never from the query string) so the audit trail cannot be forged.
+/// </summary>
 [ApiController]
 [Route("api/admin")]
+[Authorize]
 public class AdminController : ControllerBase
 {
     private readonly IAdminAuthService _adminAuthService;
@@ -23,6 +38,8 @@ public class AdminController : ControllerBase
 
     #region Authentication
 
+    /// <summary>Anonymous: checks the credentials and returns the signed JWT for the new session.</summary>
+    [AllowAnonymous]
     [HttpPost("login")]
     public async Task<ActionResult> Login([FromBody] AdminLoginRequest request)
     {
@@ -30,6 +47,8 @@ public class AdminController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>Anonymous: validates a token that is presented in the body instead of the header.</summary>
+    [AllowAnonymous]
     [HttpPost("validate-token")]
     public ActionResult ValidateToken([FromBody] AdminValidateJwtRequest request)
     {
@@ -41,6 +60,8 @@ public class AdminController : ControllerBase
         return Ok(new { result = 1, user = user });
     }
 
+    /// <summary>Anonymous: a forgotten password cannot be reset without a token first.</summary>
+    [AllowAnonymous]
     [HttpPost("forgot-password")]
     public async Task<ActionResult> ForgotPassword([FromBody] AdminForgotPasswordRequest request)
     {
@@ -48,6 +69,8 @@ public class AdminController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>Anonymous: the reset token in the request is the credential.</summary>
+    [AllowAnonymous]
     [HttpPost("reset-password")]
     public async Task<ActionResult> ResetPassword([FromBody] AdminResetPasswordRequest request)
     {
@@ -55,14 +78,25 @@ public class AdminController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// Navigation of the signed-in admin: the menus granted to the roles in its own token. A role id
+    /// may be sent to narrow the answer down to one of those roles, but never to another role's menus.
+    /// </summary>
+    [Authorize(Policy = AdminPolicies.AdminArea)]
     [HttpPost("menus")]
     public async Task<ActionResult> GetMenus([FromBody] AdminMenuRequest request)
     {
-        List<AdminMenuDto> menus;
-        if (request.RoleId.HasValue)
-            menus = await _adminAuthService.GetMenusByRoleAsync(request.RoleId.Value);
-        else
-            menus = await _adminAuthService.GetAllMenusAsync();
+        var roleIds = AdminJwtTokenService.GetRoleIds(User);
+        if (roleIds.Count == 0)
+            return StatusCode(StatusCodes.Status403Forbidden, new { result = 0, messages = new[] { "Your roles do not grant access to the admin area." } });
+
+        if (request.RoleId.HasValue && !roleIds.Contains(request.RoleId.Value))
+            return StatusCode(StatusCodes.Status403Forbidden, new { result = 0, messages = new[] { "You do not have access to the menus of this role." } });
+
+        var requestedRoleIds = request.RoleId.HasValue
+            ? new List<short> { request.RoleId.Value }
+            : roleIds;
+        var menus = await _adminAuthService.GetMenusByRolesAsync(requestedRoleIds);
 
         return Ok(menus);
     }
@@ -71,6 +105,8 @@ public class AdminController : ControllerBase
 
     #region Dashboard
 
+    /// <summary>Dashboard tiles: any admin that can reach at least one section.</summary>
+    [Authorize(Policy = AdminPolicies.AdminArea)]
     [HttpGet("dashboard/stats")]
     public async Task<ActionResult> GetDashboardStats()
     {
@@ -82,6 +118,7 @@ public class AdminController : ControllerBase
 
     #region Products
 
+    [Authorize(Policy = AdminPolicies.Products)]
     [HttpGet("products")]
     public async Task<ActionResult> GetProducts()
     {
@@ -89,6 +126,7 @@ public class AdminController : ControllerBase
         return Ok(products);
     }
 
+    [Authorize(Policy = AdminPolicies.Products)]
     [HttpGet("products/{id}")]
     public async Task<ActionResult> GetProductDetail(int id)
     {
@@ -99,23 +137,29 @@ public class AdminController : ControllerBase
         return Ok(product);
     }
 
+    [Authorize(Policy = AdminPolicies.Products)]
     [HttpPost("products")]
-    public async Task<ActionResult> CreateProduct([FromBody] CreateProductRequest request, [FromQuery] long userId)
+    public async Task<ActionResult> CreateProduct([FromBody] CreateProductRequest request)
     {
+        var userId = CurrentAdminUserId;
         var result = await _adminDashboardService.CreateProductAsync(request, userId);
         return Ok(result);
     }
 
+    [Authorize(Policy = AdminPolicies.Products)]
     [HttpPut("products/{id}")]
-    public async Task<ActionResult> UpdateProduct(int id, [FromBody] CreateProductRequest request, [FromQuery] long userId)
+    public async Task<ActionResult> UpdateProduct(int id, [FromBody] CreateProductRequest request)
     {
+        var userId = CurrentAdminUserId;
         var result = await _adminDashboardService.UpdateProductAsync(id, request, userId);
         return Ok(result);
     }
 
+    [Authorize(Policy = AdminPolicies.Products)]
     [HttpPut("products/{id}/deactivate")]
-    public async Task<ActionResult> DeactivateProduct(int id, [FromQuery] long userId)
+    public async Task<ActionResult> DeactivateProduct(int id)
     {
+        var userId = CurrentAdminUserId;
         if (userId <= 0)
             return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
 
@@ -123,6 +167,7 @@ public class AdminController : ControllerBase
         return Ok(result);
     }
 
+    [Authorize(Policy = AdminPolicies.Products)]
     [HttpGet("product-options")]
     public async Task<ActionResult> GetProductFormOptions()
     {
@@ -130,6 +175,7 @@ public class AdminController : ControllerBase
         return Ok(options);
     }
 
+    [Authorize(Policy = AdminPolicies.Products)]
     [HttpPost("upload-product-image")]
     [RequestSizeLimit(6 * 1024 * 1024)]
     public async Task<ActionResult> UploadProductImage([FromForm] IFormFile file)
@@ -172,6 +218,7 @@ public class AdminController : ControllerBase
 
     #region Orders
 
+    [Authorize(Policy = AdminPolicies.Orders)]
     [HttpGet("orders")]
     public async Task<ActionResult> GetOrders()
     {
@@ -179,6 +226,7 @@ public class AdminController : ControllerBase
         return Ok(orders);
     }
 
+    [Authorize(Policy = AdminPolicies.Orders)]
     [HttpGet("orders/{id}")]
     public async Task<ActionResult> GetOrderDetail(long id)
     {
@@ -189,6 +237,7 @@ public class AdminController : ControllerBase
         return Ok(order);
     }
 
+    [Authorize(Policy = AdminPolicies.Orders)]
     [HttpGet("order-statuses")]
     public async Task<ActionResult> GetOrderStatuses()
     {
@@ -196,9 +245,11 @@ public class AdminController : ControllerBase
         return Ok(statuses);
     }
 
+    [Authorize(Policy = AdminPolicies.Orders)]
     [HttpPost("orders/{id}/status")]
-    public async Task<ActionResult> UpdateOrderStatus(long id, [FromBody] AdminOrderStatusUpdateRequest request, [FromQuery] long userId)
+    public async Task<ActionResult> UpdateOrderStatus(long id, [FromBody] AdminOrderStatusUpdateRequest request)
     {
+        var userId = CurrentAdminUserId;
         if (userId <= 0)
             return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
 
@@ -210,6 +261,7 @@ public class AdminController : ControllerBase
 
     #region Customers
 
+    [Authorize(Policy = AdminPolicies.Customers)]
     [HttpGet("customers")]
     public async Task<ActionResult> GetCustomers([FromQuery] string? search)
     {
@@ -223,6 +275,7 @@ public class AdminController : ControllerBase
         return Ok(customers);
     }
 
+    [Authorize(Policy = AdminPolicies.Customers)]
     [HttpGet("customers/{id}")]
     public async Task<ActionResult> GetCustomerDetail(long id)
     {
@@ -233,6 +286,7 @@ public class AdminController : ControllerBase
         return Ok(customer);
     }
 
+    [Authorize(Policy = AdminPolicies.Customers)]
     [HttpPut("customers/{id}/status")]
     public async Task<ActionResult> UpdateCustomerStatus(long id, [FromBody] UpdateCustomerStatusRequest request)
     {
@@ -245,6 +299,7 @@ public class AdminController : ControllerBase
 
     #region Partners
 
+    [Authorize(Policy = AdminPolicies.Partners)]
     [HttpGet("partners")]
     public async Task<ActionResult> GetPartners()
     {
@@ -252,6 +307,7 @@ public class AdminController : ControllerBase
         return Ok(partners);
     }
 
+    [Authorize(Policy = AdminPolicies.Partners)]
     [HttpGet("partners/{id}")]
     public async Task<ActionResult> GetPartnerDetail(int id)
     {
@@ -262,6 +318,7 @@ public class AdminController : ControllerBase
         return Ok(partner);
     }
 
+    [Authorize(Policy = AdminPolicies.Partners)]
     [HttpGet("partner-statuses")]
     public async Task<ActionResult> GetPartnerStatuses()
     {
@@ -269,9 +326,11 @@ public class AdminController : ControllerBase
         return Ok(statuses);
     }
 
+    [Authorize(Policy = AdminPolicies.Partners)]
     [HttpPost("partners")]
-    public async Task<ActionResult> CreatePartner([FromBody] PartnerFormRequest request, [FromQuery] long userId)
+    public async Task<ActionResult> CreatePartner([FromBody] PartnerFormRequest request)
     {
+        var userId = CurrentAdminUserId;
         if (userId <= 0)
             return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
 
@@ -279,9 +338,11 @@ public class AdminController : ControllerBase
         return Ok(result);
     }
 
+    [Authorize(Policy = AdminPolicies.Partners)]
     [HttpPut("partners/{id}")]
-    public async Task<ActionResult> UpdatePartner(int id, [FromBody] PartnerFormRequest request, [FromQuery] long userId)
+    public async Task<ActionResult> UpdatePartner(int id, [FromBody] PartnerFormRequest request)
     {
+        var userId = CurrentAdminUserId;
         if (userId <= 0)
             return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
 
@@ -293,6 +354,7 @@ public class AdminController : ControllerBase
 
     #region Vendors
 
+    [Authorize(Policy = AdminPolicies.Vendors)]
     [HttpGet("vendors")]
     public async Task<ActionResult> GetVendors()
     {
@@ -300,6 +362,7 @@ public class AdminController : ControllerBase
         return Ok(vendors);
     }
 
+    [Authorize(Policy = AdminPolicies.Vendors)]
     [HttpGet("vendors/{id}")]
     public async Task<ActionResult> GetVendorDetail(short id)
     {
@@ -310,9 +373,11 @@ public class AdminController : ControllerBase
         return Ok(vendor);
     }
 
+    [Authorize(Policy = AdminPolicies.Vendors)]
     [HttpPost("vendors")]
-    public async Task<ActionResult> CreateVendor([FromBody] VendorFormRequest request, [FromQuery] long userId)
+    public async Task<ActionResult> CreateVendor([FromBody] VendorFormRequest request)
     {
+        var userId = CurrentAdminUserId;
         if (userId <= 0)
             return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
 
@@ -320,9 +385,11 @@ public class AdminController : ControllerBase
         return Ok(result);
     }
 
+    [Authorize(Policy = AdminPolicies.Vendors)]
     [HttpPut("vendors/{id}")]
-    public async Task<ActionResult> UpdateVendor(short id, [FromBody] VendorFormRequest request, [FromQuery] long userId)
+    public async Task<ActionResult> UpdateVendor(short id, [FromBody] VendorFormRequest request)
     {
+        var userId = CurrentAdminUserId;
         if (userId <= 0)
             return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
 
@@ -334,6 +401,7 @@ public class AdminController : ControllerBase
 
     #region Purchases
 
+    [Authorize(Policy = AdminPolicies.Purchases)]
     [HttpGet("purchases")]
     public async Task<ActionResult> GetPurchases()
     {
@@ -341,6 +409,7 @@ public class AdminController : ControllerBase
         return Ok(purchases);
     }
 
+    [Authorize(Policy = AdminPolicies.Purchases)]
     [HttpGet("purchases/{id}")]
     public async Task<ActionResult> GetPurchaseDetail(long id)
     {
@@ -351,6 +420,7 @@ public class AdminController : ControllerBase
         return Ok(purchase);
     }
 
+    [Authorize(Policy = AdminPolicies.Purchases)]
     [HttpGet("purchasers")]
     public async Task<ActionResult> GetPurchasers()
     {
@@ -358,9 +428,11 @@ public class AdminController : ControllerBase
         return Ok(purchasers);
     }
 
+    [Authorize(Policy = AdminPolicies.Purchases)]
     [HttpPost("purchases")]
-    public async Task<ActionResult> CreatePurchase([FromBody] AdminPurchaseCreateRequest request, [FromQuery] long userId)
+    public async Task<ActionResult> CreatePurchase([FromBody] AdminPurchaseCreateRequest request)
     {
+        var userId = CurrentAdminUserId;
         if (userId <= 0)
             return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
 
@@ -368,9 +440,11 @@ public class AdminController : ControllerBase
         return Ok(result);
     }
 
+    [Authorize(Policy = AdminPolicies.Purchases)]
     [HttpGet("purchases/{id}/statuses")]
-    public async Task<ActionResult> GetPurchaseStatuses(long id, [FromQuery] long userId)
+    public async Task<ActionResult> GetPurchaseStatuses(long id)
     {
+        var userId = CurrentAdminUserId;
         if (userId <= 0)
             return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
 
@@ -378,9 +452,11 @@ public class AdminController : ControllerBase
         return Ok(statuses);
     }
 
+    [Authorize(Policy = AdminPolicies.Purchases)]
     [HttpPost("purchases/{id}/status")]
-    public async Task<ActionResult> UpdatePurchaseStatus(long id, [FromBody] AdminPurchaseStatusUpdateRequest request, [FromQuery] long userId)
+    public async Task<ActionResult> UpdatePurchaseStatus(long id, [FromBody] AdminPurchaseStatusUpdateRequest request)
     {
+        var userId = CurrentAdminUserId;
         if (userId <= 0)
             return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
 
@@ -388,9 +464,11 @@ public class AdminController : ControllerBase
         return Ok(result);
     }
 
+    [Authorize(Policy = AdminPolicies.Purchases)]
     [HttpPut("purchases/{id}")]
-    public async Task<ActionResult> UpdatePurchase(long id, [FromBody] AdminPurchaseUpdateRequest request, [FromQuery] long userId)
+    public async Task<ActionResult> UpdatePurchase(long id, [FromBody] AdminPurchaseUpdateRequest request)
     {
+        var userId = CurrentAdminUserId;
         if (userId <= 0)
             return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
 
@@ -398,9 +476,11 @@ public class AdminController : ControllerBase
         return Ok(result);
     }
 
+    [Authorize(Policy = AdminPolicies.Purchases)]
     [HttpPut("purchases/{id}/items")]
-    public async Task<ActionResult> SavePurchaseItems(long id, [FromBody] AdminPurchaseItemsRequest request, [FromQuery] long userId)
+    public async Task<ActionResult> SavePurchaseItems(long id, [FromBody] AdminPurchaseItemsRequest request)
     {
+        var userId = CurrentAdminUserId;
         if (userId <= 0)
             return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
 
@@ -408,9 +488,11 @@ public class AdminController : ControllerBase
         return Ok(result);
     }
 
+    [Authorize(Policy = AdminPolicies.Purchases)]
     [HttpPost("purchases/{id}/comments")]
-    public async Task<ActionResult> AddPurchaseComment(long id, [FromBody] AdminPurchaseCommentRequest request, [FromQuery] long userId)
+    public async Task<ActionResult> AddPurchaseComment(long id, [FromBody] AdminPurchaseCommentRequest request)
     {
+        var userId = CurrentAdminUserId;
         if (userId <= 0)
             return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
 
@@ -422,6 +504,7 @@ public class AdminController : ControllerBase
 
     #region Admin Users
 
+    [Authorize(Policy = AdminPolicies.AdminUsers)]
     [HttpGet("users")]
     public async Task<ActionResult> GetAdminUsers()
     {
@@ -429,6 +512,7 @@ public class AdminController : ControllerBase
         return Ok(users);
     }
 
+    [Authorize(Policy = AdminPolicies.AdminUsers)]
     [HttpGet("users/{id}")]
     public async Task<ActionResult> GetAdminUser(long id)
     {
@@ -439,6 +523,7 @@ public class AdminController : ControllerBase
         return Ok(user);
     }
 
+    [Authorize(Policy = AdminPolicies.AdminUsers)]
     [HttpGet("roles")]
     public async Task<ActionResult> GetAdminRoles()
     {
@@ -446,9 +531,11 @@ public class AdminController : ControllerBase
         return Ok(roles);
     }
 
+    [Authorize(Policy = AdminPolicies.AdminUsers)]
     [HttpPost("users")]
-    public async Task<ActionResult> CreateAdminUser([FromBody] AdminUserCreateRequest request, [FromQuery] long userId)
+    public async Task<ActionResult> CreateAdminUser([FromBody] AdminUserCreateRequest request)
     {
+        var userId = CurrentAdminUserId;
         if (userId <= 0)
             return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
 
@@ -456,9 +543,11 @@ public class AdminController : ControllerBase
         return Ok(result);
     }
 
+    [Authorize(Policy = AdminPolicies.AdminUsers)]
     [HttpPut("users/{id}")]
-    public async Task<ActionResult> UpdateAdminUser(long id, [FromBody] AdminUserUpdateRequest request, [FromQuery] long userId)
+    public async Task<ActionResult> UpdateAdminUser(long id, [FromBody] AdminUserUpdateRequest request)
     {
+        var userId = CurrentAdminUserId;
         if (userId <= 0)
             return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
 
@@ -470,6 +559,8 @@ public class AdminController : ControllerBase
 
     #region Categories
 
+    /// <summary>Category tree: used by the product form and by the admin user form.</summary>
+    [Authorize(Policy = AdminPolicies.ProductsOrAdminUsers)]
     [HttpGet("categories")]
     public async Task<ActionResult> GetCategories()
     {
@@ -480,6 +571,12 @@ public class AdminController : ControllerBase
     #endregion
 
     #region Helpers
+
+    /// <summary>
+    /// Id of the signed-in admin, read from the validated token. Mutating actions record this value
+    /// as the author of the change, so it can no longer be supplied (and therefore forged) by the caller.
+    /// </summary>
+    private long CurrentAdminUserId => AdminJwtTokenService.GetUserId(User);
 
     private string GetClientIp()
     {

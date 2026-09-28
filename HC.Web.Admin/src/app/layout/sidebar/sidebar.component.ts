@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { AdminService } from '../../services/admin.service';
 import { AuthService } from '../../services/auth.service';
+import { PermissionsService } from '../../services/permissions.service';
 import { AdminMenu, AdminUser } from '../../models/admin.model';
 
 @Component({
@@ -14,35 +14,36 @@ export class SidebarComponent implements OnInit {
   menus: AdminMenu[] = [];
   expandedMenus: Set<number> = new Set();
   user: AdminUser | null = null;
+  /** End of the session, taken from the JWT the API issued on login. */
+  sessionExpiresOn: Date | null = null;
 
   constructor(
-    private adminService: AdminService,
     private authService: AuthService,
+    private permissionsService: PermissionsService,
     public router: Router
   ) {}
 
   ngOnInit(): void {
     this.user = this.authService.getUser();
+    this.sessionExpiresOn = this.authService.getExpiresOn();
     this.loadMenus();
   }
 
+  /** The menus of the signed-in admin - the API derives them from the roles in its token. */
   loadMenus(): void {
-    const user = this.authService.getUser();
-    if (user && user.roles.length > 0) {
-      this.adminService.getMenus(user.roles[0].roleId).subscribe({
-        next: (menus) => {
-          // Dashboard always first, then alphabetical
-          this.menus = menus.sort((a, b) => {
-            if (a.menuTitle === 'Dashboard') return -1;
-            if (b.menuTitle === 'Dashboard') return 1;
-            return a.menuTitle.localeCompare(b.menuTitle);
-          });
-        },
-        error: (err) => {
-          console.error('Failed to load menus:', err);
-        }
-      });
-    }
+    this.permissionsService.loadMenus().subscribe({
+      next: (menus) => {
+        // Dashboard always first, then alphabetical
+        this.menus = [...menus].sort((a, b) => {
+          if (a.menuTitle === 'Dashboard') return -1;
+          if (b.menuTitle === 'Dashboard') return 1;
+          return a.menuTitle.localeCompare(b.menuTitle);
+        });
+      },
+      error: (err) => {
+        console.error('Failed to load menus:', err);
+      }
+    });
   }
 
   toggleMenu(menuId: number): void {
@@ -85,6 +86,7 @@ export class SidebarComponent implements OnInit {
   }
 
   logout(): void {
+    this.permissionsService.reset();
     this.authService.logout();
   }
 }

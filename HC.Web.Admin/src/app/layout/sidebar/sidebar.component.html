@@ -43,6 +43,10 @@
   </nav>
 
   <div class="sidebar-footer">
+    <div class="session-info" *ngIf="sessionExpiresOn">
+      <span class="session-label">Session valid until</span>
+      <span class="session-time">{{ sessionExpiresOn | date: 'd MMM, h:mm a' }}</span>
+    </div>
     <button class="logout-btn" (click)="logout()">
       <span>🚪</span>
       <span>Logout</span>
