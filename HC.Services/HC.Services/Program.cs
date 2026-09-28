@@ -8,6 +8,18 @@ using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configuration sources.
+// Secrets must never be committed, so 'appsettings.json' only holds development/test values.
+// 'appsettings.Local.json' (git-ignored - see .gitignore) is layered on top of it and is where the
+// LIVE Razorpay keys ('rzp_live_...') and the webhook secret belong on the server, so a publish can
+// never silently drop the deployment back to test mode. Environment variables
+// ('Razorpay__KeyId', 'Razorpay__KeySecret', 'Razorpay__WebhookSecret') and command line arguments
+// still win over both files.
+builder.Configuration
+    .AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: false)
+    .AddEnvironmentVariables()
+    .AddCommandLine(args);
+
 // Add services to the container.
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -96,16 +108,45 @@ else
     app.Logger.LogInformation("Google sign-in client id: {ClientId}", googleClientId);
 }
 
-// Log whether the payment gateway is configured. The key id is public (it is sent to the browser
-// with every checkout); the secret is never logged.
-var razorpayKeyId = builder.Configuration["Razorpay:KeyId"];
+// Log whether the payment gateway is configured AND which mode it is in. Test vs live is decided
+// entirely by the key handed to Razorpay Checkout: 'rzp_test_...' makes the payment window show the
+// "Test Mode" banner and no money moves, 'rzp_live_...' takes real payments. The key id is public
+// (it ships to the browser with every checkout); the secret is never logged.
+var razorpayKeyId = builder.Configuration["Razorpay:KeyId"] ?? string.Empty;
 var razorpaySecretConfigured = !string.IsNullOrWhiteSpace(builder.Configuration["Razorpay:KeySecret"]);
+
 if (string.IsNullOrWhiteSpace(razorpayKeyId) || !razorpaySecretConfigured)
 {
     app.Logger.LogWarning(
         "Razorpay is NOT configured: set 'Razorpay:KeyId' and 'Razorpay:KeySecret' (or the " +
         "environment variables 'Razorpay__KeyId' / 'Razorpay__KeySecret') - online payments will " +
         "be refused with 'Online payment is not available right now.'");
+}
+else if (razorpayKeyId.StartsWith("rzp_test_", StringComparison.Ordinal))
+{
+    app.Logger.LogInformation(
+        "Razorpay mode: TEST (key id {KeyId}) - the checkout window shows 'Test Mode' and no real payment is taken.",
+        razorpayKeyId);
+
+    if (!app.Environment.IsDevelopment())
+    {
+        app.Logger.LogWarning(
+            "Razorpay TEST keys are configured for the '{Environment}' environment, so customers cannot " +
+            "pay. Put the LIVE keys ('rzp_live_...') in 'appsettings.Local.json' or in the environment " +
+            "variables 'Razorpay__KeyId' / 'Razorpay__KeySecret'.",
+            app.Environment.EnvironmentName);
+    }
+}
+else if (razorpayKeyId.StartsWith("rzp_live_", StringComparison.Ordinal))
+{
+    app.Logger.LogInformation(
+        "Razorpay mode: LIVE (key id {KeyId}) - real payments are being collected.", razorpayKeyId);
+
+    if (app.Environment.IsDevelopment())
+    {
+        app.Logger.LogWarning(
+            "Razorpay LIVE keys are in use on a development machine - every test checkout charges real money.");
+    }
 }
 else
 {
@@ -115,8 +156,10 @@ else
 if (string.IsNullOrWhiteSpace(builder.Configuration["Razorpay:WebhookSecret"]))
 {
     app.Logger.LogWarning(
-        "Razorpay webhook secret is not configured ('Razorpay:WebhookSecret') - webhook deliveries " +
-        "will be rejected, so orders are only confirmed through the checkout callback.");
+        "Razorpay webhook secret is not configured ('Razorpay:WebhookSecret') - every delivery to " +
+        "'POST /api/Order/Webhook' is rejected, so orders are only confirmed through the checkout " +
+        "callback. Add the endpoint in Razorpay Dashboard > Account & Settings > Webhooks and copy " +
+        "its secret into 'appsettings.Local.json' or the environment variable 'Razorpay__WebhookSecret'.");
 }
 else
 {

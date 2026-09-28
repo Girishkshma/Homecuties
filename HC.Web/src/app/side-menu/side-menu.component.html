@@ -29,6 +29,9 @@
 
       <!-- Header Actions -->
       <div class="header-actions">
+        <a *ngIf="currentCustomer" routerLink="/my-orders" class="action-btn" title="My Orders">
+          <i class="bi bi-receipt"></i>
+        </a>
         <a routerLink="/favorites" class="action-btn" title="Favorites">
           <i class="bi" [class.bi-heart]="favoritesCount === 0" [class.bi-heart-fill]="favoritesCount > 0"></i>
           <span class="action-badge" *ngIf="favoritesCount > 0">{{ favoritesCount }}</span>
@@ -91,6 +94,9 @@
       <a routerLink="/cart" class="mobile-nav-item" (click)="closeMenu()">
         <i class="bi bi-cart3"></i> Cart
         <span class="badge bg-accent ms-auto" *ngIf="cartItemCount > 0">{{ cartItemCount }}</span>
+      </a>
+      <a *ngIf="currentCustomer" routerLink="/my-orders" class="mobile-nav-item" routerLinkActive="active" (click)="closeMenu()">
+        <i class="bi bi-receipt"></i> My Orders
       </a>
 
       <div class="mobile-auth" *ngIf="!currentCustomer">

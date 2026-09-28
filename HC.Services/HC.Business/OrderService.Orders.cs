@@ -86,17 +86,13 @@ public partial class OrderService : IOrderService
                 .Include(gc => gc.GuestCartItems)
                     .ThenInclude(ci => ci.Product)
                         .ThenInclude(p => p.ProductImages)
-                .Include(gc => gc.GuestCartItems)
-                    .ThenInclude(ci => ci.Product)
-                        .ThenInclude(p => p.PurchaseDetails)
-                            .ThenInclude(pd => pd.Skus)
-                                .ThenInclude(s => s.OrderItems)
                 .FirstOrDefaultAsync(gc => gc.CustomerId == request.CustomerID);
 
             if (guestCart == null || !guestCart.GuestCartItems.Any())
                 return new CreateOrderResponse { Result = 0, Messages = new[] { "Cart is empty" } };
 
-            cartResponse = MapGuestCartToResponse(guestCart);
+            cartResponse = MapGuestCartToResponse(guestCart, await SkuAvailability.CountSellableByProductAsync(
+                _context, guestCart.GuestCartItems.Select(ci => ci.ProductId)));
         }
         else
         {
@@ -104,17 +100,13 @@ public partial class OrderService : IOrderService
                 .Include(c => c.CartItems)
                     .ThenInclude(ci => ci.Product)
                         .ThenInclude(p => p.ProductImages)
-                .Include(c => c.CartItems)
-                    .ThenInclude(ci => ci.Product)
-                        .ThenInclude(p => p.PurchaseDetails)
-                            .ThenInclude(pd => pd.Skus)
-                                .ThenInclude(s => s.OrderItems)
                 .FirstOrDefaultAsync(c => c.CustomerId == request.CustomerID);
 
             if (cart == null || !cart.CartItems.Any())
                 return new CreateOrderResponse { Result = 0, Messages = new[] { "Cart is empty" } };
 
-            cartResponse = MapCartToResponse(cart);
+            cartResponse = MapCartToResponse(cart, await SkuAvailability.CountSellableByProductAsync(
+                _context, cart.CartItems.Select(ci => ci.ProductId)));
         }
 
         // Filter out out-of-stock items and adjust quantities to available stock
@@ -414,32 +406,117 @@ public partial class OrderService : IOrderService
         };
     }
 
+    /// <summary>
+    /// The signed-in customer's order history for the 'My Orders' page: status, payment state, the
+    /// units that were bought (with the product image) and where the order is being shipped.
+    /// </summary>
     public async Task<List<OrderListDto>> GetOrdersAsync(long customerId, bool isGuest)
     {
         var orders = await _context.Orders
             .Where(o => o.CustomerId == customerId)
             .Include(o => o.OrderItems)
             .Include(o => o.OrderStatus)
+            .Include(o => o.ShippingAddress)
+            .Include(o => o.OrderHistories)
             .OrderByDescending(o => o.OrderDate)
+            .AsNoTracking()
             .ToListAsync();
 
-        return orders.Select(o => new OrderListDto
-        {
-            OrderId = o.OrderId,
-            OrderNumber = $"HC{o.OrderId:D6}",
-            OrderDate = o.OrderDate,
-            TotalAmount = o.OrderItems.Sum(oi => oi.UnitPrice),
-            Status = o.OrderStatus?.Status ?? "Pending",
-            PaymentStatus = o.OrderStatusId >= 2 ? "Paid" : "Pending",
-            Items = o.OrderItems.GroupBy(oi => oi.ProductName).Select(g => new OrderItemDto
+        if (orders.Count == 0)
+            return new List<OrderListDto>();
+
+        // OrderItems only carry the product name, so the product id and image are resolved once for
+        // every name in the history - the image is what makes an order list readable.
+        var productNames = orders
+            .SelectMany(o => o.OrderItems.Select(oi => oi.ProductName))
+            .Distinct()
+            .ToList();
+
+        var productInfo = await _context.Products
+            .Where(p => productNames.Contains(p.ProductName))
+            .Select(p => new
             {
-                ProductId = 0,
-                ProductName = g.Key,
-                ProductTitle = g.First().ProductTitle,
-                Quantity = g.Count(),
-                Price = g.First().UnitPrice,
-                Image = ""
-            }).ToList()
+                p.ProductName,
+                p.ProductId,
+                Image = p.ProductImages
+                    .Where(pi => pi.IsPromoImage && pi.IsActive)
+                    .Select(pi => pi.ImageUrl)
+                    .FirstOrDefault() ?? ""
+            })
+            .AsNoTracking()
+            .ToListAsync();
+
+        var productsByName = productInfo
+            .GroupBy(p => p.ProductName, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        // Status names come from the lookup table instead of hard-coded ids, so a new lifecycle step
+        // added by the shop team shows up here too.
+        var statusNames = await _context.OrderStatuses
+            .AsNoTracking()
+            .ToDictionaryAsync(s => s.OrderStatusId, s => s.Status);
+
+        return orders.Select(o =>
+        {
+            var statusName = o.OrderStatus?.Status ?? statusNames.GetValueOrDefault(o.OrderStatusId, "Pending");
+            var isPaid = o.OrderStatusId is OrderStatusConfirmed or OrderStatusShipped or OrderStatusDelivered;
+
+            return new OrderListDto
+            {
+                OrderId = o.OrderId,
+                OrderNumber = $"HC{o.OrderId:D6}",
+                OrderDate = o.OrderDate,
+                TotalAmount = o.OrderItems.Sum(oi => oi.UnitPrice),
+                StatusId = o.OrderStatusId,
+                Status = statusName,
+                IsPaid = isPaid,
+                PaymentStatus = isPaid
+                    ? "Paid"
+                    : o.OrderStatusId == OrderStatusCancelled ? "Not charged" : "Payment pending",
+
+                // Only an order that has not been paid yet can be cancelled by the customer; cancelling
+                // a paid order would need a refund (handled by the shop team).
+                CanCancel = o.OrderStatusId == OrderStatusPending,
+                ItemCount = o.OrderItems.Count,
+
+                ShippingAddress = o.ShippingAddress == null
+                    ? new OrderAddressDto()
+                    : new OrderAddressDto
+                    {
+                        ContactName = o.ShippingAddress.ContactName,
+                        AddressLine1 = o.ShippingAddress.AddressLine1,
+                        AddressLine2 = o.ShippingAddress.AddressLine2 ?? "",
+                        City = o.ShippingAddress.City,
+                        State = o.ShippingAddress.State,
+                        Zipcode = o.ShippingAddress.Zipcode,
+                        MobileNumber = o.ShippingAddress.MobileNumber,
+                        EmailId = o.ShippingAddress.EmailId
+                    },
+
+                // OrderItems holds one row per physical unit, so equal units are grouped for display.
+                Items = o.OrderItems
+                    .GroupBy(oi => oi.ProductName, StringComparer.OrdinalIgnoreCase)
+                    .Select(g => new OrderItemDto
+                    {
+                        ProductId = productsByName.TryGetValue(g.Key, out var info) ? info.ProductId : 0,
+                        Image = productsByName.TryGetValue(g.Key, out var imageInfo) ? imageInfo.Image : "",
+                        ProductName = g.Key,
+                        ProductTitle = g.First().ProductTitle,
+                        Quantity = g.Count(),
+                        Price = g.First().UnitPrice
+                    })
+                    .ToList(),
+
+                History = o.OrderHistories
+                    .OrderBy(h => h.HistoryDate)
+                    .Select(h => new OrderHistoryDto
+                    {
+                        Date = h.HistoryDate,
+                        Status = statusNames.GetValueOrDefault(h.OrderStatusId, ""),
+                        Comments = h.Comments ?? ""
+                    })
+                    .ToList()
+            };
         }).ToList();
     }
 
@@ -490,15 +567,20 @@ public partial class OrderService : IOrderService
     /// </summary>
     private async Task<List<Sku>> LockAvailableSkusAsync(int productId, int quantity)
     {
+        // A unit is sellable while it is in the "Available" pool and the order holding it - if any -
+        // was cancelled (that is when the item went back on the shelf). {3} is that cancelled status.
         const string sql = @"
 SELECT TOP ({0}) * FROM [SKUs] AS s WITH (UPDLOCK, ROWLOCK, HOLDLOCK)
 WHERE s.[SKUStatusID] = {2}
   AND s.[PurchaseDetailID] IN (SELECT pd.[PurchaseDetailID] FROM [PurchaseDetails] AS pd WHERE pd.[ProductID] = {1})
-  AND NOT EXISTS (SELECT 1 FROM [OrderItems] AS oi WHERE oi.[SKU] = s.[SKU])
+  AND NOT EXISTS (
+      SELECT 1 FROM [OrderItems] AS oi
+      INNER JOIN [Orders] AS o ON o.[OrderID] = oi.[OrderID]
+      WHERE oi.[SKU] = s.[SKU] AND o.[OrderStatusID] <> {3})
 ORDER BY s.[SKU]";
 
         return await _context.Skus
-            .FromSqlRaw(sql, quantity, productId, AvailableSkuStatusId)
+            .FromSqlRaw(sql, quantity, productId, AvailableSkuStatusId, SkuAvailability.CancelledOrderStatusId)
             .AsTracking()
             .ToListAsync();
     }

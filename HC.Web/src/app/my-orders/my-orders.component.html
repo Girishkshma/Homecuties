@@ -1,0 +1,204 @@
+<div class="my-orders-page">
+  <div class="container">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a routerLink="/">Home</a></li>
+        <li class="breadcrumb-item active">My Orders</li>
+      </ol>
+    </nav>
+
+    <div class="page-heading">
+      <h2 class="section-title">My Orders</h2>
+      <button
+        type="button"
+        class="btn btn-outline-secondary btn-sm"
+        [disabled]="loading"
+        (click)="loadOrders()"
+      >
+        <i class="bi bi-arrow-clockwise me-1"></i> Refresh
+      </button>
+    </div>
+
+    <!-- Action result -->
+    <div *ngIf="notice" class="alert-custom alert-success">
+      <i class="bi bi-check-circle-fill me-2"></i>{{ notice }}
+    </div>
+
+    <!-- Error -->
+    <div *ngIf="error" class="alert-custom alert-error">
+      <i class="bi bi-exclamation-circle me-2"></i>{{ error }}
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="loading" class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading your orders...</p>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="!loading && orders.length === 0" class="empty-state">
+      <div class="empty-icon">
+        <i class="bi bi-bag-check"></i>
+      </div>
+      <h4>No orders yet</h4>
+      <p>Orders you place will appear here with their status, items and delivery address.</p>
+      <a routerLink="/shop" class="btn btn-primary btn-lg">
+        <i class="bi bi-bag me-2"></i> Start Shopping
+      </a>
+    </div>
+
+    <!-- Orders -->
+    <div *ngIf="!loading && orders.length > 0" class="orders-list">
+      <div class="order-card" *ngFor="let order of orders" [class.order-busy]="busyOrderId === order.OrderId">
+        <!-- Order summary row -->
+        <div class="order-card-header">
+          <div class="order-headline">
+            <h5>
+              <i class="bi bi-receipt me-2"></i>{{ order.OrderNumber }}
+              <span class="badge" [ngClass]="statusBadgeClass(order)">{{ order.Status }}</span>
+            </h5>
+            <small class="order-meta">
+              Placed on {{ order.OrderDate | date:'dd MMM yyyy' }} &middot;
+              {{ order.ItemCount }} {{ order.ItemCount === 1 ? 'item' : 'items' }} &middot;
+              {{ UtilityService.currencyFormat(order.TotalAmount) }} &middot;
+              {{ order.PaymentStatus }}
+            </small>
+          </div>
+
+          <div class="order-actions">
+            <button type="button" class="btn btn-outline-secondary btn-sm" (click)="toggleDetails(order)">
+              <i class="bi me-1" [ngClass]="isExpanded(order) ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
+              {{ isExpanded(order) ? 'Hide Details' : 'View Details' }}
+            </button>
+            <button
+              *ngIf="canCheckPayment(order)"
+              type="button"
+              class="btn btn-outline-primary btn-sm"
+              [disabled]="busyOrderId === order.OrderId"
+              (click)="checkPaymentStatus(order)"
+            >
+              <i class="bi bi-credit-card me-1"></i> Check Payment
+            </button>
+            <button
+              *ngIf="order.CanCancel"
+              type="button"
+              class="btn btn-outline-danger btn-sm"
+              [disabled]="busyOrderId === order.OrderId"
+              (click)="askToCancel(order)"
+            >
+              <i class="bi bi-x-circle me-1"></i> Cancel Order
+            </button>
+          </div>
+        </div>
+
+        <!-- Cancel confirmation -->
+        <div *ngIf="confirmingOrderId === order.OrderId" class="order-confirm">
+          <p>
+            <i class="bi bi-question-circle me-2"></i>
+            Cancel {{ order.OrderNumber }}? The reserved items go back on sale and the order cannot be
+            restored - you would have to place a new one.
+          </p>
+          <div class="order-confirm-actions">
+            <button
+              type="button"
+              class="btn btn-danger btn-sm"
+              [disabled]="busyOrderId === order.OrderId"
+              (click)="cancelOrder(order)"
+            >
+              Yes, cancel my order
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" (click)="dismissCancel()">
+              Keep my order
+            </button>
+          </div>
+        </div>
+
+        <!-- Awaiting payment note -->
+        <div *ngIf="canCheckPayment(order) && !order.IsPaid" class="order-payment-note">
+          <i class="bi bi-info-circle me-2"></i>
+          This order is waiting for the payment to be completed. If money has already left your account,
+          click <strong>Check Payment</strong> and we will confirm the order straight away.
+        </div>
+
+        <!-- Payment received note -->
+        <div *ngIf="order.IsPaid && order.StatusId !== 5" class="order-payment-note order-paid-note">
+          <i class="bi bi-shield-check me-2"></i>
+          Payment received{{ order.PaymentStatus ? ' (' + order.PaymentStatus + ')' : '' }}. Your order is
+          being prepared for shipping.
+        </div>
+
+        <!-- Details: items, address, timeline -->
+        <div *ngIf="isExpanded(order)" class="order-details">
+          <div class="table-responsive">
+            <table class="table order-items-table">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th class="text-center">Qty</th>
+                  <th class="text-end">Price</th>
+                  <th class="text-end">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let item of order.Items">
+                  <td>
+                    <div class="order-product">
+                      <img *ngIf="item.Image" [src]="item.Image | productImage" [alt]="item.ProductName" />
+                      <span *ngIf="!item.Image" class="order-product-noimage" aria-hidden="true">
+                        <i class="bi bi-bag"></i>
+                      </span>
+                      <div>
+                        <h6>{{ item.ProductName }}</h6>
+                        <small *ngIf="item.ProductTitle">{{ item.ProductTitle }}</small>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="text-center">{{ item.Quantity }}</td>
+                  <td class="text-end">{{ UtilityService.currencyFormat(item.Price) }}</td>
+                  <td class="text-end fw-bold">{{ UtilityService.currencyFormat(item.Price * item.Quantity) }}</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="3" class="text-end fw-semibold">Order Total</td>
+                  <td class="text-end fw-bold text-accent">{{ UtilityService.currencyFormat(order.TotalAmount) }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <div class="order-details-grid">
+            <div class="order-address" *ngIf="hasShippingAddress(order)">
+              <h6><i class="bi bi-geo-alt me-2"></i>Shipping Address</h6>
+              <p *ngIf="order.ShippingAddress.ContactName">{{ order.ShippingAddress.ContactName }}</p>
+              <p *ngIf="order.ShippingAddress.AddressLine1">{{ order.ShippingAddress.AddressLine1 }}</p>
+              <p *ngIf="order.ShippingAddress.AddressLine2">{{ order.ShippingAddress.AddressLine2 }}</p>
+              <p *ngIf="order.ShippingAddress.City || order.ShippingAddress.Zipcode">
+                {{ order.ShippingAddress.City }}<span *ngIf="order.ShippingAddress.State">, {{ order.ShippingAddress.State }}</span>
+                <span *ngIf="order.ShippingAddress.Zipcode"> - {{ order.ShippingAddress.Zipcode }}</span>
+              </p>
+              <p *ngIf="order.ShippingAddress.MobileNumber">
+                <i class="bi bi-telephone me-1"></i>{{ order.ShippingAddress.MobileNumber }}
+              </p>
+              <p *ngIf="order.ShippingAddress.EmailId">
+                <i class="bi bi-envelope me-1"></i>{{ order.ShippingAddress.EmailId }}
+              </p>
+            </div>
+
+            <div class="order-timeline">
+              <h6><i class="bi bi-clock-history me-2"></i>Order Timeline</h6>
+              <ul *ngIf="order.History.length">
+                <li *ngFor="let entry of order.History">
+                  <span class="timeline-date">{{ entry.Date | date:'dd MMM yyyy, h:mm a' }}</span>
+                  <span class="timeline-status">{{ entry.Status }}</span>
+                  <span class="timeline-comments" *ngIf="entry.Comments">{{ entry.Comments }}</span>
+                </li>
+              </ul>
+              <p class="text-muted mb-0" *ngIf="!order.History.length">No updates recorded yet.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

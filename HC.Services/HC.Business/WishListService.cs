@@ -16,9 +16,11 @@ public class WishListService : IWishListService
 
     public async Task<IEnumerable<WishListDto>> GetWishListAsync(long customerId, bool isGuest)
     {
+        List<WishListDto> wishList;
+
         if (isGuest)
         {
-            return await _context.Set<GuestWishList>()
+            wishList = await _context.Set<GuestWishList>()
                 .Where(w => w.CustomerId == customerId)
                 .Include(w => w.Product)
                     .ThenInclude(p => p.ProductImages)
@@ -39,14 +41,13 @@ public class WishListService : IWishListService
                     PostDiscountSalesPrice = w.Product.UnitPrice - (w.Product.UnitPrice * w.Product.DiscountPercent / 100),
                     PostAdditionalDiscountSalesPrice = w.Product.UnitPrice - (w.Product.UnitPrice * (w.Product.DiscountPercent + w.Product.AdditionalDiscountPercent) / 100),
                     DiscountPercent = w.Product.DiscountPercent,
-                    AdditionalDiscountPercent = w.Product.AdditionalDiscountPercent,
-                    IsInStock = w.Product.PurchaseDetails.SelectMany(pd => pd.Skus).Any(s => s.SkustatusId == 1 && !s.OrderItems.Any())
+                    AdditionalDiscountPercent = w.Product.AdditionalDiscountPercent
                 })
                 .ToListAsync();
         }
         else
         {
-            return await _context.WishLists
+            wishList = await _context.WishLists
                 .Where(w => w.CustomerId == customerId)
                 .Include(w => w.Product)
                     .ThenInclude(p => p.ProductImages)
@@ -67,11 +68,22 @@ public class WishListService : IWishListService
                     PostDiscountSalesPrice = w.Product.UnitPrice - (w.Product.UnitPrice * w.Product.DiscountPercent / 100),
                     PostAdditionalDiscountSalesPrice = w.Product.UnitPrice - (w.Product.UnitPrice * (w.Product.DiscountPercent + w.Product.AdditionalDiscountPercent) / 100),
                     DiscountPercent = w.Product.DiscountPercent,
-                    AdditionalDiscountPercent = w.Product.AdditionalDiscountPercent,
-                    IsInStock = w.Product.PurchaseDetails.SelectMany(pd => pd.Skus).Any(s => s.SkustatusId == 1 && !s.OrderItems.Any())
+                    AdditionalDiscountPercent = w.Product.AdditionalDiscountPercent
                 })
                 .ToListAsync();
         }
+
+        // "In stock" comes from the one definition of sellable units (SkuAvailability), so a unit a
+        // cancelled order gave back is offered again instead of staying "out of stock" forever.
+        var stock = await SkuAvailability.CountSellableByProductAsync(
+            _context, wishList.Select(item => item.ProductId));
+
+        foreach (var item in wishList)
+        {
+            item.IsInStock = stock[item.ProductId] > 0;
+        }
+
+        return wishList;
     }
 
     public async Task<ResultDto> AddToWishListAsync(long customerId, int productId, bool isGuest)

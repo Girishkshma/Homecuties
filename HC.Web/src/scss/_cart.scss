@@ -725,4 +725,276 @@
     margin-top: 0.1rem;
   }
 }
+/* ===== My Orders Page ===== */
+.my-orders-page {
+  padding: 2rem 0;
+
+  .section-title {
+    margin-bottom: 0;
+  }
+
+  .page-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .alert-custom {
+    margin-bottom: 1rem;
+  }
+}
+
+.orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.order-card {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-xl);
+  padding: 1.25rem 1.5rem;
+  transition: var(--transition-fast);
+
+  &.order-busy {
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  .order-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .order-headline {
+    h5 {
+      margin: 0 0 0.25rem;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--gray-900);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      padding: 0.3rem 0.6rem;
+    }
+  }
+
+  .order-meta {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.8125rem;
+  }
+
+  .order-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+
+    .btn {
+      font-size: 0.8125rem;
+      padding: 0.3rem 0.75rem;
+      border-radius: var(--radius-sm);
+      white-space: nowrap;
+    }
+  }
+}
+
+.order-confirm {
+  margin-top: 1rem;
+  padding: 0.875rem 1rem;
+  border-radius: var(--radius-md);
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+
+  p {
+    margin: 0 0 0.75rem;
+    font-size: 0.875rem;
+    color: #dc2626;
+  }
+
+  .order-confirm-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+}
+
+.order-payment-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding: 0.625rem 0.875rem;
+  border-radius: 8px;
+  background: #fff4e5;
+  border: 1px solid #f6d9a8;
+  color: #a35a00;
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.35;
+
+  i {
+    margin-top: 0.1rem;
+  }
+
+  &.order-paid-note {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+    color: #15803d;
+  }
+}
+
+.order-details {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--gray-200);
+}
+
+.order-items-table {
+  margin-bottom: 1rem;
+
+  thead th {
+    background: var(--gray-100);
+    color: var(--gray-700);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid var(--gray-200);
+  }
+
+  tbody td {
+    vertical-align: middle;
+  }
+
+  tfoot td {
+    border-top: 2px solid var(--gray-200);
+  }
+
+  .order-product {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+
+    img {
+      width: 56px;
+      height: 56px;
+      object-fit: cover;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--gray-200);
+    }
+
+    /* Stands in for the picture when the product has no promo image (or the order was saved before
+       one was added), so the row keeps its shape instead of showing a broken image. */
+    .order-product-noimage {
+      flex: 0 0 auto;
+      width: 56px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-md);
+      border: 1px dashed var(--gray-200);
+      background: var(--gray-100);
+      color: var(--text-muted);
+    }
+
+    h6 {
+      margin: 0;
+      font-size: 0.875rem;
+    }
+
+    small {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+    }
+  }
+}
+
+.order-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+
+  h6 {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: 0.625rem;
+  }
+
+  .order-address p {
+    margin-bottom: 0.125rem;
+    font-size: 0.8125rem;
+    color: var(--gray-700);
+  }
+
+  .order-timeline {
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      border-left: 2px solid var(--gray-200);
+
+      li {
+        position: relative;
+        padding: 0 0 0.75rem 1rem;
+        font-size: 0.8125rem;
+        display: flex;
+        flex-direction: column;
+
+        &::before {
+          content: '';
+          position: absolute;
+          left: -5px;
+          top: 0.35rem;
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: var(--primary);
+        }
+
+        &:last-child {
+          padding-bottom: 0;
+        }
+      }
+
+      .timeline-date {
+        color: var(--text-muted);
+        font-size: 0.75rem;
+      }
+
+      .timeline-status {
+        font-weight: 600;
+        color: var(--gray-900);
+      }
+
+      .timeline-comments {
+        color: var(--gray-700);
+      }
+    }
+  }
+}
+
+@media (max-width: 767.98px) {
+  .order-details-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 

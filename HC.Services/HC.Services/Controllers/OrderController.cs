@@ -85,6 +85,37 @@ public class OrderController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// Cancels an unpaid order from 'My Orders'. The order is always matched against the signed-in
+    /// customer, so a guessed id cannot cancel somebody else's order.
+    /// </summary>
+    [HttpPost("CancelOrder")]
+    public async Task<ActionResult> CancelOrder([FromBody] OrderActionRequest request)
+    {
+        var customerId = GetTokenCustomerId();
+        if (customerId == null)
+            return Unauthorized(new { Result = 0, Messages = new[] { "Please sign in to cancel an order." } });
+
+        var result = await _orderService.CancelOrderAsync(customerId.Value, request.OrderId);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Re-checks an order's payment with Razorpay and confirms the order when the money was captured.
+    /// Used by the checkout page (and 'My Orders') when the browser never learned the payment result,
+    /// which is what used to leave the page spinning forever.
+    /// </summary>
+    [HttpPost("SyncPayment")]
+    public async Task<ActionResult> SyncPayment([FromBody] OrderActionRequest request)
+    {
+        var customerId = GetTokenCustomerId();
+        if (customerId == null)
+            return Unauthorized(new { Result = 0, Messages = new[] { "Please sign in to check a payment." } });
+
+        var result = await _orderService.SyncOrderPaymentAsync(customerId.Value, request.OrderId);
+        return Ok(result);
+    }
+
     /// <summary>Reads "Authorization: Bearer &lt;token&gt;" and returns the signed-in customer id when it is valid.</summary>
     private long? GetTokenCustomerId()
     {

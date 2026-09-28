@@ -11,11 +11,11 @@ namespace HC.Business;
 
 public partial class OrderService : IOrderService
 {
-    // SKUStatuses.SKUStatusID = 1 => "Available"
-    private const short AvailableSkuStatusId = 1;
-
-    // SKUStatuses.SKUStatusID = 4 => "Ordered"
-    private const short OrderedSkuStatusId = 4;
+    // SKUStatuses.SKUStatusID = 1 => "Available", 4 => "Ordered". The values live in SkuAvailability so
+    // that every storefront query shares one definition of "this unit can be sold" (a unit of a
+    // cancelled order goes back to Available and can be sold again).
+    private const short AvailableSkuStatusId = SkuAvailability.AvailableSkuStatusId;
+    private const short OrderedSkuStatusId = SkuAvailability.OrderedSkuStatusId;
 
     private readonly HomecutiesDbContext _context;
     private readonly ILogger<OrderService> _logger;

@@ -18,7 +18,7 @@ public class ProductDto
     public decimal SGSTPercent { get; set; }
     public decimal IGSTPercent { get; set; }
     public bool IsInStock { get; set; }
-    /// <summary>Number of sellable SKUs (Available status and not already reserved by an order).</summary>
+    /// <summary>Number of sellable units: "Available" SKUs that no live (non-cancelled) order holds.</summary>
     public int AvailableQty { get; set; }
     public List<ProductFeatureDto> Features { get; set; } = new();
     public List<CategoryDto> Categories { get; set; } = new();

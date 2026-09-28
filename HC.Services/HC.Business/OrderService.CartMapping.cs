@@ -15,13 +15,17 @@ namespace HC.Business;
 
 public partial class OrderService : IOrderService
 {
-    private static CartResponseDto MapGuestCartToResponse(GuestCart guestCart)
+    /// <summary>
+    /// Maps a guest cart to the response used by the storefront and by the checkout.
+    /// <paramref name="stock"/> holds the sellable units per product (see
+    /// <see cref="SkuAvailability.CountSellableByProductAsync"/>) - the checkout trims the quantities
+    /// with it, so it is the same figure every other screen shows.
+    /// </summary>
+    private static CartResponseDto MapGuestCartToResponse(GuestCart guestCart, IReadOnlyDictionary<int, int> stock)
     {
         var items = guestCart.GuestCartItems.Select(ci =>
         {
-            var availableQty = ci.Product.PurchaseDetails
-                .SelectMany(pd => pd.Skus)
-                .Count(s => s.SkustatusId == AvailableSkuStatusId && !s.OrderItems.Any());
+            var availableQty = stock[ci.ProductId];
             return new CartItemDto
             {
                 ProductID = ci.ProductId,
@@ -48,13 +52,12 @@ public partial class OrderService : IOrderService
         return new CartResponseDto { Items = items, Calculation = calculation };
     }
 
-    private static CartResponseDto MapCartToResponse(Data.Entities.Cart cart)
+    /// <inheritdoc cref="MapGuestCartToResponse(GuestCart, IReadOnlyDictionary{int, int})" />
+    private static CartResponseDto MapCartToResponse(Data.Entities.Cart cart, IReadOnlyDictionary<int, int> stock)
     {
         var items = cart.CartItems.Select(ci =>
         {
-            var availableQty = ci.Product.PurchaseDetails
-                .SelectMany(pd => pd.Skus)
-                .Count(s => s.SkustatusId == AvailableSkuStatusId && !s.OrderItems.Any());
+            var availableQty = stock[ci.ProductId];
             return new CartItemDto
             {
                 ProductID = ci.ProductId,

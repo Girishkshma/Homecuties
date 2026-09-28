@@ -192,6 +192,9 @@ Thumbs.db
 # Local configuration overrides - never commit real secrets
 appsettings.Local.json
 appsettings.*.local.json
+# Production-only overrides (live Razorpay keys, live webhook secret). It is git-ignored but is
+# still copied into the publish output, so the deployed API picks up the live keys.
+appsettings.Production.json
 secrets.json
 *.secrets.json
 *.pfx

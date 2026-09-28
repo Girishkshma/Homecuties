@@ -22,9 +22,13 @@ public partial class OrderService : IOrderService
     private const string RazorpayStatusAuthorized = "authorized";
     private const string RazorpayStatusCaptured = "captured";
 
-    // Orders.OrderStatusID: 1 = Pending (set when the order is placed), 2 = Confirmed.
+    // Orders.OrderStatusID: 1 = Pending (set when the order is placed), 2 = Confirmed,
+    // 5 = Cancelled (set when the customer cancels from 'My Orders').
     private const short OrderStatusPending = 1;
     private const short OrderStatusConfirmed = 2;
+    private const short OrderStatusShipped = 3;
+    private const short OrderStatusDelivered = 4;
+    private const short OrderStatusCancelled = SkuAvailability.CancelledOrderStatusId;
 
     /// <summary>
     /// Shared client for Razorpay's REST API. The Authorization header is set per request (never on

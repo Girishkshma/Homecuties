@@ -20,21 +20,17 @@ public partial class CartService : ICartService
                 .Include(gc => gc.GuestCartItems)
                     .ThenInclude(ci => ci.Product)
                         .ThenInclude(p => p.ProductImages)
-                .Include(gc => gc.GuestCartItems)
-                    .ThenInclude(ci => ci.Product)
-                        .ThenInclude(p => p.PurchaseDetails)
-                            .ThenInclude(pd => pd.Skus)
-                                .ThenInclude(s => s.OrderItems)
                 .FirstOrDefaultAsync(gc => gc.CustomerId == customerId);
 
             if (guestCart == null)
                 return new CartResponseDto();
 
+            var stock = await SkuAvailability.CountSellableByProductAsync(
+                _context, guestCart.GuestCartItems.Select(ci => ci.ProductId));
+
             var cartItems = guestCart.GuestCartItems.Select(ci =>
             {
-                var availableQty = ci.Product.PurchaseDetails
-                    .SelectMany(pd => pd.Skus)
-                    .Count(s => s.SkustatusId == AvailableSkuStatusId && !s.OrderItems.Any());
+                var availableQty = stock[ci.ProductId];
                 return new CartItemDto
                 {
                     ProductID = ci.ProductId,
@@ -60,21 +56,17 @@ public partial class CartService : ICartService
                 .Include(c => c.CartItems)
                     .ThenInclude(ci => ci.Product)
                         .ThenInclude(p => p.ProductImages)
-                .Include(c => c.CartItems)
-                    .ThenInclude(ci => ci.Product)
-                        .ThenInclude(p => p.PurchaseDetails)
-                            .ThenInclude(pd => pd.Skus)
-                                .ThenInclude(s => s.OrderItems)
                 .FirstOrDefaultAsync(c => c.CustomerId == customerId);
 
             if (cart == null)
                 return new CartResponseDto();
 
+            var stock = await SkuAvailability.CountSellableByProductAsync(
+                _context, cart.CartItems.Select(ci => ci.ProductId));
+
             var cartItems = cart.CartItems.Select(ci =>
             {
-                var availableQty = ci.Product.PurchaseDetails
-                    .SelectMany(pd => pd.Skus)
-                    .Count(s => s.SkustatusId == AvailableSkuStatusId && !s.OrderItems.Any());
+                var availableQty = stock[ci.ProductId];
                 return new CartItemDto
                 {
                     ProductID = ci.ProductId,

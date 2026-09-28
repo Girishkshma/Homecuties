@@ -11,14 +11,20 @@
     <h2 class="section-title">Checkout</h2>
 
     <!-- Loading State -->
-    <div *ngIf="loading" class="loading-state">
+    <div *ngIf="loading || checkingPayment" class="loading-state">
       <div class="spinner"></div>
-      <p>Loading cart...</p>
+      <p>{{ loading ? 'Loading cart...' : 'Checking your payment...' }}</p>
     </div>
 
     <!-- Error State -->
     <div *ngIf="error && !loading" class="alert-custom alert-error">
       <i class="bi bi-exclamation-circle me-2"></i>{{ error }}
+      <button
+        *ngIf="lastOrderId > 0"
+        type="button"
+        class="btn btn-link p-0 ms-1 align-baseline"
+        (click)="viewMyOrders()"
+      >View My Orders</button>
     </div>
 
     <!-- Stock Warning -->
@@ -49,7 +55,7 @@
     </div>
 
     <!-- Empty Cart -->
-    <div *ngIf="!loading && !orderSuccess && getFilteredCartItems().length === 0" class="empty-state">
+    <div *ngIf="!loading && !checkingPayment && !orderSuccess && getFilteredCartItems().length === 0" class="empty-state">
       <div class="empty-icon">
         <i class="bi bi-cart-x"></i>
       </div>
@@ -71,6 +77,9 @@
       <p>Thank you for your purchase! We'll send you a confirmation email shortly.</p>
       <button class="btn btn-primary btn-lg" (click)="continueShopping()">
         <i class="bi bi-bag me-2"></i> Continue Shopping
+      </button>
+      <button class="btn btn-outline-primary btn-lg ms-2" (click)="viewMyOrders()">
+        <i class="bi bi-receipt me-2"></i> View My Orders
       </button>
     </div>
 

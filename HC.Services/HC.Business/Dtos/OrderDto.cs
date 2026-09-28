@@ -40,9 +40,54 @@ public class OrderListDto
     public string OrderNumber { get; set; } = "";
     public DateTime OrderDate { get; set; }
     public decimal TotalAmount { get; set; }
+
+    /// <summary>Orders.OrderStatusID: 1 = Pending, 2 = Confirmed, 3 = Shipped, 4 = Delivered, 5 = Cancelled.</summary>
+    public short StatusId { get; set; }
+
     public string Status { get; set; } = "";
     public string PaymentStatus { get; set; } = "";
+
+    /// <summary>True once the payment for the order has been captured.</summary>
+    public bool IsPaid { get; set; }
+
+    /// <summary>True while the customer can still cancel the order from 'My Orders'.</summary>
+    public bool CanCancel { get; set; }
+
+    /// <summary>Number of units in the order (OrderItems holds one row per physical unit).</summary>
+    public int ItemCount { get; set; }
+
+    /// <summary>Where the order is being shipped - shown in the order history.</summary>
+    public OrderAddressDto ShippingAddress { get; set; } = new();
+
     public List<OrderItemDto> Items { get; set; } = new();
+
+    /// <summary>Order placed / payment captured / cancelled - 'My Orders' shows this as a timeline.</summary>
+    public List<OrderHistoryDto> History { get; set; } = new();
+}
+
+public class OrderAddressDto
+{
+    public string ContactName { get; set; } = "";
+    public string AddressLine1 { get; set; } = "";
+    public string AddressLine2 { get; set; } = "";
+    public string City { get; set; } = "";
+    public string State { get; set; } = "";
+    public string Zipcode { get; set; } = "";
+    public string MobileNumber { get; set; } = "";
+    public string? EmailId { get; set; }
+}
+
+public class OrderHistoryDto
+{
+    public DateTime Date { get; set; }
+    public string Status { get; set; } = "";
+    public string Comments { get; set; } = "";
+}
+
+/// <summary>Body of the 'manage my order' actions (cancel an order / re-check its payment).</summary>
+public class OrderActionRequest
+{
+    public long OrderId { get; set; }
 }
 
 public class OrderItemDto

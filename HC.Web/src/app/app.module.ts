@@ -12,6 +12,7 @@ import { ShopComponent } from './shop/shop.component';
 import { ProductDetailsComponent } from './product-details/product-details.component';
 import { CartComponent } from './cart/cart.component';
 import { CheckoutComponent } from './checkout/checkout.component';
+import { MyOrdersComponent } from './my-orders/my-orders.component';
 import { LoginComponent } from './login/login.component';
 import { RegisterComponent } from './register/register.component';
 import { FavoritesComponent } from './favorites/favorites.component';
@@ -35,6 +36,7 @@ import { customerTokenInterceptor } from './interceptors/customer-token.intercep
     ProductDetailsComponent,
     CartComponent,
     CheckoutComponent,
+    MyOrdersComponent,
     LoginComponent,
     RegisterComponent,
     FavoritesComponent,

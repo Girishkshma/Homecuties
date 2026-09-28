@@ -7,10 +7,6 @@ namespace HC.Business;
 
 public class ProductService : IProductService
 {
-    // SKUStatuses.SKUStatusID = 1 => "Available".
-    // Only Available SKUs that are not already reserved by an order count as sellable stock.
-    private const short AvailableSkuStatusId = 1;
-
     private readonly HomecutiesDbContext _context;
 
     public ProductService(HomecutiesDbContext context)
@@ -20,7 +16,7 @@ public class ProductService : IProductService
 
     public async Task<IEnumerable<ProductDto>> GetProductsForHomepageAsync()
     {
-        return await _context.Products
+        var products = await _context.Products
             .Where(p => p.DisplayOnHomePage && p.ProductStatusId != 2) // 2 = Suspended (disabled)
             .Include(p => p.ProductCategories)
                 .ThenInclude(pc => pc.Category)
@@ -28,11 +24,14 @@ public class ProductService : IProductService
             .Include(p => p.ProductFeatures)
             .Select(ProductProjection)
             .ToListAsync();
+
+        await AddStockAsync(products);
+        return products;
     }
 
     public async Task<IEnumerable<ProductDto>> GetActiveProductsAsync()
     {
-        return await _context.Products
+        var products = await _context.Products
             .Where(p => p.ProductStatusId != 2) // 2 = Suspended (disabled)
             .Include(p => p.ProductCategories)
                 .ThenInclude(pc => pc.Category)
@@ -40,11 +39,14 @@ public class ProductService : IProductService
             .Include(p => p.ProductFeatures)
             .Select(ProductProjection)
             .ToListAsync();
+
+        await AddStockAsync(products);
+        return products;
     }
 
     public async Task<ProductDto?> GetProductAsync(int productId)
     {
-        return await _context.Products
+        var product = await _context.Products
             .Where(p => p.ProductId == productId && p.ProductStatusId != 2) // 2 = Suspended (disabled)
             .Include(p => p.ProductCategories)
                 .ThenInclude(pc => pc.Category)
@@ -52,11 +54,17 @@ public class ProductService : IProductService
             .Include(p => p.ProductFeatures)
             .Select(ProductProjection)
             .FirstOrDefaultAsync();
+
+        if (product == null)
+            return null;
+
+        await AddStockAsync(new[] { product });
+        return product;
     }
 
     public async Task<IEnumerable<ProductDto>> GetProductsByCategoryAsync(short categoryId)
     {
-        return await _context.Products
+        var products = await _context.Products
             .Where(p => p.ProductCategories.Any(pc => pc.CategoryId == categoryId && pc.IsActive)
                 && p.ProductStatusId != 2) // 2 = Suspended (disabled)
             .Include(p => p.ProductCategories)
@@ -65,6 +73,9 @@ public class ProductService : IProductService
             .Include(p => p.ProductFeatures)
             .Select(ProductProjection)
             .ToListAsync();
+
+        await AddStockAsync(products);
+        return products;
     }
 
     public async Task<IEnumerable<CategoryDto>> GetCategoriesAsync()
@@ -113,10 +124,34 @@ public class ProductService : IProductService
     }
 
     /// <summary>
+    /// Reads the sellable units of the given products and writes them into their
+    /// <see cref="ProductDto.IsInStock"/> and <see cref="ProductDto.AvailableQty"/> fields, which
+    /// <see cref="ProductProjection"/> leaves at their defaults.
+    ///
+    /// The units are counted by <see cref="SkuAvailability.CountSellableByProductAsync"/> instead of
+    /// inside the projection so that every stock figure - the product list here, the cart, the wish
+    /// list and the checkout - comes from the one definition of "sellable" and therefore counts a
+    /// unit that a cancelled order gave back (see <see cref="SkuAvailability"/>).
+    /// </summary>
+    private async Task AddStockAsync(IReadOnlyCollection<ProductDto> products)
+    {
+        var stock = await SkuAvailability.CountSellableByProductAsync(_context, products.Select(p => p.ProductID));
+
+        foreach (var product in products)
+        {
+            var availableQty = stock[product.ProductID];
+
+            product.AvailableQty = availableQty;
+            product.IsInStock = availableQty > 0;
+        }
+    }
+
+    /// <summary>
     /// Projection used by all product queries. It is an <see cref="Expression{TDelegate}"/> so
-    /// EF Core can translate it into SQL - including the stock calculation. A plain C# method
-    /// would be evaluated client-side after materialisation, where the (never Included)
-    /// PurchaseDetails collection is empty, which made every product report "Out of Stock".
+    /// EF Core can translate it into SQL. A plain C# method would be evaluated client-side after
+    /// materialisation, where the (never Included) PurchaseDetails collection is empty, which made
+    /// every product report "Out of Stock". The stock fields are filled in by
+    /// <see cref="AddStockAsync"/> for the same reason.
     /// </summary>
     private static readonly Expression<Func<Data.Entities.Product, ProductDto>> ProductProjection = p => new ProductDto
     {
@@ -142,8 +177,6 @@ public class ProductService : IProductService
         CGSTPercent = p.Cgstpercent,
         SGSTPercent = p.Sgstpercent,
         IGSTPercent = p.Igstpercent,
-        IsInStock = p.PurchaseDetails.SelectMany(pd => pd.Skus).Any(s => s.SkustatusId == AvailableSkuStatusId && !s.OrderItems.Any()),
-        AvailableQty = p.PurchaseDetails.SelectMany(pd => pd.Skus).Count(s => s.SkustatusId == AvailableSkuStatusId && !s.OrderItems.Any()),
         Features = p.ProductFeatures
             .Where(pf => pf.IsActive)
             .Select(pf => new ProductFeatureDto
