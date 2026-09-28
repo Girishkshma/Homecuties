@@ -14,6 +14,7 @@ import { MainLayoutComponent } from './layout/main-layout/main-layout.component'
 import { ProductsComponent } from './products/products.component';
 import { ProductFormComponent } from './product-form/product-form.component';
 import { OrdersComponent } from './orders/orders.component';
+import { OrderDetailComponent } from './order-detail/order-detail.component';
 import { CustomersComponent } from './customers/customers.component';
 import { PartnersComponent } from './partners/partners.component';
 import { VendorsComponent } from './vendors/vendors.component';
@@ -32,6 +33,7 @@ import { AdminUsersComponent } from './admin-users/admin-users.component';
     ProductsComponent,
     ProductFormComponent,
     OrdersComponent,
+    OrderDetailComponent,
     CustomersComponent,
     PartnersComponent,
     VendorsComponent,

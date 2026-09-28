@@ -8,6 +8,7 @@ import { DashboardComponent } from './dashboard/dashboard.component';
 import { ProductsComponent } from './products/products.component';
 import { ProductFormComponent } from './product-form/product-form.component';
 import { OrdersComponent } from './orders/orders.component';
+import { OrderDetailComponent } from './order-detail/order-detail.component';
 import { CustomersComponent } from './customers/customers.component';
 import { PartnersComponent } from './partners/partners.component';
 import { VendorsComponent } from './vendors/vendors.component';
@@ -27,6 +28,7 @@ const routes: Routes = [
       { path: 'products/new', component: ProductFormComponent },
       { path: 'products/:id', component: ProductFormComponent },
       { path: 'orders', component: OrdersComponent },
+      { path: 'orders/:id', component: OrderDetailComponent },
       { path: 'customers', component: CustomersComponent },
       { path: 'partners', component: PartnersComponent },
       { path: 'vendors', component: VendorsComponent },

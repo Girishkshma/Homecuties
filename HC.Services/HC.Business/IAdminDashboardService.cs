@@ -13,6 +13,8 @@ public interface IAdminDashboardService
     Task<ProductFormOptionsDto> GetProductFormOptionsAsync();
     Task<List<AdminOrderListDto>> GetOrdersAsync();
     Task<AdminOrderDetailDto?> GetOrderDetailAsync(long orderId);
+    Task<List<AdminOrderStatusDto>> GetOrderStatusesAsync();
+    Task<AdminResultDto> UpdateOrderStatusAsync(long orderId, AdminOrderStatusUpdateRequest request, long currentUserId);
     Task<List<AdminCustomerListDto>> GetCustomersAsync();
     Task<AdminCustomerDetailDto?> GetCustomerDetailAsync(long customerId);
     Task<AdminResultDto> UpdateCustomerStatusAsync(long customerId, short customerStatusId);

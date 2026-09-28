@@ -1,6 +1,18 @@
 <div class="page-container">
   <div class="page-header">
     <h1>Orders</h1>
+    <div class="header-actions">
+      <select class="filter-select" [ngModel]="statusFilter" (ngModelChange)="statusFilter = $event; applyFilter()">
+        <option [value]="0">All statuses</option>
+        <option *ngFor="let status of statuses" [value]="status.statusId">{{ status.status }}</option>
+      </select>
+      <div class="search-box">
+        <input type="text" [(ngModel)]="searchTerm" placeholder="Search by order #, customer or status..."
+          (keyup.enter)="search()" class="search-input">
+        <button (click)="search()" class="btn-search">Search</button>
+        <button *ngIf="searchTerm || statusFilter" (click)="clearSearch()" class="btn-clear">Clear</button>
+      </div>
+    </div>
   </div>
 
   <div *ngIf="isLoading" class="loading">Loading orders...</div>
@@ -14,6 +26,7 @@
           <th>Customer</th>
           <th>Items</th>
           <th>Total</th>
+          <th>Payment</th>
           <th>Status</th>
           <th>Actions</th>
         </tr>
@@ -25,21 +38,23 @@
           <td>{{ order.customerName }}</td>
           <td>{{ order.itemCount }}</td>
           <td>{{ order.totalAmount | currency:'INR' }}</td>
-          <td><span class="badge">{{ order.status }}</span></td>
-          <td>
-            <button class="btn-sm btn-view" [routerLink]="['/orders', order.orderId]">View</button>
+          <td><span [class]="getPaymentBadgeClass(order.isPaid)">{{ order.isPaid ? 'Paid' : 'Not paid' }}</span></td>
+          <td><span [class]="getStatusBadgeClass(order.statusId)">{{ order.status }}</span></td>
+          <td class="actions">
+            <button class="btn-sm btn-view" [routerLink]="['/orders', order.orderId]" title="Open the order, its items and its status">View</button>
+            <button class="btn-sm btn-edit" [routerLink]="['/orders', order.orderId]" title="Change the order status">Manage</button>
           </td>
         </tr>
-        <tr *ngIf="orders.length === 0">
-          <td colspan="7" class="empty">No orders found.</td>
+        <tr *ngIf="filteredOrders.length === 0">
+          <td colspan="8" class="empty">No orders found.</td>
         </tr>
       </tbody>
     </table>
 
     <!-- Pagination -->
-    <div class="pagination" *ngIf="orders.length > 0">
+    <div class="pagination" *ngIf="filteredOrders.length > 0">
       <div class="pagination-info">
-        Showing <strong>{{ startRecord }}</strong> to <strong>{{ endRecord }}</strong> of <strong>{{ orders.length }}</strong> orders
+        Showing <strong>{{ startRecord }}</strong> to <strong>{{ endRecord }}</strong> of <strong>{{ filteredOrders.length }}</strong> orders
       </div>
       <div class="pagination-controls">
         <button class="nav-btn" [disabled]="currentPage === 1" (click)="goToPage(1)">&laquo;</button>

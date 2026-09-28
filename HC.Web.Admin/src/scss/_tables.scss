@@ -186,6 +186,38 @@
     background: #fff3cd;
     color: #856404;
   }
+
+  /* Order lifecycle (Orders.OrderStatusID): 2 Confirmed, 3 Shipped, 4 Delivered, 5 Cancelled */
+  &.badge-confirmed {
+    background: #cfe2ff;
+    color: #084298;
+  }
+
+  &.badge-shipped {
+    background: #e2d9f3;
+    color: #432874;
+  }
+
+  &.badge-delivered {
+    background: #d4edda;
+    color: #155724;
+  }
+
+  &.badge-cancelled {
+    background: #f8d7da;
+    color: #721c24;
+  }
+
+  /* Payment state of an order */
+  &.badge-paid {
+    background: #d4edda;
+    color: #155724;
+  }
+
+  &.badge-unpaid {
+    background: #e9ecef;
+    color: #6c757d;
+  }
 }
 
 /* ---- Action Buttons in Tables ---- */

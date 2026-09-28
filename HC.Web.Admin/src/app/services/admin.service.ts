@@ -17,6 +17,8 @@ import {
   CreateProductRequest,
   AdminOrder,
   AdminOrderDetail,
+  AdminOrderStatusOption,
+  AdminOrderStatusUpdateRequest,
   AdminCustomer,
   AdminCustomerDetail,
   AdminPartner,
@@ -141,6 +143,18 @@ export class AdminService {
 
   getOrderDetail(id: number): Observable<AdminOrderDetail> {
     return this.http.get<AdminOrderDetail>(`${this.apiUrl}/orders/${id}`, {
+      headers: this.getAuthHeaders()
+    });
+  }
+
+  getOrderStatuses(): Observable<AdminOrderStatusOption[]> {
+    return this.http.get<AdminOrderStatusOption[]>(`${this.apiUrl}/order-statuses`, {
+      headers: this.getAuthHeaders()
+    });
+  }
+
+  updateOrderStatus(id: number, request: AdminOrderStatusUpdateRequest, userId: number): Observable<AdminResult> {
+    return this.http.post<AdminResult>(`${this.apiUrl}/orders/${id}/status?userId=${userId}`, request, {
       headers: this.getAuthHeaders()
     });
   }

@@ -189,6 +189,23 @@ public class AdminController : ControllerBase
         return Ok(order);
     }
 
+    [HttpGet("order-statuses")]
+    public async Task<ActionResult> GetOrderStatuses()
+    {
+        var statuses = await _adminDashboardService.GetOrderStatusesAsync();
+        return Ok(statuses);
+    }
+
+    [HttpPost("orders/{id}/status")]
+    public async Task<ActionResult> UpdateOrderStatus(long id, [FromBody] AdminOrderStatusUpdateRequest request, [FromQuery] long userId)
+    {
+        if (userId <= 0)
+            return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
+
+        var result = await _adminDashboardService.UpdateOrderStatusAsync(id, request, userId);
+        return Ok(result);
+    }
+
     #endregion
 
     #region Customers

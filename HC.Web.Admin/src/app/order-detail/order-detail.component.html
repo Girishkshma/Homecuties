@@ -1,0 +1,183 @@
+<div class="page-container">
+  <div class="page-header">
+    <h1>Order {{ order?.orderNumber || '' }}</h1>
+    <div class="header-actions">
+      <button class="btn-secondary" [routerLink]="['/orders']">&larr; Back to orders</button>
+      <button class="btn-secondary" *ngIf="order" (click)="reload()">Refresh</button>
+    </div>
+  </div>
+
+  <div *ngIf="isLoading" class="loading">Loading order...</div>
+  <div *ngIf="!isLoading && loadError" class="form-message error">{{ loadError }}</div>
+
+  <ng-container *ngIf="!isLoading && order">
+    <!-- Order summary -->
+    <div class="detail-card">
+      <div class="detail-grid">
+        <div class="detail-item">
+          <label>Order number</label>
+          <span>{{ order.orderNumber }}</span>
+        </div>
+        <div class="detail-item">
+          <label>Order date</label>
+          <span>{{ order.orderDate | date:'medium' }}</span>
+        </div>
+        <div class="detail-item">
+          <label>Customer</label>
+          <span>{{ order.customerName }}</span>
+        </div>
+        <div class="detail-item">
+          <label>Contact</label>
+          <span>
+            {{ order.customerEmail }}<ng-container *ngIf="order.customerMobile"> &middot; {{ order.customerMobile }}</ng-container>
+          </span>
+        </div>
+        <div class="detail-item">
+          <label>Seller</label>
+          <span>{{ order.sellerName }}</span>
+        </div>
+        <div class="detail-item">
+          <label>Status</label>
+          <span>
+            <span [class]="getStatusBadgeClass(order.statusId)">{{ order.status }}</span>
+            <span [class]="getPaymentBadgeClass(order.isPaid)">{{ order.isPaid ? 'Paid' : 'Not paid' }}</span>
+          </span>
+        </div>
+        <div class="detail-item">
+          <label>Amount charged</label>
+          <span>{{ itemsTotal | currency:'INR' }}</span>
+        </div>
+        <div class="detail-item">
+          <label>Units</label>
+          <span>{{ order.items.length }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Items - OrderItems keeps one row per physical unit, so every SKU is visible -->
+    <div class="detail-card">
+      <h3>Items ({{ order.items.length }} unit(s))</h3>
+
+      <table class="data-table modal-table">
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>Product</th>
+            <th>Unit price</th>
+            <th>Discount</th>
+            <th>Delivery / Packaging / Storage</th>
+            <th>CGST / SGST / IGST</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of order.items">
+            <td>{{ item.sku }}</td>
+            <td>{{ item.productTitle }}</td>
+            <td>{{ item.unitPrice | currency:'INR' }}</td>
+            <td>{{ item.discountPercent }}% + {{ item.additionalDiscountPercent }}%</td>
+            <td>
+              {{ item.deliveryCharge | currency:'INR' }} /
+              {{ item.packagingCharge | currency:'INR' }} /
+              {{ item.storageCharge | currency:'INR' }}
+            </td>
+            <td>{{ item.cgstpercent }}% / {{ item.sgstpercent }}% / {{ item.igstpercent }}%</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="total-row">
+        <div class="total-line">
+          <span>Charges recorded on the lines</span>
+          <strong>{{ chargesTotal | currency:'INR' }}</strong>
+        </div>
+        <div class="total-line grand">
+          <span>Amount charged</span>
+          <strong>{{ itemsTotal | currency:'INR' }}</strong>
+        </div>
+      </div>
+      <p class="hint">
+        The checkout charges the unit prices; the delivery, packaging and tax on the lines are recorded
+        for the books.
+      </p>
+    </div>
+
+    <!-- Addresses -->
+    <div class="detail-card">
+      <div class="address-grid">
+        <div>
+          <h3>Shipping address</h3>
+          <p class="address-line">{{ order.shippingAddress.addressLine1 }}</p>
+          <p class="address-line" *ngIf="order.shippingAddress.addressLine2">{{ order.shippingAddress.addressLine2 }}</p>
+          <p class="address-line">{{ order.shippingAddress.city }}, {{ order.shippingAddress.state }} {{ order.shippingAddress.zipcode }}</p>
+          <p class="address-line">{{ order.shippingAddress.mobileNumber }}</p>
+        </div>
+        <div>
+          <h3>Billing address</h3>
+          <p class="address-line">{{ order.billingAddress.addressLine1 }}</p>
+          <p class="address-line" *ngIf="order.billingAddress.addressLine2">{{ order.billingAddress.addressLine2 }}</p>
+          <p class="address-line">{{ order.billingAddress.city }}, {{ order.billingAddress.state }} {{ order.billingAddress.zipcode }}</p>
+          <p class="address-line">{{ order.billingAddress.mobileNumber }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div class="detail-card">
+      <h3>Order history</h3>
+      <ul class="timeline">
+        <li *ngFor="let step of order.history">
+          <div class="timeline-head">
+            <span [class]="getStatusBadgeClass(step.statusId)">{{ step.status }}</span>
+            <span class="timeline-date">{{ step.historyDate | date:'medium' }}</span>
+          </div>
+          <p class="timeline-comment">{{ step.comments }}</p>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Status workflow -->
+    <div class="detail-card">
+      <h3>Update status</h3>
+
+      <p class="hint" *ngIf="order.availableStatuses.length === 0">
+        {{ order.status }} is the last step of this order - there is nothing more to do here.
+      </p>
+
+      <ng-container *ngIf="order.availableStatuses.length > 0">
+        <div class="form-group">
+          <label>Move this order to <span class="req">*</span></label>
+          <select class="form-input" [(ngModel)]="newStatusId">
+            <option [ngValue]="0">-- Select the next step --</option>
+            <option *ngFor="let status of order.availableStatuses" [ngValue]="status.statusId">{{ status.status }}</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>
+            Note for the customer's order history
+            <span class="req" *ngIf="newStatusId === cancelledStatusId">*</span>
+          </label>
+          <textarea class="form-input" rows="3" [(ngModel)]="statusComment"
+            placeholder="e.g. Handed to the courier, tracking number 1234"></textarea>
+          <p class="hint" *ngIf="newStatusId === cancelledStatusId">
+            A reason is required when cancelling - the customer sees this note in 'My Orders'.
+          </p>
+        </div>
+
+        <div class="inline-actions">
+          <button class="btn-primary" [disabled]="isSavingStatus" (click)="updateStatus()">
+            {{ isSavingStatus ? 'Saving...' : (selectedStatusName ? 'Mark as ' + selectedStatusName : 'Update status') }}
+          </button>
+        </div>
+      </ng-container>
+
+      <div *ngIf="actionMessage" class="form-message" [class.error]="actionError">{{ actionMessage }}</div>
+
+      <p class="hint">
+        Dispatching and delivering move the units of the order along with it. Cancelling puts the units
+        the shop still holds back into the available stock; if the order was already paid, refund it in
+        the Razorpay dashboard.
+      </p>
+    </div>
+  </ng-container>
+</div>

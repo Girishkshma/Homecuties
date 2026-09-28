@@ -121,6 +121,10 @@ public class DashboardStatsDto
     public decimal TodayRevenue { get; set; }
     [JsonPropertyName("monthlyRevenue")]
     public decimal MonthlyRevenue { get; set; }
+
+    /// <summary>Cancelled orders, counted on their own tile instead of in <see cref="TotalOrders"/>.</summary>
+    [JsonPropertyName("cancelledOrders")]
+    public int CancelledOrders { get; set; }
 }
 
 // Products
@@ -293,8 +297,12 @@ public class AdminOrderListDto
     public DateTime OrderDate { get; set; }
     [JsonPropertyName("customerName")]
     public string CustomerName { get; set; } = "";
+    [JsonPropertyName("statusId")]
+    public short StatusId { get; set; }
     [JsonPropertyName("status")]
     public string Status { get; set; } = "";
+    [JsonPropertyName("isPaid")]
+    public bool IsPaid { get; set; }
     [JsonPropertyName("totalAmount")]
     public decimal TotalAmount { get; set; }
     [JsonPropertyName("itemCount")]
@@ -313,8 +321,19 @@ public class AdminOrderDetailDto
     public string CustomerName { get; set; } = "";
     [JsonPropertyName("customerEmail")]
     public string CustomerEmail { get; set; } = "";
+    [JsonPropertyName("customerMobile")]
+    public string CustomerMobile { get; set; } = "";
+    [JsonPropertyName("statusId")]
+    public short StatusId { get; set; }
     [JsonPropertyName("status")]
     public string Status { get; set; } = "";
+    [JsonPropertyName("isPaid")]
+    public bool IsPaid { get; set; }
+
+    /// <summary>What the checkout charged for the order (the sum of the unit prices).</summary>
+    [JsonPropertyName("totalAmount")]
+    public decimal TotalAmount { get; set; }
+
     [JsonPropertyName("sellerName")]
     public string SellerName { get; set; } = "";
     [JsonPropertyName("billingAddress")]
@@ -325,6 +344,13 @@ public class AdminOrderDetailDto
     public List<AdminOrderItemDto> Items { get; set; } = new();
     [JsonPropertyName("history")]
     public List<AdminOrderHistoryDto> History { get; set; } = new();
+
+    /// <summary>
+    /// The statuses this order may be moved to next (see AdminDashboardService.OrderStatusTransitions).
+    /// The admin screen only offers these steps, so an impossible jump cannot be picked at all.
+    /// </summary>
+    [JsonPropertyName("availableStatuses")]
+    public List<AdminOrderStatusDto> AvailableStatuses { get; set; } = new();
 }
 
 public class AdminAddressDto
@@ -381,10 +407,38 @@ public class AdminOrderHistoryDto
 {
     [JsonPropertyName("historyDate")]
     public DateTime HistoryDate { get; set; }
+
+    /// <summary>Orders.OrderStatusID this step recorded (OrderHistory keeps its own status id).</summary>
+    [JsonPropertyName("statusId")]
+    public short StatusId { get; set; }
+
     [JsonPropertyName("status")]
     public string Status { get; set; } = "";
     [JsonPropertyName("comments")]
     public string Comments { get; set; } = "";
+}
+
+/// <summary>One step of the order lifecycle (Orders.OrderStatusID + its name).</summary>
+public class AdminOrderStatusDto
+{
+    [JsonPropertyName("statusId")]
+    public short StatusId { get; set; }
+    [JsonPropertyName("status")]
+    public string Status { get; set; } = "";
+}
+
+/// <summary>Body of "move this order to another status" in the admin order screen.</summary>
+public class AdminOrderStatusUpdateRequest
+{
+    [JsonPropertyName("statusId")]
+    public short StatusId { get; set; }
+
+    /// <summary>
+    /// Free text kept in OrderHistory (required for a cancellation - the customer sees it in
+    /// 'My Orders').
+    /// </summary>
+    [JsonPropertyName("comments")]
+    public string? Comments { get; set; }
 }
 
 // Customers

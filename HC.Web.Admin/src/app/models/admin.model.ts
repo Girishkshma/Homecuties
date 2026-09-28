@@ -56,6 +56,7 @@ export interface DashboardStats {
   pendingOrders: number;
   todayRevenue: number;
   monthlyRevenue: number;
+  cancelledOrders: number;
 }
 
 export interface AdminProduct {
@@ -157,7 +158,9 @@ export interface AdminOrder {
   orderNumber: string;
   orderDate: Date;
   customerName: string;
+  statusId: number;
   status: string;
+  isPaid: boolean;
   totalAmount: number;
   itemCount: number;
 }
@@ -168,12 +171,17 @@ export interface AdminOrderDetail {
   orderDate: Date;
   customerName: string;
   customerEmail: string;
+  customerMobile: string;
+  statusId: number;
   status: string;
+  isPaid: boolean;
+  totalAmount: number;
   sellerName: string;
   billingAddress: AdminAddress;
   shippingAddress: AdminAddress;
   items: AdminOrderItem[];
   history: AdminOrderHistory[];
+  availableStatuses: AdminOrderStatusOption[];
 }
 
 export interface AdminAddress {
@@ -205,7 +213,20 @@ export interface AdminOrderItem {
 
 export interface AdminOrderHistory {
   historyDate: Date;
+  statusId: number;
   status: string;
+  comments: string;
+}
+
+/** One step of the order lifecycle (Orders.OrderStatusID + its name). */
+export interface AdminOrderStatusOption {
+  statusId: number;
+  status: string;
+}
+
+/** Body of "move this order to another status" in the admin order screen. */
+export interface AdminOrderStatusUpdateRequest {
+  statusId: number;
   comments: string;
 }
 

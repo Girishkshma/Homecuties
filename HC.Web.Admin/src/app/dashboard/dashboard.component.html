@@ -35,7 +35,7 @@
       <div class="stat-icon orders">📦</div>
       <div class="stat-info">
         <h3>{{ stats.totalOrders }}</h3>
-        <p>Total Orders</p>
+        <p title="Orders that are not cancelled">Active Orders</p>
       </div>
     </div>
 
@@ -72,10 +72,18 @@
     </div>
 
     <div class="stat-card">
+      <div class="stat-icon cancelled">❌</div>
+      <div class="stat-info">
+        <h3>{{ stats.cancelledOrders }}</h3>
+        <p title="Cancelled orders are not counted in Active Orders or in the revenue">Cancelled Orders</p>
+      </div>
+    </div>
+
+    <div class="stat-card">
       <div class="stat-icon revenue">💰</div>
       <div class="stat-info">
         <h3>{{ stats.todayRevenue | currency:'INR' }}</h3>
-        <p>Today's Revenue</p>
+        <p title="Only orders whose payment was captured">Today's Revenue (paid)</p>
       </div>
     </div>
 
@@ -83,7 +91,7 @@
       <div class="stat-icon revenue">📈</div>
       <div class="stat-info">
         <h3>{{ stats.monthlyRevenue | currency:'INR' }}</h3>
-        <p>Monthly Revenue</p>
+        <p title="Only orders whose payment was captured">Monthly Revenue (paid)</p>
       </div>
     </div>
   </div>

@@ -18,7 +18,8 @@ export class DashboardComponent implements OnInit {
     totalVendors: 0,
     pendingOrders: 0,
     todayRevenue: 0,
-    monthlyRevenue: 0
+    monthlyRevenue: 0,
+    cancelledOrders: 0
   };
   user: AdminUser | null = null;
   isLoading = true;
