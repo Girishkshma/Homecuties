@@ -27,6 +27,20 @@ BEGIN
         -- AddOrderPaymentsRefundRequest.sql for environments where the table already exists).
         [RefundRequestedOn] [datetime] NULL,
         [RefundRequestedComment] [varchar](500) NULL,
+        -- What the gateway charged the shop for taking the payment, and what the shop keeps - written
+        -- from the capture payload and corrected by the daily settlement pull (see
+        -- AddOrderPaymentCharges.sql for environments where the table already exists).
+        [FeeAmountInPaise] [int] NULL,
+        [FeeAmount] [decimal](18, 2) NULL,
+        [TaxAmountInPaise] [int] NULL,
+        [TaxAmount] [decimal](18, 2) NULL,
+        [NetAmount] [decimal](18, 2) NULL,
+        [PaymentMethod] [varchar](30) NULL,
+        [GatewayChargedOn] [datetime] NULL,
+        [ChargesSource] [varchar](20) NULL,
+        [RefundAmountInPaise] [int] NULL,
+        [RefundArn] [varchar](50) NULL,
+        [RefundSpeedProcessed] [varchar](20) NULL,
         [CreatedOn] [datetime] NOT NULL,
         [UpdatedOn] [datetime] NULL,
         CONSTRAINT [PK_OrderPayments] PRIMARY KEY CLUSTERED (

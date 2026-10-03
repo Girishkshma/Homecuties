@@ -70,10 +70,69 @@ public partial class OrderPayment
 
     public decimal? RefundAmount { get; set; }
 
+    /// <summary>
+    /// What Razorpay really gave back, in paise (the refund entity's own <c>amount</c>). Kept next to
+    /// <see cref="RefundAmount"/> like every other money pair here: the refund is a gateway figure and
+    /// must be able to be compared with what was asked for.
+    /// </summary>
+    public int? RefundAmountInPaise { get; set; }
+
+    /// <summary>
+    /// The bank's reference for the refund (Razorpay's <c>acquirer_data.arn</c>), so a refund the
+    /// customer cannot find can be traced at their bank. Filled in by the refund webhook and by the
+    /// daily gateway sync (<see cref="HC.Business.RazorpayRefunds"/>).
+    /// </summary>
+    public string? RefundArn { get; set; }
+
+    /// <summary>How Razorpay sent the money back: <c>normal</c>, <c>optimum</c> or <c>instant</c>.</summary>
+    public string? RefundSpeedProcessed { get; set; }
+
     /// <summary>Why the refund could not be made - the shop team retries from the Razorpay dashboard.</summary>
     public string? RefundFailureReason { get; set; }
 
     public DateTime? RefundedOn { get; set; }
+
+    // ---------------------------------------------------------------------------------------------
+    // What the gateway charged for taking this payment (see HC.Business.OrderPaymentCharges and
+    // RazorpaySettlements).
+    //
+    // Razorpay reports the charge on the payment entity itself (fee and tax, both in paise) and again,
+    // this time authoritatively, on the settlement recon row once the money has been settled to the
+    // bank. Both are kept, told apart by ChargesSource: the capture's own figure is written first and
+    // the daily recon pull corrects it (OrderPaymentCharges.FromRecon), which a later webhook replay
+    // must not undo. Without these columns a paid order's own screen cannot say whether it made money.
+    // ---------------------------------------------------------------------------------------------
+
+    /// <summary>The gateway's charge for taking the payment (the MDR), as Razorpay speaks it (paise).</summary>
+    public int? FeeAmountInPaise { get; set; }
+
+    /// <summary>The gateway's charge in rupees - the figure deducted from the settlement.</summary>
+    public decimal? FeeAmount { get; set; }
+
+    /// <summary>
+    /// GST charged on the gateway's fee, in paise. Razorpay reports <c>fee</c> and <c>tax</c> as
+    /// separate fields, and both are kept apart here so the Finance screen can show the charge and the
+    /// tax on it as the two lines a P&amp;L needs.
+    /// </summary>
+    public int? TaxAmountInPaise { get; set; }
+
+    /// <summary>GST charged on the gateway's fee, in rupees.</summary>
+    public decimal? TaxAmount { get; set; }
+
+    /// <summary>
+    /// What the shop keeps from this payment: <see cref="Amount"/> minus <see cref="FeeAmount"/> minus
+    /// <see cref="TaxAmount"/> (see <see cref="HC.Business.OrderPaymentCharges.Net"/>).
+    /// </summary>
+    public decimal? NetAmount { get; set; }
+
+    /// <summary>The instrument the customer paid with (card / upi / netbanking / wallet ...).</summary>
+    public string? PaymentMethod { get; set; }
+
+    /// <summary>When the gateway took the money (Razorpay's own <c>created_at</c>).</summary>
+    public DateTime? GatewayChargedOn { get; set; }
+
+    /// <summary>Where the charges came from: <see cref="HC.Business.OrderPaymentCharges.FromPayment"/> or .FromRecon.</summary>
+    public string? ChargesSource { get; set; }
 
     public DateTime CreatedOn { get; set; }
 

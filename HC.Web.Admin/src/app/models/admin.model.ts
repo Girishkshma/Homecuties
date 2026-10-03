@@ -54,7 +54,15 @@ export interface DashboardStats {
   totalPartners: number;
   totalVendors: number;
   pendingOrders: number;
+
+  /**
+   * What the gateway took today, less the refunds sent back today (HC.Business.OrderMoney) - read from the
+   * payment rows rather than from the order lines, so it is money in the bank and not a count of open orders.
+   * A refund of an older sale is a minus on the day the money went out, exactly as the bank statement reads.
+   */
   todayRevenue: number;
+
+  /** The same reading over the month so far: one rule (taken minus refunded) over two windows. */
   monthlyRevenue: number;
   cancelledOrders: number;
 
@@ -75,6 +83,86 @@ export interface DashboardStats {
   returnsComingBack: number;
   returnsReceived: number;
   returnedOrders: number;
+}
+
+/**
+ * The days a settlement pull covers ('POST settlements/sync'), which is the one action that brings the money
+ * tiles up to date with what the gateway really settled to the shop's bank account.
+ *
+ * Both days are optional: leaving them out asks for the rolling window the pull is meant to read (yesterday and
+ * the seven days before it), and naming a day - or a range - is how a day the books do not explain is pulled
+ * again without waiting for the next pass. The server trims whatever is asked for to the days it is willing to
+ * read and reads a window that runs backwards as the single day it names.
+ */
+export interface AdminSettlementSyncRequest {
+  /** The first day to read, 'YYYY-MM-DD'; null or absent for the start of the rolling window. */
+  from?: string | null;
+  /** The last day to read, 'YYYY-MM-DD'; null or absent for yesterday. */
+  to?: string | null;
+}
+
+/**
+ * The shop's own books over a period ('GET finance/summary' - see HC.Business.OrderMoney and
+ * HC.Business.AdminDashboardService.Finance): what the customers paid, what was given back, what the gateway
+ * kept for taking it, what the couriers were paid, what the shop's own declared margin on the goods was, and
+ * what the bank side of it looked like.
+ *
+ * Every figure comes from a row the shop already keeps, and 'messages' says what the figures cannot say by
+ * themselves - a charge the gateway never reported, a parcel with no courier bill, days the settlement pull has
+ * no lines for. 'from' and 'to' are the days the server actually read (leaving both empty in the request asks
+ * for the month to date), so the screen reports the period it really got rather than the one it asked for.
+ */
+export interface AdminFinanceSummary {
+  /** The first day the report covers. */
+  from: Date;
+  /** The last day the report covers - today at the most. */
+  to: Date;
+
+  // The customers' money, as the gateway reported it (the payment rows).
+  capturedCount: number;
+  /** What the gateway took - what the customers paid, before anything is taken off. */
+  grossSales: number;
+  refundCount: number;
+  /** What was given back, including refunds still travelling. */
+  refundsGiven: number;
+  /** grossSales less refundsGiven. */
+  netSales: number;
+
+  // What the gateway kept for taking that money. The charges are the capture's own estimate until the
+  // settlement pull corrects them, which is what the three counts are for.
+  gatewayFee: number;
+  gatewayTax: number;
+  gatewayCharges: number;
+  /** netSales less gatewayCharges - what the gateway handed over. */
+  fromTheGateway: number;
+  /** Payments carrying the settled figure (the one the bank was paid on). */
+  settledChargeCount: number;
+  /** Payments still carrying the capture's own estimate. */
+  estimatedChargeCount: number;
+  /** Payments with no charge recorded at all, so the fee lines are short by them. */
+  unknownChargeCount: number;
+
+  // What the parcels of that money cost (the courier bills recorded on the parcels).
+  parcelsShipped: number;
+  parcelsWithoutFreight: number;
+  freightCost: number;
+  /** fromTheGateway less freightCost. */
+  afterCourier: number;
+
+  // The shop's own declared margin - the 'Profit margin %' typed on each product line, not a purchase price.
+  declaredMargin: number;
+  declaredCost: number;
+
+  // The bank's side, from the settlement ledger the pull writes; empty until the pull has run for those days.
+  settledLines: number;
+  settledCredit: number;
+  settledDebit: number;
+  settledFee: number;
+  settledTax: number;
+  settledOnHold: number;
+
+  /** What the figures cannot say by themselves, in plain words (empty when there is nothing to add). */
+  messages: string[];
 }
 
 export interface AdminProduct {
@@ -249,6 +337,46 @@ export interface AdminOrderDetail {
    * back and the return being closed (see HC.Business.OrderReturnFlow).
    */
   return?: AdminOrderReturn;
+
+  /**
+   * The money of this order as the gateway took it - what was captured, what the gateway kept for taking it and
+   * what the shop therefore keeps - or absent while nothing has been paid for the order (see
+   * HC.Business.OrderPaymentCharges). 'What this order made' on the order screen is built from it, together with
+   * the order's lines and the freight recorded on its parcel.
+   */
+  payment?: AdminOrderPayment;
+}
+
+/**
+ * What the gateway took for one order, and what it kept for taking it - the order's newest payment row. Every
+ * amount is in rupees.
+ *
+ * The charge figures are absent while the gateway has not reported them (a capture that arrived before Razorpay
+ * worked the fee out has none), which is NOT the same as a free payment - so the card says 'not reported' rather
+ * than showing 0. 'chargesSource' says where they came from: 'Payment' is the capture's own estimate, 'Recon' is
+ * the figure the settlement pull found the bank was actually settled on, which is never corrected back (see
+ * HC.Business.OrderPaymentCharges).
+ */
+export interface AdminOrderPayment {
+  /** Created/Authorized/Captured/Failed/RefundRequested/Refunded/RefundFailed (HC.Business.OrderPaymentStatus). */
+  status: string;
+  /**
+   * True when the gateway actually took this money - a capture, including one that has since been refunded - and
+   * false for an attempt that was only started, authorised or refused. The server answers this (see
+   * HC.Business.OrderMoney.TookMoney) so the app does not have to spell the rule out again.
+   */
+  moneyTaken: boolean;
+  amount: number;
+  feeAmount?: number | null;
+  taxAmount?: number | null;
+  /** What the shop keeps: amount - fee - GST. Absent while the charges are. */
+  netAmount?: number | null;
+  /** Card / upi / netbanking / wallet ... when the gateway reported it. */
+  paymentMethod?: string | null;
+  /** When the gateway took the money - the day the sale belongs to in the books. */
+  gatewayChargedOn?: Date | null;
+  /** 'Payment' (the capture's estimate) or 'Recon' (the settlement's authoritative figure), absent if neither. */
+  chargesSource?: string | null;
 }
 
 export interface AdminAddress {

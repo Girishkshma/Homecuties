@@ -284,3 +284,58 @@
     }
   }
 }
+/* What this order made: the money of one order as an account of its own. The card is tinted while the order did
+   not cover what the shop declared its goods cost, so an order that lost money is not read as a good one. */
+.margin-card {
+  border-left: 4px solid #4a6cf7;
+
+  &.margin-negative {
+    border-left-color: #b35c00;
+    background: #fffaf4;
+  }
+}
+
+.ledger {
+  margin: 0 0 4px;
+}
+
+.ledger-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 24px;
+  padding: 8px 0;
+  font-size: 14px;
+  color: #555;
+  border-bottom: 1px solid #f5f5f8;
+
+  strong {
+    font-weight: 600;
+    color: #333;
+    white-space: nowrap;
+  }
+
+  /* The last line of the account. */
+  &.grand {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1a1a2e;
+    border-top: 2px solid #1a1a2e;
+    border-bottom: none;
+    margin-top: 4px;
+  }
+}
+
+/* A figure the gateway has not reported: said in words rather than shown as a zero, which would read as money. */
+.unknown {
+  font-style: italic;
+  font-weight: 500 !important;
+  color: #999;
+}
+
+.margin-facts {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #eee;
+}
+

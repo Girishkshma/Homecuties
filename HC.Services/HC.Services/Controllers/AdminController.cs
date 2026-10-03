@@ -305,6 +305,49 @@ public class AdminController : ControllerBase
     }
 
     /// <summary>
+    /// Pulls the gateway's own books: what Razorpay settled to the shop's bank account over the last few days,
+    /// and what it settled it on (see HC.Business.RazorpaySettlements). This is the pull that turns the charge a
+    /// payment was recorded with into the charge the bank was actually paid on, and it also brings the refunds
+    /// the gateway is still holding up to date.
+    ///
+    /// The body is optional - an empty one reads the rolling window (yesterday and the seven days before it) - and
+    /// the answer says what the pull did, including the days it could not read, the settled payments this shop has
+    /// no row for, and anything that does not add up.
+    ///
+    /// Gated on the orders section because that is where the money lives (payments and refunds are read and acted
+    /// on from the order screens). The pull changes no order, no refund and no parcel - it only writes down what
+    /// the gateway says it did with the money.
+    /// </summary>
+    [Authorize(Policy = AdminPolicies.Orders)]
+    [HttpPost("settlements/sync")]
+    public async Task<ActionResult> SyncSettlements([FromBody] AdminSettlementSyncRequest? request)
+    {
+        var result = await _adminDashboardService.SyncSettlementsAsync(request?.From, request?.To);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// The shop's own books over a period: what the customers paid, what was given back, what the gateway kept
+    /// for taking it, what the parcels cost, what the shop's own margin on the goods was, and what the bank side
+    /// of it looked like (see AdminDashboardService.Finance.cs and HC.Business.OrderMoney, which owns every money
+    /// rule in it). Leaving both days out reports the month to date - the same stretch the dashboard's monthly
+    /// tile reads - and the answer says back the days it actually covered.
+    ///
+    /// Read-only to the last line: it writes nothing, moves no money and asks no gateway. The settlement ledger
+    /// it reports on is written by the pull alone, and days that were never pulled are named in the answer's
+    /// messages rather than shown as a row of zeros.
+    ///
+    /// Gated on the money sections ('/orders' or '/finance') because that is where payments and refunds live.
+    /// </summary>
+    [Authorize(Policy = AdminPolicies.OrdersOrFinance)]
+    [HttpGet("finance/summary")]
+    public async Task<ActionResult> GetFinanceSummary([FromQuery] DateTime? from, [FromQuery] DateTime? to)
+    {
+        var summary = await _adminDashboardService.GetFinanceSummaryAsync(from, to);
+        return Ok(summary);
+    }
+
+    /// <summary>
     /// The shipping providers this shop is set up with, and whether each is actually configured - the
     /// provider list of the order screen's Shipment card. It comes from the provider registry
     /// (see HC.Business.Shipping), so the list is what is really wired up and nothing has to be

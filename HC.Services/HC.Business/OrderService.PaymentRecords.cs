@@ -10,6 +10,7 @@ using HC.Data;
 using HC.Data.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
 
 namespace HC.Business;
 
@@ -90,6 +91,12 @@ public partial class OrderService : IOrderService
     ///
     /// <paramref name="amountInPaise"/> of 0 means "the gateway did not say" - a browser-side failure -
     /// and never overwrites a known amount.
+    ///
+    /// <paramref name="gatewayEntity"/> is the Razorpay payment payload the outcome was read from, when the
+    /// caller has one. A capture carries what the gateway charged for taking the money (fee and GST on it),
+    /// so it is written on the row with the same call that records the capture
+    /// (see <see cref="OrderPaymentCharges.ApplyCapture"/>) instead of being thrown away - without it the
+    /// order's own screen cannot say what the order made.
     /// </summary>
     private async Task<OrderPayment> SavePaymentOutcomeAsync(
         Order order,
@@ -98,7 +105,8 @@ public partial class OrderService : IOrderService
         string status,
         int amountInPaise,
         string? failureCode = null,
-        string? failureReason = null)
+        string? failureReason = null,
+        JsonElement? gatewayEntity = null)
     {
         var now = DateTime.UtcNow;
         var payment = await FindPaymentAttemptAsync(order, razorpayOrderId, razorpayPaymentId);
@@ -142,6 +150,13 @@ public partial class OrderService : IOrderService
             payment.AmountInPaise = (int)(order.OrderItems.Sum(oi => oi.UnitPrice) * 100);
             payment.Amount = payment.AmountInPaise / 100m;
         }
+
+        // A capture is the one report that carries what the gateway kept for taking the money (fee and the
+        // GST on it), so it is written down here, with the capture, rather than only being known once the
+        // money reaches the bank (see OrderPaymentCharges). A row whose charges already came from the
+        // settlement recon keeps them - ApplyCapture refuses to overwrite an authoritative figure.
+        if (status == OrderPaymentStatus.Captured)
+            OrderPaymentCharges.ApplyCapture(payment, gatewayEntity);
 
         await _context.SaveChangesAsync();
 

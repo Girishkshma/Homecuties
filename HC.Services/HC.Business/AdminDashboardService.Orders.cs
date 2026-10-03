@@ -197,6 +197,26 @@ public partial class AdminDashboardService : IAdminDashboardService
             order.RefundedOn = payment.RefundedOn;
             order.RefundFailureReason = payment.RefundFailureReason;
             order.RazorpayPaymentId = payment.RazorpayPaymentId;
+
+            // What the gateway took for the order, and what it kept for taking it - the margin card is built on
+            // this (see OrderPaymentCharges). The amount is always known; the charges are not, because a capture
+            // that arrived before Razorpay worked its fee out has none - which is why they are nullable here and
+            // stay null rather than becoming a 0 that reads like a free payment.
+            order.Payment = new AdminOrderPaymentDto
+            {
+                Status = payment.Status,
+
+                // What counts as money the gateway took is one rule (OrderMoney.TookMoney), and it is answered
+                // here so the admin app can build the order's account without spelling the rule out again.
+                MoneyTaken = OrderMoney.TookMoney(payment.Status),
+                Amount = payment.Amount,
+                FeeAmount = payment.FeeAmount,
+                TaxAmount = payment.TaxAmount,
+                NetAmount = payment.NetAmount,
+                PaymentMethod = payment.PaymentMethod,
+                GatewayChargedOn = payment.GatewayChargedOn,
+                ChargesSource = payment.ChargesSource
+            };
         }
 
         foreach (var step in order.History)

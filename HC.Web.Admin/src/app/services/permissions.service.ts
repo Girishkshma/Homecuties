@@ -65,6 +65,18 @@ export class PermissionsService {
     return firstSegment === section ? false : this.sections.has(firstSegment);
   }
 
+  /**
+   * True when the admin's roles grant at least one of the given sections ('/finance' or '/orders').
+   *
+   * A screen that reads what another section's screens act on is opened by a role holding either: the Finance
+   * screen reports on the money of the orders section, so a role that may already see the orders may read the
+   * books, and a role granted the finance menu on its own may open it without the order screens. The API checks
+   * the same pair ('AdminPolicies.OrdersOrFinance'), from the same role to menu mapping.
+   */
+  canOpenAnySection(...sections: string[]): boolean {
+    return sections.some(section => this.canOpenSection(section));
+  }
+
   /** True when the admin can open at least one section of the admin area. */
   hasAnySection(): boolean {
     return this.sections.size > 0;

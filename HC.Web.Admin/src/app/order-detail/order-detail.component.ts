@@ -897,6 +897,119 @@ export class OrderDetailComponent implements OnInit {
     });
   }
 
+  /**
+   * True when there is money to read on this order: the gateway took it. The server answers that per payment row
+   * ('moneyTaken', see HC.Business.OrderMoney.TookMoney) rather than the app deciding it from the status, so
+   * 'what counts as money taken' is one rule and not two. A pending order whose payment was never captured has
+   * none, and the card says so instead of showing a column of zeroes that reads like a loss.
+   */
+  get hasOrderMoney(): boolean {
+    return !!this.order?.payment?.moneyTaken;
+  }
+
+  /** What the gateway took for this order (0 while nothing has been paid). */
+  get moneyTaken(): number {
+    return this.order?.payment?.amount ?? 0;
+  }
+
+  /** The payment state in the team's own words - the same reading the Refund card spells out. */
+  get paymentStatusText(): string {
+    switch ((this.order?.payment?.status ?? '').toLowerCase()) {
+      case 'captured':
+        return 'Captured - the money is the shop\u2019s';
+      case 'refundrequested':
+        return 'Refund asked for - waiting for the team';
+      case 'refundfailed':
+        return 'Razorpay refused the refund - still owed back';
+      case 'refunded':
+        return 'Refunded - the money went back';
+      case 'authorized':
+        return 'Authorised but not captured';
+      case 'failed':
+        return 'The attempt failed';
+      case 'created':
+        return 'Started, nothing taken';
+      default:
+        return this.order?.payment?.status || 'not on record';
+    }
+  }
+
+  /**
+   * What has gone back to the customer. Only a refund that was actually SENT counts (see HC.Business.OrderMoney): a
+   * refund merely asked for - the customer's cancellation, waiting for the team's approval on the Refund card - has
+   * not moved any money yet, and is shown as owed there rather than as money out here.
+   */
+  get moneyGivenBack(): number {
+    const order = this.order;
+    if (!order || !order.refundedOn) {
+      return 0;
+    }
+
+    return order.refundAmount ?? 0;
+  }
+
+  /**
+   * What the gateway kept for taking this order's money: its charge plus the GST on it. Null while the gateway has
+   * not reported them - a capture that arrived before Razorpay worked the fee out has none - because unknown is not
+   * the same as nothing, and the card says 'not reported' rather than ₹0.00.
+   */
+  get gatewayCharges(): number | null {
+    const payment = this.order?.payment;
+    if (!payment || (payment.feeAmount == null && payment.taxAmount == null)) {
+      return null;
+    }
+
+    return (payment.feeAmount ?? 0) + (payment.taxAmount ?? 0);
+  }
+
+  /** Where that charge came from, in the words the payment row uses (see HC.Business.OrderPaymentCharges). */
+  get chargesSourceText(): string {
+    switch ((this.order?.payment?.chargesSource ?? '').toLowerCase()) {
+      case 'recon':
+        return 'the settlement pull - what the bank was settled on';
+      case 'payment':
+        return 'the capture itself - an estimate the settlement pull can still correct';
+      default:
+        return 'nothing recorded yet';
+    }
+  }
+
+  /** What the courier billed for this order's parcel, when the team recorded it (0 otherwise). */
+  get courierCost(): number {
+    return this.shipment?.freightCharge ?? 0;
+  }
+
+  /**
+   * The margin the shop declared on this order's lines: 'Profit margin %' per unit, read as the profit's share of
+   * what the customer paid (see HC.Business.OrderMoney.DeclaredProfit). It is the shop's own figure, not a purchase
+   * price - nothing in the system records what the goods cost to buy.
+   */
+  get declaredMargin(): number {
+    return this.order
+      ? this.order.items.reduce((sum, item) => sum + item.unitPrice * item.profitMarginPercent / 100, 0)
+      : 0;
+  }
+
+  /** What the shop declared those lines cost: what was charged for them, less the margin above. */
+  get declaredCost(): number {
+    return this.itemsTotal - this.declaredMargin;
+  }
+
+  /**
+   * What the order left the shop once everyone else has been paid: the money taken, less what went back, less the
+   * gateway's charge, less the courier's bill, less what the shop declared the goods cost.
+   *
+   * Null while the gateway's charge is unknown: a total with a missing line in it is not a total, and showing one
+   * would be the same mistake as reading an unreported fee as a free payment.
+   */
+  get leftAfterTheGoods(): number | null {
+    if (!this.hasOrderMoney || this.gatewayCharges == null) {
+      return null;
+    }
+
+    return this.moneyTaken - this.moneyGivenBack - this.gatewayCharges - this.courierCost - this.declaredCost;
+  }
+
   /** What the checkout charged: OrderItems holds one row per unit, each carrying its unit price. */
   get itemsTotal(): number {
     return this.order ? this.order.items.reduce((sum, item) => sum + item.unitPrice, 0) : 0;

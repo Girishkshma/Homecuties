@@ -53,6 +53,241 @@ public static class RazorpayRefunds
     public static bool IsConfigured(string keyId, string keySecret) =>
         !string.IsNullOrWhiteSpace(keyId) && !string.IsNullOrWhiteSpace(keySecret);
 
+    /// <summary>Razorpay's own words for how a refund ended (the <c>status</c> of a refund entity).</summary>
+    public const string RefundStatusProcessed = "processed";
+
+    /// <summary>Sent, but still travelling back to the customer's bank.</summary>
+    public const string RefundStatusPending = "pending";
+
+    /// <summary>Razorpay refused it (or the bank returned it) - the money is still owed.</summary>
+    public const string RefundStatusFailed = "failed";
+
+    /// <summary>
+    /// True while the gateway still has something to say about a refund: one was sent and Razorpay has not
+    /// finished with it. A refund travels for a day or two - it is answered 'pending' and settles into
+    /// 'processed' together with the bank's own reference - so a row that is not yet settled, or one that is
+    /// settled but has no bank reference yet, is worth asking about. The question is dropped a month on: a
+    /// gateway that never reports a reference (some payment methods do not) must not be asked forever. A
+    /// refund Razorpay refused, and one the shop team made by hand, have nothing left to hear at all.
+    /// </summary>
+    public static bool RefundInFlight(OrderPayment payment) =>
+        !string.IsNullOrEmpty(payment.RefundId)
+        && !string.Equals(payment.RefundStatus, RefundStatusFailed, StringComparison.OrdinalIgnoreCase)
+        && (!string.Equals(payment.RefundStatus, RefundStatusProcessed, StringComparison.OrdinalIgnoreCase)
+            || string.IsNullOrEmpty(payment.RefundArn))
+        && (payment.RefundedOn == null || payment.RefundedOn > DateTime.UtcNow.AddDays(-30));
+
+    /// <summary>
+    /// Writes what Razorpay said about a refund onto the payment row: the refund's own status, the amount it
+    /// really gave back, the bank's reference (<c>acquirer_data.arn</c>) and how the money was sent
+    /// (<c>speed_processed</c>). Shared by the three places a refund is heard about - the refund call itself
+    /// (<see cref="RefundOrderPaymentAsync"/>), the refund webhook (see
+    /// <c>OrderService.HandlePaymentWebhookAsync</c>) and the daily gateway sync
+    /// (<see cref="RefreshPendingRefundsAsync"/>) - so all three read one payload one way. Returns true when
+    /// anything on the row changed.
+    /// </summary>
+    public static bool ApplyRefundOutcome(OrderPayment payment, JsonElement refund, DateTime? seenOn = null)
+    {
+        var now = DateTime.UtcNow;
+        var changed = false;
+
+        var refundId = ReadString(refund, "id");
+        if (!string.IsNullOrEmpty(refundId) && !string.Equals(payment.RefundId, refundId, StringComparison.Ordinal))
+        {
+            payment.RefundId = Truncate(refundId, 50);
+            changed = true;
+        }
+
+        var status = ReadString(refund, "status");
+        if (!string.IsNullOrEmpty(status) && !string.Equals(payment.RefundStatus, status, StringComparison.Ordinal))
+        {
+            payment.RefundStatus = Truncate(status, 20);
+            changed = true;
+        }
+
+        // What was really given back. The refund is always for the whole payment here, but the figure the
+        // gateway reports is the one the bank saw, so it is what the books are kept on.
+        var amountInPaise = ReadInt(refund, "amount");
+        if (amountInPaise.HasValue && amountInPaise.Value > 0 && payment.RefundAmountInPaise != amountInPaise)
+        {
+            payment.RefundAmountInPaise = amountInPaise;
+            payment.RefundAmount = amountInPaise.Value / 100m;
+            changed = true;
+        }
+
+        // The bank's own reference for the money going back, so a customer who cannot find the refund can be
+        // answered with something their bank recognises. It only exists once the refund has settled.
+        var arn = ReadString(refund, "acquirer_data", "arn") ?? ReadString(refund, "arn");
+        if (!string.IsNullOrEmpty(arn) && !string.Equals(payment.RefundArn, arn, StringComparison.Ordinal))
+        {
+            payment.RefundArn = Truncate(arn, 50);
+            changed = true;
+        }
+
+        var speed = ReadString(refund, "speed_processed");
+        if (!string.IsNullOrEmpty(speed) && !string.Equals(payment.RefundSpeedProcessed, speed, StringComparison.Ordinal))
+        {
+            payment.RefundSpeedProcessed = Truncate(speed, 20);
+            changed = true;
+        }
+
+        // Razorpay's own created_at is the day the money went back - a better answer than the day the shop
+        // team pressed the button, which can be a retry days later.
+        var refundedOn = ReadTimestamp(refund, "created_at") ?? seenOn;
+        if (refundedOn.HasValue && payment.RefundedOn == null)
+        {
+            payment.RefundedOn = refundedOn.Value;
+            changed = true;
+        }
+
+        if (string.Equals(status, RefundStatusProcessed, StringComparison.OrdinalIgnoreCase) &&
+            payment.Status != OrderPaymentStatus.Refunded)
+        {
+            payment.Status = OrderPaymentStatus.Refunded;
+            payment.RefundFailureReason = null;
+            changed = true;
+        }
+        else if (string.Equals(status, RefundStatusFailed, StringComparison.OrdinalIgnoreCase) &&
+                 payment.Status != OrderPaymentStatus.RefundFailed)
+        {
+            // Refused after it was sent: the money is still owed, so the request is left open for the shop
+            // team to retry (see RefundOrderPaymentAsync) and why is written down beside it.
+            payment.Status = OrderPaymentStatus.RefundFailed;
+            payment.RefundFailureReason = Truncate(
+                ReadString(refund, "error", "description") ?? "Razorpay reported the refund as failed.", 500);
+            changed = true;
+        }
+
+        if (changed)
+            payment.UpdatedOn = now;
+
+        return changed;
+    }
+
+    /// <summary>
+    /// Asks the gateway what became of the refunds that are still in flight and writes the answers on their
+    /// payment rows (see <see cref="ApplyRefundOutcome"/>). This is the pull half of the loop the refund
+    /// webhook closes instantly: the daily gateway sync calls it on the way past, so a refund that was
+    /// recorded as 'pending' picks up its final status, its amount and the bank's reference even when the
+    /// shop team never turned refund events on. Returns how many rows were brought up to date.
+    /// </summary>
+    public static async Task<int> RefreshPendingRefundsAsync(
+        HomecutiesDbContext context,
+        string keyId,
+        string keySecret)
+    {
+        if (!IsConfigured(keyId, keySecret))
+            return 0;
+
+        // Only rows that were sent a refund can be asked about. The list is bounded and read newest first,
+        // so a shop with years of refunds asks about the recent ones and stops.
+        var candidates = await context.OrderPayments
+            .Where(p => p.RefundId != null)
+            .OrderByDescending(p => p.PaymentId)
+            .Take(200)
+            .ToListAsync();
+
+        var refreshed = 0;
+
+        foreach (var payment in candidates.Where(RefundInFlight))
+        {
+            if (await RefreshRefundAsync(context, keyId, keySecret, payment))
+                refreshed++;
+        }
+
+        return refreshed;
+    }
+
+    /// <summary>
+    /// Asks the gateway about one refund (see <see cref="FetchRefundAsync"/>) and writes the answer on the
+    /// payment row. Returns true when the row changed, false when the gateway had nothing new to say or could
+    /// not be reached - refreshing a refund is bookkeeping and must never break the screen that runs it.
+    /// </summary>
+    public static async Task<bool> RefreshRefundAsync(
+        HomecutiesDbContext context,
+        string keyId,
+        string keySecret,
+        OrderPayment payment)
+    {
+        if (!IsConfigured(keyId, keySecret))
+            return false;
+
+        var refund = await FetchRefundAsync(keyId, keySecret, payment);
+
+        if (refund == null || !ApplyRefundOutcome(payment, refund.Value))
+            return false;
+
+        await context.SaveChangesAsync();
+
+        return true;
+    }
+
+    /// <summary>
+    /// GET /v1/refunds/{refundId} for the refund we sent, or GET /v1/payments/{paymentId}/refunds - and the
+    /// newest refund of that payment - for a row that remembers only the payment (a refund made in the
+    /// Razorpay dashboard, or one recorded here before the refund id was kept). Null when the gateway could
+    /// not be asked or answered nothing usable.
+    /// </summary>
+    private static async Task<JsonElement?> FetchRefundAsync(string keyId, string keySecret, OrderPayment payment)
+    {
+        var url = !string.IsNullOrEmpty(payment.RefundId)
+            ? $"https://api.razorpay.com/v1/refunds/{Uri.EscapeDataString(payment.RefundId)}"
+            : string.IsNullOrEmpty(payment.RazorpayPaymentId)
+                ? null
+                : $"https://api.razorpay.com/v1/payments/{Uri.EscapeDataString(payment.RazorpayPaymentId)}/refunds";
+
+        if (url == null)
+            return null;
+
+        try
+        {
+            using var message = new HttpRequestMessage(HttpMethod.Get, url);
+            var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{keyId}:{keySecret}"));
+            message.Headers.Authorization = new AuthenticationHeaderValue("Basic", auth);
+
+            using var response = await Http.SendAsync(message);
+
+            if (!response.IsSuccessStatusCode)
+                return null;
+
+            var body = await response.Content.ReadAsStringAsync();
+
+            using var document = JsonDocument.Parse(body);
+            var root = document.RootElement;
+
+            // One refund comes back as the refund itself; a payment's refunds come back as a collection,
+            // whose latest-created refund is the one this row is waiting for (the order of the list is not
+            // promised, so the timestamps decide).
+            if (root.ValueKind == JsonValueKind.Object &&
+                root.TryGetProperty("items", out var items) && items.ValueKind == JsonValueKind.Array)
+            {
+                JsonElement? newest = null;
+                var newestOn = int.MinValue;
+
+                foreach (var item in items.EnumerateArray())
+                {
+                    var createdOn = ReadInt(item, "created_at") ?? 0;
+
+                    if (newest == null || createdOn >= newestOn)
+                    {
+                        newest = item;
+                        newestOn = createdOn;
+                    }
+                }
+
+                return newest?.Clone();
+            }
+
+            return root.Clone();
+        }
+        catch (Exception)
+        {
+            // Never let a bookkeeping read break the caller: the row keeps what it already knows and the
+            // next sync asks again.
+            return null;
+        }
+    }
+
     /// <summary>
     /// Asks for the refund of an order whose money we still hold - nothing is sent to Razorpay here. The request
     /// is written on the order's payment row as <see cref="OrderPaymentStatus.RefundRequested"/> (with the date
@@ -204,15 +439,17 @@ public static class RazorpayRefunds
             : (int)(order.OrderItems.Sum(oi => oi.UnitPrice) * 100);
 
         var now = DateTime.UtcNow;
-        var (refundId, refundStatus, error) = await PostRefundAsync(
+        var (refund, refundId, refundStatus, error) = await PostRefundAsync(
             keyId, keySecret, refundable.RazorpayPaymentId!, amountInPaise, order.OrderId, reason);
 
-        if (refundId == null || string.Equals(refundStatus, "failed", StringComparison.Ordinal))
+        if (refundId == null || string.Equals(refundStatus, RefundStatusFailed, StringComparison.Ordinal))
         {
             // The refusal is written on the request itself, so the shop team sees what Razorpay said
             // and can approve it again (or refund it by hand) instead of the order looking settled.
+            // Nothing was given back, so the row keeps no refund id: a row that carries one is a refund
+            // (see RequestRefundAsync), and this one must stay refundable.
             refundable.Status = OrderPaymentStatus.RefundFailed;
-            refundable.RefundStatus = refundStatus ?? "failed";
+            refundable.RefundStatus = refundStatus ?? RefundStatusFailed;
             refundable.RefundFailureReason = Truncate(error ?? "Razorpay did not report a refund.", 500);
             refundable.UpdatedOn = now;
             await context.SaveChangesAsync();
@@ -225,16 +462,28 @@ public static class RazorpayRefunds
 
         refundable.Status = OrderPaymentStatus.Refunded;
         refundable.RefundId = refundId;
-        refundable.RefundStatus = refundStatus ?? "processed";
+        refundable.RefundStatus = refundStatus ?? RefundStatusProcessed;
         refundable.RefundAmount = amountInPaise / 100m;
         refundable.RefundFailureReason = null;
-        refundable.RefundedOn = now;
         refundable.UpdatedOn = now;
+
+        // What was asked for is what the books use when the answer carries no amount of its own.
+        refundable.RefundAmountInPaise ??= amountInPaise;
+
+        // What the gateway answered is written on the row through the same reader the refund webhook and the
+        // daily sync use, so the amount it really gave back, the bank's reference (acquirer_data.arn) and how
+        // the money was sent (speed_processed) all land the same way whichever of the three heard it first.
+        if (refund.HasValue)
+            ApplyRefundOutcome(refundable, refund.Value, now);
+
+        if (refundable.RefundedOn == null)
+            refundable.RefundedOn = now;
+
         await context.SaveChangesAsync();
 
         // Razorpay answers 'pending' while a refund is still travelling back to the customer's bank;
         // the money is committed either way.
-        return string.Equals(refundStatus, "processed", StringComparison.OrdinalIgnoreCase)
+        return string.Equals(refundStatus, RefundStatusProcessed, StringComparison.OrdinalIgnoreCase)
             ? (PaymentRefundResult.Refunded,
                 $"The payment of {orderNumber} was refunded (Razorpay refund {refundId}).")
             : (PaymentRefundResult.Pending,
@@ -324,10 +573,12 @@ public static class RazorpayRefunds
 
     /// <summary>
     /// POST /v1/payments/{paymentId}/refund. The refund is always for the amount that was taken (the
-    /// customer asked for the whole order back, never for part of it). Returns the refund id and
-    /// Razorpay's own refund status, or an error text when nothing was refunded.
+    /// customer asked for the whole order back, never for part of it). Returns Razorpay's own refund entity
+    /// - which carries the amount it really gave back, the bank's reference and how the money was sent, not
+    /// just the id - or an error text when nothing was refunded. The entity is a clone: the JSON document it
+    /// was read from does not outlive this call.
     /// </summary>
-    private static async Task<(string? RefundId, string? RefundStatus, string? Error)> PostRefundAsync(
+    private static async Task<(JsonElement? Refund, string? RefundId, string? RefundStatus, string? Error)> PostRefundAsync(
         string keyId,
         string keySecret,
         string paymentId,
@@ -365,18 +616,22 @@ public static class RazorpayRefunds
 
             if (!response.IsSuccessStatusCode)
             {
-                return (null, null,
+                return (null, null, null,
                     $"Razorpay returned {(int)response.StatusCode} {response.ReasonPhrase}: " +
                     $"{ReadRazorpayError(body) ?? Truncate(body, 300)}");
             }
 
             using var document = JsonDocument.Parse(body);
+            var refund = document.RootElement;
 
-            return (ReadString(document.RootElement, "id"), ReadString(document.RootElement, "status"), null);
+            return (refund.Clone(),
+                ReadString(refund, "id"),
+                ReadString(refund, "status"),
+                null);
         }
         catch (Exception ex)
         {
-            return (null, null, $"The call to Razorpay failed: {ex.GetBaseException().Message}");
+            return (null, null, null, $"The call to Razorpay failed: {ex.GetBaseException().Message}");
         }
     }
 
@@ -404,12 +659,43 @@ public static class RazorpayRefunds
         }
     }
 
-    private static string? ReadString(JsonElement element, string property)
+    /// <summary>
+    /// A string property of a Razorpay payload, walked down <paramref name="path"/> when more than one name
+    /// is given (<c>ReadString(refund, "acquirer_data", "arn")</c>). Null when any step is missing or is not
+    /// a string - every payload field is optional as far as the books are concerned.
+    /// </summary>
+    private static string? ReadString(JsonElement element, params string[] path)
+    {
+        foreach (var property in path)
+        {
+            if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(property, out element))
+                return null;
+        }
+
+        return element.ValueKind == JsonValueKind.String ? element.GetString() : null;
+    }
+
+    /// <summary>A whole number property of a Razorpay payload (amounts are in paise, timestamps in seconds).</summary>
+    private static int? ReadInt(JsonElement element, string property)
         => element.ValueKind == JsonValueKind.Object &&
            element.TryGetProperty(property, out var value) &&
-           value.ValueKind == JsonValueKind.String
-            ? value.GetString()
+           value.ValueKind == JsonValueKind.Number &&
+           value.TryGetInt32(out var number)
+            ? number
             : null;
+
+    /// <summary>
+    /// Razorpay's Unix-second timestamp as a UTC DateTime (the convention the payment columns are written
+    /// in), or null when the payload does not carry one.
+    /// </summary>
+    private static DateTime? ReadTimestamp(JsonElement element, string property)
+    {
+        var seconds = ReadInt(element, property);
+
+        return seconds.HasValue && seconds.Value > 0
+            ? DateTimeOffset.FromUnixTimeSeconds(seconds.Value).UtcDateTime
+            : null;
+    }
 
     private static string Truncate(string value, int maxLength)
         => value.Length <= maxLength ? value : value[..maxLength] + "...";

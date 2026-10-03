@@ -181,7 +181,8 @@
       </div>
     </section>
 
-    <!-- Money actually in the bank: only captured payments count. -->
+    <!-- Money in the bank: what the gateway took (the payment rows), less the refunds sent back over the same
+         stretch. 'See the period's books' opens the same figures as a full account, down to what the shop kept. -->
     <section class="stats-section">
       <h2 class="section-title">Revenue</h2>
       <div class="stats-grid">
@@ -189,7 +190,9 @@
           <div class="stat-icon revenue">💰</div>
           <div class="stat-info">
             <h3>{{ stats.todayRevenue | currency:'INR' }}</h3>
-            <p title="Only orders whose payment was captured">Today's Revenue (paid)</p>
+            <p title="Payments the gateway took today, less the refunds sent back today - money in the bank, not a count of open orders">
+              Today's Revenue (net of refunds)
+            </p>
           </div>
         </div>
 
@@ -197,8 +200,58 @@
           <div class="stat-icon revenue">📈</div>
           <div class="stat-info">
             <h3>{{ stats.monthlyRevenue | currency:'INR' }}</h3>
-            <p title="Only orders whose payment was captured">Monthly Revenue (paid)</p>
+            <p title="Payments the gateway took this month, less the refunds sent back this month">
+              Monthly Revenue (net of refunds)
+            </p>
           </div>
+        </div>
+      </div>
+
+      <!-- The same figures as a full account, over any period the team names. Offered to the same admins the
+           money actions below are (the orders section, or the finance menu on its own). -->
+      <p class="revenue-link" *ngIf="canOpenFinance">
+        <a routerLink="/finance">See the period's books</a>
+        - what was paid out, what the gateway kept, what the couriers were paid, and what the shop kept.
+      </p>
+
+      <!-- The gateway's own books, pulled by hand: the tiles above are exactly as old as the last pull, and a day
+           they do not explain can be pulled again right here instead of waiting for the next one. Offered only when
+           this admin's role covers the orders section, which is what the API checks (see 'canPullSettlements'). -->
+      <div class="settlement-pull" *ngIf="canPullSettlements">
+        <div class="settlement-pull-head">
+          <div class="stat-icon revenue">🏦</div>
+          <div>
+            <h3>Razorpay settlements</h3>
+            <p>
+              Ask Razorpay what it settled to the shop's bank account, and what it settled it on: the charge the bank
+              was really paid on is written onto the payment rows, so the tiles above are as current as the last pull.
+              The pull moves no money and changes no order, refund or parcel.
+            </p>
+          </div>
+        </div>
+
+        <div class="settlement-pull-form">
+          <label class="settlement-day">
+            From
+            <input class="form-input" type="date" [(ngModel)]="settlementFrom" [disabled]="isPullingSettlements" />
+          </label>
+          <label class="settlement-day">
+            To
+            <input class="form-input" type="date" [(ngModel)]="settlementTo" [disabled]="isPullingSettlements" />
+          </label>
+          <button class="btn-primary" [disabled]="isPullingSettlements" (click)="pullSettlements()">
+            {{ isPullingSettlements ? 'Pulling...' : 'Pull now' }}
+          </button>
+        </div>
+
+        <p class="hint">
+          Leave both days empty for the rolling window the shop's own pull reads - yesterday and the seven days
+          before it, which is where a settlement created late or corrected after the fact turns up - or name a day,
+          or a range, to look at one the books do not explain.
+        </p>
+
+        <div *ngIf="settlementMessage" class="form-message" [class.error]="settlementError">
+          {{ settlementMessage }}
         </div>
       </div>
     </section>

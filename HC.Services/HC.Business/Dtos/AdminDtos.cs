@@ -537,6 +537,77 @@ public class AdminOrderDetailDto
     /// </summary>
     [JsonPropertyName("return")]
     public AdminOrderReturnDto? Return { get; set; }
+
+    /// <summary>
+    /// The money of this order as the gateway took it: what was captured, what the gateway kept for taking it
+    /// and what the shop therefore keeps - or null while nothing has been paid for the order (see
+    /// <see cref="AdminOrderPaymentDto"/> and HC.Business.OrderPaymentCharges). It is what the order screen's
+    /// 'What this order made' card is built on; the Refund card's own fields stay on the order itself, because
+    /// the refund is a different question (what is owed back, not what was taken).
+    /// </summary>
+    [JsonPropertyName("payment")]
+    public AdminOrderPaymentDto? Payment { get; set; }
+}
+
+/// <summary>
+/// What the gateway took for one order, and what it kept for taking it - the order's newest payment row, as the
+/// margin card reads it.
+///
+/// The amounts are the gateway's own figures, in rupees (see HC.Data.Entities.OrderPayment): what the customer
+/// was charged, the gateway's charge for taking it (the MDR), the GST on that charge, and what the shop keeps
+/// (<c>Amount - Fee - GST</c>, HC.Business.OrderPaymentCharges.Net). A figure the gateway has not reported is
+/// null rather than 0 - a capture that arrived before the charge was worked out is unknown, not free.
+///
+/// <see cref="ChargesSource"/> says where the charges came from: the capture's own report when a capture wrote
+/// them (<c>Payment</c>), or the settlement recon row that the bank was actually settled on (<c>Recon</c>),
+/// which is authoritative and is never corrected back (see HC.Business.OrderPaymentCharges).
+/// </summary>
+public class AdminOrderPaymentDto
+{
+    /// <summary>See HC.Business.OrderPaymentStatus: Created/Authorized/Captured/Failed/RefundRequested/Refunded/RefundFailed.</summary>
+    [JsonPropertyName("status")]
+    public string Status { get; set; } = "";
+
+    /// <summary>
+    /// True when the gateway actually took this money - a capture, including one that has since been refunded -
+    /// and false for an attempt that was only started, authorised or refused (see
+    /// <see cref="OrderMoney.TookMoney"/>). The order screen shows its account of what the order made only when
+    /// this is true, so 'what counts as money taken' is answered here rather than being written out again in the
+    /// admin app.
+    /// </summary>
+    [JsonPropertyName("moneyTaken")]
+    public bool MoneyTaken { get; set; }
+
+    /// <summary>What the gateway took (Razorpay's <c>amount</c>), which is what a refund is sent in.</summary>
+    [JsonPropertyName("amount")]
+    public decimal Amount { get; set; }
+
+    /// <summary>The gateway's charge for taking the money (its <c>fee</c>), or null while it has not said.</summary>
+    [JsonPropertyName("feeAmount")]
+    public decimal? FeeAmount { get; set; }
+
+    /// <summary>GST charged on that fee (Razorpay's <c>tax</c>), or null while it has not said.</summary>
+    [JsonPropertyName("taxAmount")]
+    public decimal? TaxAmount { get; set; }
+
+    /// <summary>What the shop keeps: Amount - Fee - GST (HC.Business.OrderPaymentCharges.Net).</summary>
+    [JsonPropertyName("netAmount")]
+    public decimal? NetAmount { get; set; }
+
+    /// <summary>The instrument the money came by (card / upi / netbanking / wallet ...), when reported.</summary>
+    [JsonPropertyName("paymentMethod")]
+    public string? PaymentMethod { get; set; }
+
+    /// <summary>When the gateway took the money - the day the sale belongs to in the books.</summary>
+    [JsonPropertyName("gatewayChargedOn")]
+    public DateTime? GatewayChargedOn { get; set; }
+
+    /// <summary>
+    /// Where the charges came from (HC.Business.OrderPaymentCharges.FromPayment / .FromRecon), or null while no
+    /// charge has been recorded at all.
+    /// </summary>
+    [JsonPropertyName("chargesSource")]
+    public string? ChargesSource { get; set; }
 }
 
 public class AdminAddressDto
@@ -1406,6 +1477,196 @@ public class AdminResetPasswordRequest
 {
     public string Token { get; set; } = "";
     public string NewPassword { get; set; } = "";
+}
+
+// Settlement reconciliation
+/// <summary>
+/// Body of 'pull the gateway's books' in the admin area (see HC.Business.RazorpaySettlements): the window of
+/// days to read, left out for the plain rolling one (yesterday and the seven days before it).
+///
+/// A catch-up over a longer gap is asked for a window at a time: one pull is capped at
+/// RazorpaySettlements.MaxPullDays days and trimmed at its older end, because every day in it is a request to
+/// Razorpay.
+/// </summary>
+public class AdminSettlementSyncRequest
+{
+    /// <summary>The first day to read (its UTC date); null means the start of the rolling window.</summary>
+    [JsonPropertyName("from")]
+    public DateTime? From { get; set; }
+
+    /// <summary>The last day to read (its UTC date); null means yesterday.</summary>
+    [JsonPropertyName("to")]
+    public DateTime? To { get; set; }
+}
+
+// Finance
+/// <summary>
+/// The shop's own books for a period: what the customers paid, what was given back, what the gateway kept,
+/// what the couriers were paid, what the shop's declared margin was, and what the bank side of it looked like
+/// (see HC.Business.OrderMoney for the money rules and AdminDashboardService.Finance.cs for how it is read).
+///
+/// Every figure here comes from a row this system already keeps, so nothing is worked out from an assumption:
+/// the money taken and the refunds sent are the payment rows, the charges are what Razorpay reported (and the
+/// counts below say which of them the settlement pull has already corrected), the courier cost is what the team
+/// recorded on the parcels, and the bank side is the settlement ledger.
+///
+/// The margin is the one figure the shop declares itself, and is labelled as such on the screen
+/// (<see cref="DeclaredMargin"/> / <see cref="DeclaredCost"/>): it is the 'Profit margin %' the team typed on
+/// each product line, not a purchase price.
+///
+/// <see cref="Messages"/> carries what the numbers cannot say by themselves - a charge the gateway never
+/// reported, a parcel with no courier bill, days the settlement pull has no lines for - so a shortfall on the
+/// screen is read rather than guessed at.
+/// </summary>
+public class AdminFinanceSummaryDto
+{
+    /// <summary>The first day the report covers (UTC).</summary>
+    [JsonPropertyName("from")]
+    public DateTime From { get; set; }
+
+    /// <summary>The last day the report covers (UTC) - today at the most.</summary>
+    [JsonPropertyName("to")]
+    public DateTime To { get; set; }
+
+    // ---------------------------------------------------------------------------------------------
+    // The customers' money, as the gateway reported it (OrderPayments - see HC.Business.OrderMoney).
+    // ---------------------------------------------------------------------------------------------
+
+    /// <summary>How many payments the gateway took in the period.</summary>
+    [JsonPropertyName("capturedCount")]
+    public int CapturedCount { get; set; }
+
+    /// <summary>What the gateway took in the period - what the customers paid, before anything is taken off.</summary>
+    [JsonPropertyName("grossSales")]
+    public decimal GrossSales { get; set; }
+
+    /// <summary>How many refunds were sent back in the period (each on Razorpay's own day for it).</summary>
+    [JsonPropertyName("refundCount")]
+    public int RefundCount { get; set; }
+
+    /// <summary>What was given back in the period, including refunds still travelling.</summary>
+    [JsonPropertyName("refundsGiven")]
+    public decimal RefundsGiven { get; set; }
+
+    /// <summary>What the shop keeps of the period's sales: GrossSales less RefundsGiven.</summary>
+    [JsonPropertyName("netSales")]
+    public decimal NetSales { get; set; }
+
+    // ---------------------------------------------------------------------------------------------
+    // What the gateway kept for taking that money (OrderPayments, written by the capture and corrected
+    // by the settlement pull - see HC.Business.OrderPaymentCharges).
+    // ---------------------------------------------------------------------------------------------
+
+    /// <summary>The gateway's charges for taking the period's money (the MDR), as recorded.</summary>
+    [JsonPropertyName("gatewayFee")]
+    public decimal GatewayFee { get; set; }
+
+    /// <summary>GST charged on those charges (Razorpay reports it separately from the fee).</summary>
+    [JsonPropertyName("gatewayTax")]
+    public decimal GatewayTax { get; set; }
+
+    /// <summary>The two above added up - what the gateway kept.</summary>
+    [JsonPropertyName("gatewayCharges")]
+    public decimal GatewayCharges { get; set; }
+
+    /// <summary>What the gateway handed over for the period: NetSales less GatewayCharges.</summary>
+    [JsonPropertyName("fromTheGateway")]
+    public decimal FromTheGateway { get; set; }
+
+    /// <summary>
+    /// How many of the period's payments carry the charge the settlement recon row said - the figure the bank was
+    /// actually settled on, which the pull writes onto the payment row.
+    /// </summary>
+    [JsonPropertyName("settledChargeCount")]
+    public int SettledChargeCount { get; set; }
+
+    /// <summary>
+    /// How many of them still carry the capture's own estimate, which the settlement pull has not corrected yet.
+    /// An estimate can still change, so the totals above are as current as the last pull.
+    /// </summary>
+    [JsonPropertyName("estimatedChargeCount")]
+    public int EstimatedChargeCount { get; set; }
+
+    /// <summary>
+    /// How many of them have no charge recorded at all (a payment made outside this checkout, or one the gateway
+    /// has not reported a charge for) - those are counted at their full amount above, so the charges are short by
+    /// them.
+    /// </summary>
+    [JsonPropertyName("unknownChargeCount")]
+    public int UnknownChargeCount { get; set; }
+
+    // ---------------------------------------------------------------------------------------------
+    // What the parcels behind that money cost (OrderShipments.FreightCharge - the shop team's own figure for
+    // the books, never shown to the customer).
+    // ---------------------------------------------------------------------------------------------
+
+    /// <summary>Forward parcels of the orders the period's money was taken for.</summary>
+    [JsonPropertyName("parcelsShipped")]
+    public int ParcelsShipped { get; set; }
+
+    /// <summary>How many of those parcels have no courier bill recorded, so the freight below is short by them.</summary>
+    [JsonPropertyName("parcelsWithoutFreight")]
+    public int ParcelsWithoutFreight { get; set; }
+
+    /// <summary>What the couriers billed for those parcels, as recorded (an unknown one counts as nothing).</summary>
+    [JsonPropertyName("freightCost")]
+    public decimal FreightCost { get; set; }
+
+    /// <summary>What is left after the gateway and the couriers: FromTheGateway less FreightCost.</summary>
+    [JsonPropertyName("afterCourier")]
+    public decimal AfterCourier { get; set; }
+
+    // ---------------------------------------------------------------------------------------------
+    // The shop's own margin on the goods - the figure the shop declared, not a purchase price.
+    // ---------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// The margin declared on the lines of the orders the period's money was taken for: what the shop typed as
+    /// 'Profit margin %' on each product, read as the profit's share of what the customer paid (see
+    /// HC.Business.OrderMoney.DeclaredProfit).
+    /// </summary>
+    [JsonPropertyName("declaredMargin")]
+    public decimal DeclaredMargin { get; set; }
+
+    /// <summary>What the shop declared those lines cost: what was paid for them less the margin above.</summary>
+    [JsonPropertyName("declaredCost")]
+    public decimal DeclaredCost { get; set; }
+
+    // ---------------------------------------------------------------------------------------------
+    // The bank's side, from the settlement ledger the pull writes (SettlementItems, by the day each line was
+    // settled - see HC.Business.RazorpaySettlements). Empty until the gateway's books have been pulled.
+    // ---------------------------------------------------------------------------------------------
+
+    /// <summary>How many settlement lines were settled on a day in the period.</summary>
+    [JsonPropertyName("settledLines")]
+    public int SettledLines { get; set; }
+
+    /// <summary>What those lines paid into the shop's bank account.</summary>
+    [JsonPropertyName("settledCredit")]
+    public decimal SettledCredit { get; set; }
+
+    /// <summary>What they took out of it (refunds, chargebacks, adjustments).</summary>
+    [JsonPropertyName("settledDebit")]
+    public decimal SettledDebit { get; set; }
+
+    /// <summary>The charges Razorpay's own recon rows carry for those lines - the authoritative figures.</summary>
+    [JsonPropertyName("settledFee")]
+    public decimal SettledFee { get; set; }
+
+    /// <summary>The GST on those charges, as the recon rows carry it.</summary>
+    [JsonPropertyName("settledTax")]
+    public decimal SettledTax { get; set; }
+
+    /// <summary>How many of the lines Razorpay is holding back from the settlement.</summary>
+    [JsonPropertyName("settledOnHold")]
+    public int SettledOnHold { get; set; }
+
+    /// <summary>
+    /// What the figures cannot say by themselves, in plain words: charges the gateway never reported, parcels
+    /// with no courier bill, a period the settlement pull has no lines for. Empty when there is nothing to add.
+    /// </summary>
+    [JsonPropertyName("messages")]
+    public string[] Messages { get; set; } = Array.Empty<string>();
 }
 
 // Generic

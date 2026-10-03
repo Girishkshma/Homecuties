@@ -105,6 +105,16 @@ builder.Services.AddSingleton<IShipmentProvider, CustomShipmentProvider>();
 builder.Services.AddScoped<IShipmentProviderRegistry, ShipmentProviderRegistry>();
 builder.Services.AddScoped<IShipmentTrackingService, ShipmentTrackingService>();
 
+// The rolling settlement pull: the shop's books are exactly as old as the last time Razorpay was asked what it
+// settled to the bank account, so this asks by itself - the same pull the admin area can ask for by hand
+// ('Pull now' on the dashboard, POST api/admin/settlements/sync). It re-reads the same few days every pass
+// (yesterday and the seven days before it), which is what catches a settlement created late, put on hold or
+// corrected after the transaction it covers, and it is idempotent, so re-reading a day costs one request and
+// nothing else. When it runs and how often are configuration - see HC.Business/SettlementSyncSchedule, where
+// the settings are read, and 'Razorpay:SettlementSync' in appsettings.json, where they are documented; setting
+// 'Enabled' to false stops it and leaves every pull to the screen.
+builder.Services.AddHostedService<SettlementSyncJob>();
+
 // Configure CORS
 builder.Services.AddCors(options =>
 {

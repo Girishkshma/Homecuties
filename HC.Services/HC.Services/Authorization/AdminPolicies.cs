@@ -26,6 +26,15 @@ public static class AdminPolicies
     /// <summary>The category list is used by the product form and by the admin user form.</summary>
     public const string ProductsOrAdminUsers = SectionPrefix + "/products|/users";
 
+    /// <summary>
+    /// The shop's money screens - the Finance screen, and the one action that keeps it honest (pulling the
+    /// gateway's settlement books from the Dashboard). Both read the same rows the order screens act on
+    /// (payments, refunds, what the gateway kept), so a role that may open either section may read the books;
+    /// the Finance menu can also be granted on its own once it is seeded (AddFinanceMenu.sql), which is what the
+    /// '/finance' half of the name is for.
+    /// </summary>
+    public const string OrdersOrFinance = SectionPrefix + "/orders|/finance";
+
     /// <summary>Every section policy the API registers, mirroring the menus mapped in 'AdminMenusRoles'.</summary>
     public static readonly string[] SectionPolicies =
     {
@@ -36,7 +45,8 @@ public static class AdminPolicies
         Vendors,
         Purchases,
         AdminUsers,
-        ProductsOrAdminUsers
+        ProductsOrAdminUsers,
+        OrdersOrFinance
     };
 
     /// <summary>Policy granting access when the admin's role may open any one of the given menu URLs.</summary>

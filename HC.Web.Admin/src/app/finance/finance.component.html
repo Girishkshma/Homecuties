@@ -1,0 +1,222 @@
+<div class="finance">
+  <div class="page-header">
+    <h1>Finance</h1>
+    <p>
+      The shop's own books for a period: what the customers paid, what was given back, what the gateway kept for
+      taking it, what the couriers were paid, and what the shop's own margin on the goods was.
+    </p>
+  </div>
+
+  <!-- The period. The two days are optional - an empty pair asks for the month to date - and the server answers
+       back the days it actually read, which is what the line under this card says. -->
+  <div class="period-card">
+    <div class="period-form">
+      <label class="period-day">
+        From
+        <input class="form-input" type="date" [(ngModel)]="from" [disabled]="isLoading" />
+      </label>
+      <label class="period-day">
+        To
+        <input class="form-input" type="date" [(ngModel)]="to" [disabled]="isLoading" />
+      </label>
+      <button class="btn-primary" [disabled]="isLoading" (click)="load()">
+        {{ isLoading ? 'Reading...' : 'Report' }}
+      </button>
+      <button class="btn-secondary" [disabled]="isLoading || isDefaultPeriod" (click)="showThisMonth()">
+        This month
+      </button>
+    </div>
+
+    <p class="hint">
+      Both days empty is the month to date - the stretch the dashboard's monthly tile reads. A period wider than a
+      year is read a year at a time, and a period whose days run backwards is read as the single day it names.
+      Everything is read at the day it belongs to: a payment on the day the gateway took it, a refund on the day it
+      was sent back, a settlement line on the day it reached the bank - which is why the two sides of one week
+      legitimately differ.
+    </p>
+  </div>
+
+  <div *ngIf="isLoading && !summary" class="loading">Reading the books...</div>
+  <div *ngIf="!isLoading && loadError" class="form-message error">{{ loadError }}</div>
+
+  <ng-container *ngIf="summary as books">
+    <p class="period-line">
+      <strong>{{ books.from | date:'mediumDate' }} &ndash; {{ books.to | date:'mediumDate' }}</strong>
+      <span *ngIf="isLoading"> &middot; reading the new period, the figures below are the last ones read</span>
+    </p>
+
+    <!-- The customer's money at a glance: the three figures the dashboard's revenue tiles come from. -->
+    <section class="stats-section">
+      <h2 class="section-title">The customers' money</h2>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon revenue">&#x1F4B0;</div>
+          <div class="stat-info">
+            <h3>{{ books.grossSales | currency:'INR' }}</h3>
+            <p title="Payments the gateway took in this period, at their full amount">
+              Gross sales ({{ books.capturedCount }} payments)
+            </p>
+          </div>
+        </div>
+
+        <div class="stat-card" [class.alert]="books.refundsGiven > 0">
+          <div class="stat-icon refund">&#x21A9;&#xFE0F;</div>
+          <div class="stat-info">
+            <h3>{{ books.refundsGiven | currency:'INR' }}</h3>
+            <p title="Refunds sent back in this period, including ones still travelling to the customer's bank">
+              Refunds given ({{ books.refundCount }})
+            </p>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon delivered">&#x1F4C8;</div>
+          <div class="stat-info">
+            <h3>{{ books.netSales | currency:'INR' }}</h3>
+            <p title="What the customers paid, less what was given back">Net sales</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- The profit and loss as one waterfall down to what the shop was left with. Every line but the goods line is
+         a row this system recorded; the goods line is the margin the shop declared on its own products. -->
+    <section class="stats-section">
+      <h2 class="section-title">The period, down to what the shop kept</h2>
+
+      <div class="ledger-card">
+        <div class="ledger-line">
+          <span>What the customers paid ({{ books.capturedCount }} payments)</span>
+          <strong>{{ books.grossSales | currency:'INR' }}</strong>
+        </div>
+        <div class="ledger-line">
+          <span>Less refunds sent back ({{ books.refundCount }})</span>
+          <strong>-{{ books.refundsGiven | currency:'INR' }}</strong>
+        </div>
+        <div class="ledger-line subtotal">
+          <span>Net sales</span>
+          <strong>{{ books.netSales | currency:'INR' }}</strong>
+        </div>
+
+        <div class="ledger-line">
+          <span>The gateway's charge for taking the money (MDR)</span>
+          <strong>-{{ books.gatewayFee | currency:'INR' }}</strong>
+        </div>
+        <div class="ledger-line">
+          <span>GST charged on that charge</span>
+          <strong>-{{ books.gatewayTax | currency:'INR' }}</strong>
+        </div>
+        <div class="ledger-line subtotal">
+          <span>What the gateway handed over</span>
+          <strong>{{ books.fromTheGateway | currency:'INR' }}</strong>
+        </div>
+
+        <div class="ledger-line">
+          <span>Less what the couriers billed ({{ books.parcelsShipped }} parcels)</span>
+          <strong>-{{ books.freightCost | currency:'INR' }}</strong>
+        </div>
+        <div class="ledger-line subtotal">
+          <span>Left after the gateway and the couriers</span>
+          <strong>{{ books.afterCourier | currency:'INR' }}</strong>
+        </div>
+
+        <div class="ledger-line">
+          <span>Less the goods, as the shop declared them</span>
+          <strong>-{{ books.declaredCost | currency:'INR' }}</strong>
+        </div>
+        <div class="ledger-line grand">
+          <span>Left after the goods, as declared</span>
+          <strong>{{ afterGoods | currency:'INR' }}</strong>
+        </div>
+      </div>
+
+      <p class="hint">
+        The gateway's charge and the GST on it are the figures Razorpay reports and deducts at settlement; a
+        registered shop claims the GST back as input credit, which is its accountant's line and not this screen's.
+        The goods line is the margin the shop itself declared on each product ('Profit margin %' on the product
+        form, read as the profit's share of what the customer paid) - nothing here records what the goods cost to
+        buy, so that line is a declaration while every line above it is a recorded one.
+      </p>
+
+      <div class="notes" *ngIf="books.messages.length > 0">
+        <p class="note" *ngFor="let message of books.messages">{{ message }}</p>
+      </div>
+    </section>
+
+    <!-- Where each figure comes from and how firm it is: a total with its footnote is honest, one without is not. -->
+    <section class="stats-section">
+      <h2 class="section-title">How firm each figure is</h2>
+      <div class="detail-grid">
+        <div class="detail-item">
+          <label>Settled charges</label>
+          <span title="Payments whose charge is the figure the bank was actually settled on - the settlement pull corrected them">
+            {{ books.settledChargeCount }} of {{ books.capturedCount }}
+          </span>
+        </div>
+        <div class="detail-item">
+          <label>Still estimates</label>
+          <span title="Payments still carrying the charge the capture itself reported; the settlement pull can still change them">
+            {{ books.estimatedChargeCount }}
+          </span>
+        </div>
+        <div class="detail-item">
+          <label>No charge at all</label>
+          <span title="Payments with nothing recorded, so the fee lines are short by whatever the gateway kept for them">
+            {{ books.unknownChargeCount }}
+          </span>
+        </div>
+        <div class="detail-item">
+          <label>Parcels with no courier bill</label>
+          <span title="Parcels of these orders the team has not recorded a freight charge for">
+            {{ books.parcelsWithoutFreight }} of {{ books.parcelsShipped }}
+          </span>
+        </div>
+        <div class="detail-item">
+          <label>Declared margin</label>
+          <span title="The margin typed on each product line, as a share of what the customers paid">
+            {{ books.declaredMargin | currency:'INR' }} ({{ declaredMarginPercent | number:'1.1-1' }}%)
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <!-- The bank's side. Written by the settlement pull alone, so it is empty until that has been run for these
+         days - which the messages above say rather than leaving a row of zeros to be misread. -->
+    <section class="stats-section">
+      <h2 class="section-title">The bank's side (Razorpay's own settlement ledger)</h2>
+
+      <div class="detail-grid" *ngIf="books.settledLines > 0; else noBankSide">
+        <div class="detail-item">
+          <label>Settlement lines</label>
+          <span>{{ books.settledLines }} lines settled in this period</span>
+        </div>
+        <div class="detail-item">
+          <label>Paid into the account</label>
+          <span>{{ books.settledCredit | currency:'INR' }}</span>
+        </div>
+        <div class="detail-item">
+          <label>Taken out of it</label>
+          <span title="Refunds, chargebacks and adjustments the settlement deducted">{{ books.settledDebit | currency:'INR' }}</span>
+        </div>
+        <div class="detail-item">
+          <label>Charges on those lines</label>
+          <span title="What Razorpay's own recon rows say it kept - the authoritative figures">
+            {{ books.settledFee | currency:'INR' }} + {{ books.settledTax | currency:'INR' }} GST
+          </span>
+        </div>
+        <div class="detail-item" *ngIf="books.settledOnHold > 0">
+          <label>On hold</label>
+          <span>{{ books.settledOnHold }} lines Razorpay has not released yet</span>
+        </div>
+      </div>
+
+      <ng-template #noBankSide>
+        <p class="hint">
+          No settlement lines are recorded as settled in this period, which does not contradict the figures above:
+          a settlement reaches the bank a day or two after the money is taken, and covers however many payments
+          were in it. Pull the gateway's books from the Dashboard to fill this side in.
+        </p>
+      </ng-template>
+    </section>
+  </ng-container>
+</div>

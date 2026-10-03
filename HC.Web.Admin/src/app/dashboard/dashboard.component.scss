@@ -186,3 +186,120 @@
     margin: 0;
   }
 }
+
+/* The gateway's own books: the one thing on this screen that changes money, so it is an action of its own under
+   the revenue tiles rather than another tile (a pull takes as long as Razorpay takes and answers in sentences). */
+.settlement-pull {
+  margin-top: 20px;
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.settlement-pull-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+
+  h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+    margin: 0 0 4px;
+  }
+
+  p {
+    font-size: 13px;
+    color: #888;
+    margin: 0;
+    max-width: 720px;
+  }
+}
+
+/* The two day pickers and the button: the days are optional, so the button is what the row is really for. */
+.settlement-pull-form {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #555;
+  }
+}
+
+.settlement-day {
+  width: 160px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease;
+  font-family: inherit;
+  background: #fff;
+
+  &:focus {
+    border-color: #4a6cf7;
+    box-shadow: 0 0 0 2px rgba(74, 108, 247, 0.1);
+  }
+
+  &:disabled {
+    background: #f5f6fa;
+    color: #999;
+  }
+}
+
+.hint {
+  margin-top: 12px;
+  font-size: 12px;
+  color: #999;
+  font-style: italic;
+}
+
+/* What the pull answered, in its own words: the same two colours the order screens use, so 'read this' looks the
+   same wherever money is involved. */
+.form-message {
+  margin-top: 16px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  background: #d4edda;
+  color: #155724;
+
+  &.error {
+    background: #f8d7da;
+    color: #721c24;
+  }
+}
+
+/* A quiet way through to the full account behind the revenue tiles: the tiles answer 'how much came in', the
+   Finance screen answers 'what is left of it and why'. */
+.revenue-link {
+  margin-top: 14px;
+  font-size: 13px;
+  color: #888;
+
+  a {
+    color: #4a6cf7;
+    font-weight: 600;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+

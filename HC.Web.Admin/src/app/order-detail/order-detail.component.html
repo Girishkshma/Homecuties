@@ -418,6 +418,87 @@
       </p>
     </div>
 
+    <!-- What this order made: the money as the gateway took it, what has gone back, what the gateway and the
+         courier kept, and what the shop declared the goods cost. Built from the order's payment row (the API
+         sends it - see AdminOrderPayment) plus the freight recorded on its parcel, so a shortfall shows on the
+         order itself and not only in the month's books. -->
+    <div class="detail-card margin-card" [class.margin-negative]="(leftAfterTheGoods ?? 0) < 0">
+      <h3>What this order made</h3>
+
+      <p class="hint" *ngIf="!hasOrderMoney">
+        Nothing has been paid for this order yet, so there is no money to read yet. The margin the shop declared on
+        its lines is {{ declaredMargin | currency:'INR' }} of the {{ itemsTotal | currency:'INR' }} charged - it
+        becomes a sale when the payment is captured.
+      </p>
+
+      <ng-container *ngIf="hasOrderMoney">
+        <div class="ledger">
+          <div class="ledger-line">
+            <span>What the gateway took</span>
+            <strong>{{ moneyTaken | currency:'INR' }}</strong>
+          </div>
+          <div class="ledger-line" *ngIf="moneyGivenBack > 0">
+            <span>Less refunds sent back</span>
+            <strong>-{{ moneyGivenBack | currency:'INR' }}</strong>
+          </div>
+          <div class="ledger-line">
+            <span>Less the gateway's charge (its fee + the GST on it)</span>
+            <strong *ngIf="gatewayCharges != null">-{{ gatewayCharges | currency:'INR' }}</strong>
+            <strong *ngIf="gatewayCharges == null" class="unknown"
+              title="The gateway has not reported what it charged for taking this money - the settlement pull reads it from the bank's own figures">
+              not reported yet
+            </strong>
+          </div>
+          <div class="ledger-line" *ngIf="courierCost > 0">
+            <span>Less the courier's bill for the parcel</span>
+            <strong>-{{ courierCost | currency:'INR' }}</strong>
+          </div>
+          <div class="ledger-line">
+            <span>Less the goods, as the shop declared them</span>
+            <strong>-{{ declaredCost | currency:'INR' }}</strong>
+          </div>
+          <div class="ledger-line grand">
+            <span>Left after the goods, as declared</span>
+            <strong *ngIf="leftAfterTheGoods != null">{{ leftAfterTheGoods | currency:'INR' }}</strong>
+            <strong *ngIf="leftAfterTheGoods == null" class="unknown"
+              title="It cannot be worked out until the gateway says what it charged for taking this money">
+              unknown
+            </strong>
+          </div>
+        </div>
+
+        <div class="detail-grid margin-facts">
+          <div class="detail-item">
+            <label>Payment</label>
+            <span>
+              {{ paymentStatusText }}
+              <ng-container *ngIf="order.payment?.paymentMethod"> &middot; paid by {{ order.payment?.paymentMethod }}</ng-container>
+            </span>
+          </div>
+          <div class="detail-item">
+            <label>Taken by the gateway on</label>
+            <span>{{ (order.payment?.gatewayChargedOn | date:'mediumDate') || 'not reported' }}</span>
+          </div>
+          <div class="detail-item">
+            <label>Gateway's charge from</label>
+            <span>{{ chargesSourceText }}</span>
+          </div>
+          <div class="detail-item">
+            <label>Declared margin on the lines</label>
+            <span>{{ declaredMargin | currency:'INR' }} of {{ itemsTotal | currency:'INR' }}</span>
+          </div>
+        </div>
+      </ng-container>
+
+      <p class="hint">
+        The gateway's charge and the GST on it are what Razorpay reports and deducts at settlement - a charge that
+        has only just been reported is its own estimate, which the settlement pull corrects to the figure the bank
+        was actually settled on. The goods line is the margin the shop typed on each product ('Profit margin %',
+        read as the profit's share of what the customer paid): nothing here records what the goods cost to buy, so
+        that line is a declaration while every line above it is a recorded one.
+      </p>
+    </div>
+
     <!-- Addresses -->
     <div class="detail-card">
       <div class="address-grid">

@@ -9,6 +9,7 @@ import { ProductsComponent } from './products/products.component';
 import { ProductFormComponent } from './product-form/product-form.component';
 import { OrdersComponent } from './orders/orders.component';
 import { OrderDetailComponent } from './order-detail/order-detail.component';
+import { FinanceComponent } from './finance/finance.component';
 import { CustomersComponent } from './customers/customers.component';
 import { PartnersComponent } from './partners/partners.component';
 import { VendorsComponent } from './vendors/vendors.component';
@@ -35,6 +36,13 @@ const routes: Routes = [
       { path: 'products/:id', component: ProductFormComponent, canActivate: [MenuAccessGuard], data: { section: '/products' } },
       { path: 'orders', component: OrdersComponent, canActivate: [MenuAccessGuard], data: { section: '/orders' } },
       { path: 'orders/:id', component: OrderDetailComponent, canActivate: [MenuAccessGuard], data: { section: '/orders' } },
+
+      // The shop's own books over a period. Opened by either money section: it reports on the money the orders
+      // section acts on (payments, refunds, what the gateway kept), and the finance menu can be granted on its
+      // own once it is seeded - which is the same pair the API checks for its endpoint
+      // (AdminPolicies.OrdersOrFinance), so a role that may read the books may open the screen.
+      { path: 'finance', component: FinanceComponent, canActivate: [MenuAccessGuard], data: { sections: ['/finance', '/orders'] } },
+
       { path: 'customers', component: CustomersComponent, canActivate: [MenuAccessGuard], data: { section: '/customers' } },
       { path: 'partners', component: PartnersComponent, canActivate: [MenuAccessGuard], data: { section: '/partners' } },
       { path: 'vendors', component: VendorsComponent, canActivate: [MenuAccessGuard], data: { section: '/vendors' } },

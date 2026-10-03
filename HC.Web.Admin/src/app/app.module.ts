@@ -15,6 +15,7 @@ import { ProductsComponent } from './products/products.component';
 import { ProductFormComponent } from './product-form/product-form.component';
 import { OrdersComponent } from './orders/orders.component';
 import { OrderDetailComponent } from './order-detail/order-detail.component';
+import { FinanceComponent } from './finance/finance.component';
 import { CustomersComponent } from './customers/customers.component';
 import { PartnersComponent } from './partners/partners.component';
 import { VendorsComponent } from './vendors/vendors.component';
@@ -35,6 +36,7 @@ import { AdminTokenInterceptor } from './interceptors/admin-token.interceptor';
     ProductFormComponent,
     OrdersComponent,
     OrderDetailComponent,
+    FinanceComponent,
     CustomersComponent,
     PartnersComponent,
     VendorsComponent,

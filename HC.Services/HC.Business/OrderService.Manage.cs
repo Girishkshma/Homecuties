@@ -352,16 +352,26 @@ public partial class OrderService : IOrderService
                 alreadyCaptured ? OrderPaymentStatus.Captured : OrderPaymentStatus.Authorized,
                 paidAmountInPaise,
                 failureCode: "amount_mismatch",
-                failureReason: $"Razorpay took {paidAmountInPaise} paise but the order needs {orderTotalInPaise} paise.");
+                failureReason: $"Razorpay took {paidAmountInPaise} paise but the order needs {orderTotalInPaise} paise.",
+                // A short payment that was already captured still carries what the gateway charged for
+                // taking the money, so the row records that as well (see OrderPaymentCharges).
+                gatewayEntity: payment);
 
             return (PaymentLookup.AwaitingCapture,
                 $"We found a payment for {OrderNumber(order.OrderId)}, but its amount does not match the order " +
                 "total. Please contact support - you have not been charged twice.");
         }
 
+        // What the capture answered with (null unless this call is what captured the money). The capture's
+        // own answer is the freshest account of the payment - it is where the gateway reports what it
+        // charged for taking the money - so it is what the row below is written from.
+        JsonElement? capturedPayment = null;
+
         if (!alreadyCaptured)
         {
-            var (captured, captureError) = await CaptureRazorpayPaymentAsync(paymentId, orderTotalInPaise);
+            var (captured, captureAnswer, captureError) =
+                await CaptureRazorpayPaymentAsync(paymentId, orderTotalInPaise);
+            capturedPayment = captureAnswer;
             if (!captured)
             {
                 _logger.LogError(
@@ -392,7 +402,8 @@ public partial class OrderService : IOrderService
             ReadString(payment, "order_id"),
             paymentId,
             OrderPaymentStatus.Captured,
-            paidAmountInPaise);
+            paidAmountInPaise,
+            gatewayEntity: capturedPayment ?? payment);
 
         // The payment id is on the payment row and in the log below - not in the customer-facing history.
         await ConfirmOrderAsync(
@@ -447,7 +458,10 @@ public partial class OrderService : IOrderService
             ReadString(captured.Value, "order_id"),
             ReadString(captured.Value, "id"),
             OrderPaymentStatus.Captured,
-            ReadAmount(captured.Value));
+            ReadAmount(captured.Value),
+            // The gateway's payment that was found here carries its charges too, so the row this late
+            // payment writes knows what the money cost to take (see OrderPaymentCharges).
+            gatewayEntity: captured);
     }
 
     /// <summary>

@@ -102,4 +102,29 @@ public interface IAdminDashboardService
     Task<AdminResultDto> UpdateAdminUserAsync(long userId, AdminUserUpdateRequest request, long currentUserId);
     Task<List<AdminCategoryDto>> GetCategoriesAsync();
     Task<List<AdminCategoryDto>> GetCategoryTreeAsync();
+
+    /// <summary>
+    /// The gateway's own books (see HC.Business.RazorpaySettlements): reads what Razorpay settled to the shop's
+    /// bank account over a window - the rolling one when no window is given - and writes down what it settled it
+    /// on, correcting each settled payment's charge with the figure the bank was actually paid on.
+    ///
+    /// No acting admin is taken: nothing here is an edit to an order, a refund or a parcel, and the only thing a
+    /// person can get wrong about it is asking for the wrong window (which the answer says back).
+    /// </summary>
+    Task<AdminResultDto> SyncSettlementsAsync(DateTime? from, DateTime? to);
+
+    /// <summary>
+    /// The shop's own books over a period: what the customers paid, what was given back, what the gateway kept,
+    /// what the parcels cost and what the shop's own margin on the goods was - the answer the Finance screen is
+    /// built from (see AdminDashboardService.Finance.cs, where the reads are, and HC.Business.OrderMoney, which
+    /// owns every money rule in it).
+    ///
+    /// Nothing here is an edit and nothing here asks the gateway: the settlement ledger is written by the pull
+    /// alone (<see cref="SyncSettlementsAsync"/> and the server's own pass), and this only reports what has
+    /// already been written down - including, in its messages, the days the pull has not been run for.
+    ///
+    /// No acting admin is taken for the same reason: the only thing a person can get wrong about it is asking for
+    /// the wrong period, which the answer says back.
+    /// </summary>
+    Task<AdminFinanceSummaryDto> GetFinanceSummaryAsync(DateTime? from, DateTime? to);
 }

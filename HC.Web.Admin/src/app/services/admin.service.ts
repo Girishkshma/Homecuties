@@ -46,7 +46,9 @@ import {
   AdminUserDetail,
   AdminUserFormRequest,
   AdminCategory,
-  AdminResult
+  AdminResult,
+  AdminSettlementSyncRequest,
+  AdminFinanceSummary
 } from '../models/admin.model';
 
 
@@ -99,6 +101,47 @@ export class AdminService {
     return this.http.get<DashboardStats>(`${this.apiUrl}/dashboard/stats`, {
       headers: this.getAuthHeaders()
     });
+  }
+
+  /**
+   * Pulls the gateway's own books: what Razorpay settled to the shop's bank account over the days asked for and
+   * what it settled it on, so the charge the bank was really paid on replaces the estimate a payment was recorded
+   * with. Leaving the days out asks for the rolling window the server's own pass reads (yesterday and the seven
+   * days before it) - the pull is idempotent, so re-reading a day costs one request and changes nothing else.
+   *
+   * The answer is the pull's own wording: how many days were read, how many lines were written down, which
+   * payment rows were charged the settled figure, and every finding it made (a day Razorpay would not answer for,
+   * a settled payment this shop has no row for, a line whose amount or whose arithmetic disagrees with what is
+   * recorded here). 'result' is 0 when any day went unanswered, so a partly read window is never shown as a
+   * success. It moves no money and changes no order, refund or parcel.
+   */
+  pullSettlements(request?: AdminSettlementSyncRequest): Observable<AdminResult> {
+    return this.http.post<AdminResult>(`${this.apiUrl}/settlements/sync`, request ?? {}, {
+      headers: this.getAuthHeaders()
+    });
+  }
+
+  /**
+   * The shop's own books over a period: what the customers paid, what was given back, what the gateway kept,
+   * what the couriers were paid, what the shop's declared margin on the goods was, and what the bank side of it
+   * looked like (see HC.Business.OrderMoney - the same rules the dashboard's revenue tiles read).
+   *
+   * The two days are 'YYYY-MM-DD' and both are optional: leaving them out reports the month to date, which is
+   * the stretch the dashboard's monthly tile reads. The answer says back the days it actually read, so the screen
+   * shows the period it got rather than the one it asked for. Nothing is written and no gateway is asked - the
+   * settlement ledger it reports on is filled by 'pullSettlements' alone - so it is safe to open as often as the
+   * team likes.
+   */
+  getFinanceSummary(from?: string | null, to?: string | null): Observable<AdminFinanceSummary> {
+    // Both days are optional and an empty one means 'not asked for': the server then reports from the day it
+    // resolves to (the month to date when neither is given), which is why an empty box is left off the query
+    // rather than sent as a blank value the API would have to guess at.
+    const days = [from ? `from=${from}` : '', to ? `to=${to}` : ''].filter(day => day).join('&');
+
+    return this.http.get<AdminFinanceSummary>(
+      `${this.apiUrl}/finance/summary${days ? `?${days}` : ''}`, {
+        headers: this.getAuthHeaders()
+      });
   }
 
   // Products

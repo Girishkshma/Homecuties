@@ -16,20 +16,11 @@ namespace HC.Business;
 public partial class AdminDashboardService : IAdminDashboardService
 {
     /// <summary>
-    /// The statuses of an order the shop has actually been paid for: a Pending order has not been
-    /// paid yet, and a cancelled order's money (if any) is refunded by the shop team - neither is
-    /// revenue. See HC.Data/Scripts/SeedOrderStatuses.sql.
-    /// </summary>
-    private static readonly short[] RevenueOrderStatuses =
-    {
-        OrderStatusConfirmed, OrderStatusShipped, OrderStatusDelivered
-    };
-
-    /// <summary>
     /// The tiles of the admin dashboard. Cancelled orders are left out of the order count (they are
-    /// reported on their own tile) and out of the revenue figures, and the revenue only adds up
-    /// orders whose payment was captured - 'Today's revenue' is money in the bank, not a number of
-    /// open orders.
+    /// reported on their own tile) and out of the revenue figures, and the revenue is read from the
+    /// payment rows - what the gateway actually took, less the refunds sent back - instead of from the
+    /// order lines, so 'Today's revenue' is money in the bank and not a number of open orders (see
+    /// HC.Business.OrderMoney, the one definition the Finance screen reports on as well).
     ///
     /// The order/shipment tiles come from the same two maps the order screens read - the lifecycle
     /// (<see cref="OrderStatusFlow"/>) for the order counts and the parcel mapping
@@ -70,6 +61,25 @@ public partial class AdminDashboardService : IAdminDashboardService
 
         // How many parcels are in the given stages - the shop's own answer, whatever words the courier used.
         int ParcelsIn(params ShipmentStage[] stages) => stages.Sum(stage => parcelsByStage.GetValueOrDefault(stage));
+
+        // What the gateway took from a day on, and what was sent back from it. Both are read from the payment
+        // rows: a row's Amount is what the gateway really took (the order's line prices only say what the
+        // checkout asked for), and its own refund columns say what the shop gave back. The two rules - which
+        // states count as money taken, and which refunds count as gone - live in HC.Business.OrderMoney, so
+        // these tiles and the Finance screen can never describe the same day differently.
+        async Task<decimal> TakenSince(DateTime from) =>
+            await _context.OrderPayments
+                .AsNoTracking()
+                .Where(p => OrderMoney.TakenStatuses.Contains(p.Status))
+                .Where(p => (p.GatewayChargedOn ?? p.CreatedOn) >= from)
+                .SumAsync(p => (decimal?)p.Amount) ?? 0;
+
+        async Task<decimal> GivenBackSince(DateTime from) =>
+            await _context.OrderPayments
+                .AsNoTracking()
+                .Where(p => p.RefundedOn != null && p.RefundAmount > 0)
+                .Where(p => p.RefundedOn >= from)
+                .SumAsync(p => p.RefundAmount) ?? 0;
 
         var stats = new DashboardStatsDto
         {
@@ -122,12 +132,12 @@ public partial class AdminDashboardService : IAdminDashboardService
             ReturnedOrders = await _context.Orders
                 .CountAsync(o => o.OrderStatusId == SkuAvailability.ReturnedOrderStatusId),
 
-            TodayRevenue = await _context.Orders
-                .Where(o => o.OrderDate >= today && RevenueOrderStatuses.Contains(o.OrderStatusId))
-                .SumAsync(o => (decimal?)o.OrderItems.Sum(oi => oi.UnitPrice)) ?? 0,
-            MonthlyRevenue = await _context.Orders
-                .Where(o => o.OrderDate >= monthStart && RevenueOrderStatuses.Contains(o.OrderStatusId))
-                .SumAsync(o => (decimal?)o.OrderItems.Sum(oi => oi.UnitPrice)) ?? 0
+            // Money in the bank for the day and for the month so far: what the gateway took over that stretch,
+            // less the refunds sent back over it (see TakenSince/GivenBackSince above). A refund of an order
+            // paid before the stretch is therefore a minus on the day it went out, exactly as the bank statement
+            // reads - which is why the tiles are named 'net of refunds'.
+            TodayRevenue = OrderMoney.Net(await TakenSince(today), await GivenBackSince(today)),
+            MonthlyRevenue = OrderMoney.Net(await TakenSince(monthStart), await GivenBackSince(monthStart))
         };
 
         return stats;

@@ -145,7 +145,8 @@ public partial class OrderService : IOrderService
         // 5. Capture when the payment is only authorised, then require "captured".
         if (string.Equals(status, RazorpayStatusAuthorized, StringComparison.Ordinal))
         {
-            var (captured, captureError) = await CaptureRazorpayPaymentAsync(request.RazorpayPaymentId, expectedAmountInPaise);
+            var (captured, capturedPayment, captureError) =
+                await CaptureRazorpayPaymentAsync(request.RazorpayPaymentId, expectedAmountInPaise);
             if (!captured)
             {
                 _logger.LogError(
@@ -166,6 +167,9 @@ public partial class OrderService : IOrderService
                 return PaymentError("The payment could not be captured. Please contact support - you have not been charged twice.");
             }
 
+            // The capture's own answer is the freshest account of the payment - it is where the gateway
+            // reports what it charged for taking the money - so it is what the row is written from.
+            payment = capturedPayment ?? payment;
             status = RazorpayStatusCaptured;
         }
 
@@ -195,7 +199,8 @@ public partial class OrderService : IOrderService
             request.RazorpayOrderId,
             request.RazorpayPaymentId,
             OrderPaymentStatus.Captured,
-            expectedAmountInPaise);
+            expectedAmountInPaise,
+            gatewayEntity: payment);
 
         // The gateway's payment id stays on the payment row (OrderPayments.RazorpayPaymentId) and in the
         // log; the order history is read by the customer in 'My Orders', so it only says the money came in.
@@ -310,7 +315,15 @@ public partial class OrderService : IOrderService
         }
     }
 
-    private async Task<(bool Captured, string? Error)> CaptureRazorpayPaymentAsync(string paymentId, int amountInPaise)
+    /// <summary>
+    /// POST /v1/payments/{paymentId}/capture. Returns whether the money is captured together with the
+    /// payment entity Razorpay answered with - which is where the gateway's own charge for taking the
+    /// money, the instrument and the capture time are read from (<see cref="OrderPaymentCharges"/>) - and
+    /// what went wrong when it was not captured. The entity is a clone: the JSON document it was read from
+    /// does not outlive this call.
+    /// </summary>
+    private async Task<(bool Captured, JsonElement? CapturedPayment, string? Error)> CaptureRazorpayPaymentAsync(
+        string paymentId, int amountInPaise)
     {
         try
         {
@@ -329,17 +342,19 @@ public partial class OrderService : IOrderService
             var body = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
-                return (false, $"Razorpay returned {(int)response.StatusCode} {response.ReasonPhrase}: {Truncate(body, 300)}");
+                return (false, null, $"Razorpay returned {(int)response.StatusCode} {response.ReasonPhrase}: {Truncate(body, 300)}");
 
             using var document = JsonDocument.Parse(body);
-            var status = ReadString(document.RootElement, "status");
+            var captured = document.RootElement.Clone();
+            var status = ReadString(captured, "status");
 
             return (string.Equals(status, RazorpayStatusCaptured, StringComparison.Ordinal),
+                captured,
                 $"capture returned status '{status}'");
         }
         catch (Exception ex)
         {
-            return (false, $"The capture call failed: {ex.GetBaseException().Message}");
+            return (false, null, $"The capture call failed: {ex.GetBaseException().Message}");
         }
     }
 
@@ -383,6 +398,18 @@ public partial class OrderService : IOrderService
             // Our own order id travels in the notes set when the Razorpay order was created.
             var orderIdNote = ReadOrderIdNote(orderEntity) ?? ReadOrderIdNote(paymentEntity);
             long.TryParse(orderIdNote, out var orderId);
+
+            // A refund event ('refund.created', 'refund.processed', 'refund.failed' ...) reports a refund
+            // entity instead of a payment one, and is how Razorpay's own account of a refund reaches the
+            // order: it answers 'pending' while the money is still travelling back and reports the final
+            // status - with the amount it gave back and the bank's reference - a day or two later. These
+            // events are switched on for the same webhook URL in the Razorpay dashboard; the daily gateway
+            // sync reads the same thing, so a shop that never turns them on still gets there
+            // (see RazorpayRefunds.RefundInFlight).
+            var refundEntity = TryGetProperty(root, "payload", "refund", "entity");
+
+            if (refundEntity.HasValue && refundEntity.Value.ValueKind == JsonValueKind.Object)
+                return await ApplyRefundWebhookAsync(eventName, refundEntity.Value);
 
             // A refused attempt is something only the webhook knows: the customer may have closed the
             // browser before Checkout said why. It is written down so the order can be paid for again
@@ -476,7 +503,8 @@ public partial class OrderService : IOrderService
                 razorpayOrderId,
                 paymentId,
                 OrderPaymentStatus.Captured,
-                ReadAmount(paymentEntity));
+                ReadAmount(paymentEntity),
+                gatewayEntity: paymentEntity);
 
             // The payment id is on the payment row and in the log below - the history only tells the
             // customer the money arrived.
@@ -490,6 +518,60 @@ public partial class OrderService : IOrderService
             _logger.LogWarning(ex, "A Razorpay webhook payload could not be parsed.");
             return PaymentError("Invalid webhook payload.");
         }
+    }
+
+    /// <summary>
+    /// Writes a refund event's news on the order's payment row, using the same reader as the refund call
+    /// itself and the daily gateway sync (<see cref="RazorpayRefunds.ApplyRefundOutcome"/>), so all three
+    /// read one payload one way: Razorpay answers a refund with 'pending' while the money is travelling and
+    /// reports the final status - the amount it really gave back and the bank's reference - a day or two
+    /// later.
+    ///
+    /// The row is found by the refund id Razorpay reports, or failing that by the payment the refund came
+    /// out of. A refund that belongs to no payment on record is only logged: a webhook for a refund we never
+    /// sent (one made by hand in the Razorpay dashboard) must not invent a payment row on an order that was
+    /// never paid - <see cref="RazorpayRefunds.RefreshPendingRefundsAsync"/> and
+    /// <see cref="RazorpayRefunds.RecordManualRefundAsync"/> are how those are written down, by the shop team.
+    ///
+    /// The order itself is left alone: a refund only ever happens on an order that has already been moved on
+    /// (cancelled, or a return that was closed), so there is nothing here for it to say. Always answers
+    /// success - a payload understood this far needs no second delivery.
+    /// </summary>
+    private async Task<ResultDto> ApplyRefundWebhookAsync(string eventName, JsonElement refundEntity)
+    {
+        var refundId = ReadString(refundEntity, "id");
+        var gatewayPaymentId = ReadString(refundEntity, "payment_id");
+
+        var payment = await _context.OrderPayments
+            .Where(p => (refundId != null && p.RefundId == refundId) ||
+                        (gatewayPaymentId != null && p.RazorpayPaymentId == gatewayPaymentId))
+            .OrderByDescending(p => p.PaymentId)
+            .FirstOrDefaultAsync();
+
+        if (payment == null)
+        {
+            _logger.LogWarning(
+                "Refund webhook '{Event}' for refund '{RefundId}' (payment '{PaymentId}') does not belong to "
+                + "any payment on record - it was not written down. A refund made in the Razorpay dashboard is "
+                + "recorded from the admin order screen instead.",
+                eventName, refundId ?? "n/a", gatewayPaymentId ?? "n/a");
+
+            return new ResultDto { Result = 1, Messages = new[] { "Refund is not on record." } };
+        }
+
+        var previousStatus = payment.Status;
+
+        if (!RazorpayRefunds.ApplyRefundOutcome(payment, refundEntity))
+            return new ResultDto { Result = 1, Messages = new[] { "Refund was already up to date." } };
+
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation(
+            "Refund webhook '{Event}' for refund '{RefundId}' of order {OrderId}: the payment {PaymentId} moved "
+            + "from {PreviousStatus} to {Status}.",
+            eventName, refundId ?? "n/a", payment.OrderId, payment.PaymentId, previousStatus, payment.Status);
+
+        return new ResultDto { Result = 1, Messages = new[] { "Refund recorded." } };
     }
 
     /// <summary>Moves a paid order to Confirmed and records it in the order history.</summary>

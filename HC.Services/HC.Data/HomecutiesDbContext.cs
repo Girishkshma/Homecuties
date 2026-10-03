@@ -124,6 +124,10 @@ public partial class HomecutiesDbContext : DbContext
 
     public virtual DbSet<SchedulerTransaction> SchedulerTransactions { get; set; }
 
+    public virtual DbSet<Settlement> Settlements { get; set; }
+
+    public virtual DbSet<SettlementItem> SettlementItems { get; set; }
+
     public virtual DbSet<Sku> Skus { get; set; }
 
     public virtual DbSet<Skuhistory> Skuhistories { get; set; }
@@ -881,6 +885,28 @@ public partial class HomecutiesDbContext : DbContext
             entity.Property(e => e.RefundRequestedComment)
                 .HasMaxLength(500)
                 .IsUnicode(false);
+
+            // What the gateway charged for taking the payment, and what the shop keeps (see
+            // HC.Business.OrderPaymentCharges). Money is decimal(18, 2) for the same reason as Amount
+            // above; the paise columns are the same figures as Razorpay reports them, so a fee can be
+            // compared with a recon row without rounding twice.
+            entity.Property(e => e.FeeAmount).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.TaxAmount).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.NetAmount).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.PaymentMethod)
+                .HasMaxLength(30)
+                .IsUnicode(false);
+            entity.Property(e => e.GatewayChargedOn).HasColumnType("datetime");
+            entity.Property(e => e.ChargesSource)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+            entity.Property(e => e.RefundArn)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.RefundSpeedProcessed)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+
             entity.Property(e => e.CreatedOn).HasColumnType("datetime");
             entity.Property(e => e.UpdatedOn).HasColumnType("datetime");
 
@@ -1410,6 +1436,129 @@ public partial class HomecutiesDbContext : DbContext
                 .HasForeignKey(d => d.ScheduleId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_SchedulerTransactions_Schedulers");
+        });
+
+        // What Razorpay settled to the bank (see CreateSettlementTables.sql and
+        // HC.Business.RazorpaySettlements). Kept apart from OrderPayments on purpose: a payment is what the
+        // CUSTOMER paid, a settlement is what the GATEWAY did with it, and the two are compared rather than
+        // one overwriting the other.
+        modelBuilder.Entity<Settlement>(entity =>
+        {
+            entity.HasKey(e => e.SettlementId);
+
+            entity.ToTable("Settlements");
+
+            entity.Property(e => e.SettlementId).HasColumnName("SettlementID");
+
+            // Razorpay's own id of the settlement (setl_xxx). Unique - see
+            // UQ_Settlements_RazorpaySettlementID in CreateSettlementTables.sql - so a settlement fetched
+            // from the settlement list and one named by the recon report cannot become two rows.
+            entity.Property(e => e.RazorpaySettlementId)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+
+            // The bank's own reference of the transfer (Razorpay's 'utr').
+            entity.Property(e => e.Utr)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+
+            // What was settled, with the gateway's own fee/tax totals for the settlement (0 for a normal
+            // one, whose fees were taken per payment). decimal(18, 2) like every other money column here.
+            entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.Fees).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.Tax).HasColumnType("decimal(18, 2)");
+
+            entity.Property(e => e.Currency)
+                .HasMaxLength(3)
+                .IsUnicode(false);
+
+            // Razorpay's status of the settlement: 'created' / 'processed' / 'failed'
+            // (RazorpaySettlements.Status*).
+            entity.Property(e => e.Status)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+
+            // When Razorpay created it, and the day its lines were settled to the bank (the earliest
+            // 'settled_at' it reported for them - turned around by the pull, never moved later).
+            entity.Property(e => e.GatewayCreatedOn).HasColumnType("datetime");
+            entity.Property(e => e.SettledOn).HasColumnType("datetime");
+            entity.Property(e => e.CreatedOn).HasColumnType("datetime");
+            entity.Property(e => e.UpdatedOn).HasColumnType("datetime");
+        });
+
+        modelBuilder.Entity<SettlementItem>(entity =>
+        {
+            entity.HasKey(e => e.SettlementItemId);
+
+            entity.ToTable("SettlementItems");
+
+            entity.Property(e => e.SettlementItemId).HasColumnName("SettlementItemID");
+            entity.Property(e => e.SettlementId).HasColumnName("SettlementID");
+
+            // The line's identity, with ItemType (UQ_SettlementItems_Entity in
+            // CreateSettlementTables.sql): the id Razorpay settled and its own word for the kind of thing
+            // that was ('payment' / 'refund' / 'adjustment' / 'transfer', see RazorpaySettlements.ItemTypes).
+            entity.Property(e => e.RazorpayEntityId)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.ItemType)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+
+            // The transaction behind the line, and the settlement it came in with.
+            entity.Property(e => e.RazorpayPaymentId)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.RazorpayOrderId)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.RazorpayRefundId)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.RazorpaySettlementId)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.SettlementUtr)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+
+            // Money, as Razorpay speaks it (paise) and in rupees beside it: what the line was, what the
+            // settlement paid in / took out for it, the gateway's charge for taking the money, the GST on
+            // that charge, and what the shop keeps (amount - fee - GST, see OrderPaymentCharges.Net).
+            entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.Debit).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.Credit).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.FeeAmount).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.TaxAmount).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.NetAmount).HasColumnType("decimal(18, 2)");
+
+            entity.Property(e => e.PaymentMethod)
+                .HasMaxLength(30)
+                .IsUnicode(false);
+
+            // When the money was taken and when it was settled to the bank: in the books the day of the
+            // sale and the day the money left are different days.
+            entity.Property(e => e.GatewayCreatedOn).HasColumnType("datetime");
+            entity.Property(e => e.SettledOn).HasColumnType("datetime");
+
+            // A chargeback comes out of a settlement as a line of its own.
+            entity.Property(e => e.DisputeId)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.Description)
+                .HasMaxLength(200)
+                .IsUnicode(false);
+
+            // Which day's recon report the line was read from.
+            entity.Property(e => e.ReconDay).HasColumnType("date");
+
+            entity.Property(e => e.CreatedOn).HasColumnType("datetime");
+            entity.Property(e => e.UpdatedOn).HasColumnType("datetime");
+
+            entity.HasOne(d => d.Settlement).WithMany(p => p.SettlementItems)
+                .HasForeignKey(d => d.SettlementId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_SettlementItems_Settlements");
         });
 
         modelBuilder.Entity<Sku>(entity =>

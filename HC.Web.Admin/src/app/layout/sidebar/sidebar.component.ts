@@ -62,6 +62,7 @@ export class SidebarComponent implements OnInit {
     const iconMap: { [key: string]: string } = {
       'Products': '🛍️',
       'Orders': '📦',
+      'Finance': '💰',
       'Customers': '👥',
       'Purchases': '🧾',
       'Partners': '🤝',
