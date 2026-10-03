@@ -1,5 +1,8 @@
 /* Global Styles for HC.Web.Admin */
-@import './scss/tables';
+/* @use (Sass modules) instead of the deprecated @import - which Dart Sass 3.0 removes.
+   Safe here because ./scss/tables is plain CSS (no variables/mixins/placeholders),
+   so the module's rules are emitted once, exactly as before. */
+@use './scss/tables';
 * {
   margin: 0;
   padding: 0;

@@ -27,6 +27,36 @@
       >View My Orders</button>
     </div>
 
+    <!-- Payment not completed - the order exists, so it is shown with a way to pay it -->
+    <div *ngIf="paymentNotCompleted && !orderSuccess" class="payment-pending" role="status">
+      <div class="payment-pending-icon">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+      </div>
+      <div class="payment-pending-body">
+        <h5>Payment not completed</h5>
+        <p>{{ pendingOrderMessage }}</p>
+        <div class="payment-pending-actions">
+          <button
+            type="button"
+            class="btn btn-primary"
+            (click)="payPendingOrder()"
+            [disabled]="payingPendingOrder"
+          >
+            <span *ngIf="!payingPendingOrder">
+              <i class="bi bi-credit-card me-2"></i> Pay now
+            </span>
+            <span *ngIf="payingPendingOrder">
+              <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+              Starting payment...
+            </span>
+          </button>
+          <button type="button" class="btn btn-outline-primary" (click)="viewMyOrders()">
+            <i class="bi bi-receipt me-1"></i> My Orders
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Stock Warning -->
     <div *ngIf="!loading && showStockWarning" class="stock-warning-card">
       <div class="stock-warning-header">
@@ -89,9 +119,75 @@
       <div class="col-lg-7">
         <div class="checkout-form-card">
           <h5 class="card-title">
-            <i class="bi bi-geo-alt me-2"></i>Shipping Details
+            <i class="bi bi-geo-alt me-2"></i>Delivery Address
           </h5>
-          <div class="row g-3">
+
+          <!-- The addresses saved in 'My Profile' - pick one instead of typing it again -->
+          <div class="address-choices" *ngIf="savedAddresses.length > 0">
+            <label
+              class="address-choice"
+              *ngFor="let address of savedAddresses"
+              [class.selected]="selectedShippingAddressId === address.AddressId"
+            >
+              <input
+                type="radio"
+                name="shippingAddressChoice"
+                [value]="address.AddressId"
+                [checked]="selectedShippingAddressId === address.AddressId"
+                (change)="chooseSavedShipping(address.AddressId)"
+              />
+              <span class="address-choice-body">
+                <span class="address-choice-head">
+                  <span class="address-label">{{ address.AddressTitle }}</span>
+                  <span class="address-name" *ngIf="address.ContactName">{{ address.ContactName }}</span>
+                </span>
+                <span class="address-line">{{ address.AddressLine1 }}</span>
+                <span class="address-line" *ngIf="address.AddressLine2">{{ address.AddressLine2 }}</span>
+                <span class="address-line">{{ address.City }}, {{ address.State }} - {{ address.Zipcode }}</span>
+                <span class="address-line" *ngIf="address.MobileNumber">
+                  <i class="bi bi-telephone me-1"></i>{{ address.MobileNumber }}
+                </span>
+              </span>
+            </label>
+
+            <label class="address-choice" [class.selected]="isNewShippingAddress">
+              <input
+                type="radio"
+                name="shippingAddressChoice"
+                value="new"
+                [checked]="isNewShippingAddress"
+                (change)="chooseNewShippingAddress()"
+              />
+              <span class="address-choice-body">
+                <span class="address-choice-head">
+                  <span class="address-label">Deliver to a new address</span>
+                </span>
+                <span class="address-line">Fill in the address below.</span>
+              </span>
+            </label>
+          </div>
+
+          <!-- The address typed here - the only option for a guest or an empty address book -->
+          <div class="row g-3" *ngIf="isNewShippingAddress">
+            <div class="col-md-6">
+              <label class="form-label">Label</label>
+              <input
+                type="text"
+                class="form-control"
+                [(ngModel)]="addressTitle"
+                placeholder="Home, Office, ..."
+                maxlength="20"
+              />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Contact Name</label>
+              <input
+                type="text"
+                class="form-control"
+                [(ngModel)]="contactName"
+                placeholder="Who receives the parcel?"
+              />
+            </div>
             <div class="col-12">
               <label class="form-label">Address *</label>
               <textarea
@@ -101,32 +197,89 @@
                 placeholder="Street address, apartment, suite, etc."
               ></textarea>
             </div>
-            <div class="col-md-5">
-              <label class="form-label">City *</label>
+            <div class="col-12">
+              <label class="form-label">Address Line 2</label>
               <input
                 type="text"
                 class="form-control"
-                [(ngModel)]="city"
-                placeholder="City"
+                [(ngModel)]="addressLine2"
+                placeholder="Landmark / area (optional)"
+              />
+            </div>
+            <!-- The PIN code comes first: the city and the state are filled in from it and cannot be typed
+                 into, so the customer types only what a PIN code cannot know (see PincodeService). -->
+            <div class="col-md-4">
+              <label class="form-label">PIN Code *</label>
+              <input
+                type="text"
+                class="form-control"
+                [(ngModel)]="zipCode"
+                (ngModelChange)="onShippingPincode($event)"
+                placeholder="6-digit PIN code"
+                maxlength="6"
+                inputmode="numeric"
+              />
+            </div>
+            <!-- Read-only: the PIN code is the only thing that fills these two in, so there is nothing to
+                 type - they are shown as answered rather than as fields to fill in. -->
+            <div class="col-md-4">
+              <label class="form-label">City *</label>
+              <input
+                type="text"
+                class="form-control from-pincode"
+                [ngModel]="city"
+                placeholder="From your PIN code"
+                readonly
               />
             </div>
             <div class="col-md-4">
               <label class="form-label">State *</label>
               <input
                 type="text"
-                class="form-control"
-                [(ngModel)]="state"
-                placeholder="State"
+                class="form-control from-pincode"
+                [ngModel]="state"
+                placeholder="From your PIN code"
+                readonly
               />
             </div>
-            <div class="col-md-3">
-              <label class="form-label">ZIP Code *</label>
-              <input
-                type="text"
-                class="form-control"
-                [(ngModel)]="zipCode"
-                placeholder="ZIP Code"
-              />
+
+            <div class="col-12" *ngIf="lookingUpPincode || pincodeError || pincodeMessage">
+              <p class="pincode-hint" *ngIf="lookingUpPincode">
+                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                Looking up your PIN code...
+              </p>
+
+              <!-- The city and the state cannot be typed into, so a PIN code the directory cannot answer
+                   for is the only thing left to correct - which is what these say. -->
+              <p class="pincode-hint pincode-hint-error" *ngIf="!lookingUpPincode && pincodeError">
+                <i class="bi bi-exclamation-circle me-1"></i>{{ pincodeError }}
+              </p>
+
+              <p class="pincode-hint pincode-hint-ok" *ngIf="!lookingUpPincode && !pincodeError && pincodeMessage">
+                <i class="bi bi-check2-circle me-1"></i>{{ pincodeMessage }}
+              </p>
+            </div>
+
+            <!-- Nothing to report yet, so the line says where the city and the state come from instead. -->
+            <div class="col-12" *ngIf="!lookingUpPincode && !pincodeError && !pincodeMessage">
+              <p class="pincode-hint">
+                <i class="bi bi-info-circle me-1"></i>{{ cityStateHint }}
+              </p>
+            </div>
+
+            <!-- Every post office this PIN code covers is offered, as the public directory lists them and
+                 with the delivering one first - the locality a customer names is often not the office that
+                 delivers, and only the customer knows which one is theirs. -->
+            <div class="col-12" *ngIf="pincodeAreas.length > 1">
+              <label class="form-label">Area</label>
+              <select
+                class="form-select"
+                [(ngModel)]="pincodeChoice"
+                (ngModelChange)="onShippingAreaChosen($event)"
+              >
+                <option value="">Choose the post office closest to you</option>
+                <option *ngFor="let area of pincodeAreas" [value]="area.Area">{{ pincodeAreaOption(area) }}</option>
+              </select>
             </div>
             <div class="col-md-6">
               <label class="form-label">Phone Number *</label>
@@ -135,6 +288,7 @@
                 class="form-control"
                 [(ngModel)]="phoneNumber"
                 placeholder="Phone Number"
+                maxlength="12"
               />
             </div>
             <div class="col-md-6">
@@ -145,6 +299,196 @@
                 [(ngModel)]="email"
                 placeholder="Email"
               />
+            </div>
+          </div>
+
+          <p class="address-note" *ngIf="isNewShippingAddress && isSignedIn">
+            <i class="bi bi-info-circle me-1"></i>
+            This address is saved to your address book so you can pick it next time - you can change or
+            remove it in <a routerLink="/profile">My Profile</a>.
+          </p>
+        </div>
+
+        <!-- Billing Address -->
+        <div class="checkout-form-card">
+          <h5 class="card-title">
+            <i class="bi bi-receipt me-2"></i>Billing Address
+          </h5>
+
+          <div class="form-check billing-same">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              id="billingSameAsShipping"
+              [(ngModel)]="billingSameAsShipping"
+              (ngModelChange)="onBillingSameAsShippingChange()"
+            />
+            <label class="form-check-label" for="billingSameAsShipping">
+              Billing address is the same as the delivery address
+            </label>
+          </div>
+
+          <!-- Only needed when the invoice goes somewhere else -->
+          <div *ngIf="!billingSameAsShipping">
+            <p class="address-note">
+              <i class="bi bi-info-circle me-1"></i>
+              The invoice for this order is made out to the address below.
+            </p>
+
+            <div class="address-choices" *ngIf="savedAddresses.length > 0">
+              <label
+                class="address-choice"
+                *ngFor="let address of savedAddresses"
+                [class.selected]="selectedBillingAddressId === address.AddressId"
+              >
+                <input
+                  type="radio"
+                  name="billingAddressChoice"
+                  [value]="address.AddressId"
+                  [checked]="selectedBillingAddressId === address.AddressId"
+                  (change)="chooseSavedBilling(address.AddressId)"
+                />
+                <span class="address-choice-body">
+                  <span class="address-choice-head">
+                    <span class="address-label">{{ address.AddressTitle }}</span>
+                    <span class="address-name" *ngIf="address.ContactName">{{ address.ContactName }}</span>
+                  </span>
+                  <span class="address-line">{{ address.AddressLine1 }}</span>
+                  <span class="address-line" *ngIf="address.AddressLine2">{{ address.AddressLine2 }}</span>
+                  <span class="address-line">{{ address.City }}, {{ address.State }} - {{ address.Zipcode }}</span>
+                </span>
+              </label>
+
+              <label class="address-choice" [class.selected]="isNewBillingAddress">
+                <input
+                  type="radio"
+                  name="billingAddressChoice"
+                  value="new"
+                  [checked]="isNewBillingAddress"
+                  (change)="chooseNewBillingAddress()"
+                />
+                <span class="address-choice-body">
+                  <span class="address-choice-head">
+                    <span class="address-label">Use a new billing address</span>
+                  </span>
+                  <span class="address-line">Fill in the billing address below.</span>
+                </span>
+              </label>
+            </div>
+
+            <div class="row g-3" *ngIf="isNewBillingAddress">
+              <div class="col-md-6">
+                <label class="form-label">Contact Name</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  [(ngModel)]="billingContactName"
+                  placeholder="Name on the invoice"
+                />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Phone Number</label>
+                <input
+                  type="tel"
+                  class="form-control"
+                  [(ngModel)]="billingPhoneNumber"
+                  placeholder="Phone Number"
+                  maxlength="12"
+                />
+              </div>
+              <div class="col-12">
+                <label class="form-label">Address *</label>
+                <textarea
+                  class="form-control"
+                  rows="2"
+                  [(ngModel)]="billingAddressLine1"
+                  placeholder="Street address, apartment, suite, etc."
+                ></textarea>
+              </div>
+              <div class="col-12">
+                <label class="form-label">Address Line 2</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  [(ngModel)]="billingAddressLine2"
+                  placeholder="Landmark / area (optional)"
+                />
+              </div>
+              <!-- The same for the invoice address: the PIN code fills the city and the state in, and they
+                   are read-only here as well. -->
+              <div class="col-md-4">
+                <label class="form-label">PIN Code *</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  [(ngModel)]="billingZipCode"
+                  (ngModelChange)="onBillingPincode($event)"
+                  placeholder="6-digit PIN code"
+                  maxlength="6"
+                  inputmode="numeric"
+                />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">City *</label>
+                <input
+                  type="text"
+                  class="form-control from-pincode"
+                  [ngModel]="billingCity"
+                  placeholder="From your PIN code"
+                  readonly
+                />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">State *</label>
+                <input
+                  type="text"
+                  class="form-control from-pincode"
+                  [ngModel]="billingState"
+                  placeholder="From your PIN code"
+                  readonly
+                />
+              </div>
+
+              <div class="col-12" *ngIf="lookingUpBillingPincode || billingPincodeError || billingPincodeMessage">
+                <p class="pincode-hint" *ngIf="lookingUpBillingPincode">
+                  <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                  Looking up your PIN code...
+                </p>
+
+                <p class="pincode-hint pincode-hint-error" *ngIf="!lookingUpBillingPincode && billingPincodeError">
+                  <i class="bi bi-exclamation-circle me-1"></i>{{ billingPincodeError }}
+                </p>
+
+                <p
+                  class="pincode-hint pincode-hint-ok"
+                  *ngIf="!lookingUpBillingPincode && !billingPincodeError && billingPincodeMessage"
+                >
+                  <i class="bi bi-check2-circle me-1"></i>{{ billingPincodeMessage }}
+                </p>
+              </div>
+
+              <div class="col-12" *ngIf="!lookingUpBillingPincode && !billingPincodeError && !billingPincodeMessage">
+                <p class="pincode-hint">
+                  <i class="bi bi-info-circle me-1"></i>{{ cityStateHint }}
+                </p>
+              </div>
+
+              <!-- The same list of places for the invoice address, delivering one first. -->
+              <div class="col-12" *ngIf="billingPincodeAreas.length > 1">
+                <label class="form-label">Area</label>
+                <select
+                  class="form-select"
+                  [(ngModel)]="billingPincodeChoice"
+                  (ngModelChange)="onBillingAreaChosen($event)"
+                >
+                  <option value="">Choose the post office closest to you</option>
+                  <option *ngFor="let area of billingPincodeAreas" [value]="area.Area">{{ pincodeAreaOption(area) }}</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Email</label>
+                <input type="email" class="form-control" [(ngModel)]="billingEmail" placeholder="Email" />
+              </div>
             </div>
           </div>
         </div>
@@ -201,7 +545,7 @@
           <button
             class="btn btn-primary btn-lg w-100 mt-3"
             (click)="placeOrder()"
-            [disabled]="placingOrder || !isFormValid()"
+            [disabled]="placingOrder || payingPendingOrder || !isFormValid()"
           >
             <span *ngIf="!placingOrder">
               <i class="bi bi-shield-lock me-2"></i> Place Order
@@ -211,6 +555,12 @@
               Processing...
             </span>
           </button>
+          <!-- A disabled button explains nothing by itself, and with the city and the state filled in from
+               the PIN code the customer cannot type their way past this: so the summary says what is still
+               missing, in the same words the form itself uses. -->
+          <p class="pincode-hint mt-2 mb-0" *ngIf="!isFormValid()">
+            <i class="bi bi-info-circle me-1"></i>{{ orderProblem() }}
+          </p>
           <a routerLink="/cart" class="btn btn-outline-primary w-100 mt-2">
             <i class="bi bi-arrow-left me-1"></i> Back to Cart
           </a>

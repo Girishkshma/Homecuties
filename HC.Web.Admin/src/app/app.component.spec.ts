@@ -26,10 +26,13 @@ describe('AppComponent', () => {
     expect(app.title).toEqual('HC.Web.Admin');
   });
 
-  it('should render title', () => {
+  // The CLI template's 'should render title' test expected an <h1> reading 'Hello, HC.Web.Admin',
+  // but this root component is only a shell around <router-outlet>, so nothing rendered and the
+  // assertion always failed. Assert what the template actually renders instead.
+  it('should render the router outlet', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('Hello, HC.Web.Admin');
+    expect(compiled.querySelector('router-outlet')).toBeTruthy();
   });
 });

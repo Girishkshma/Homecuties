@@ -29,14 +29,20 @@
       <i class="bi bi-exclamation-circle me-2"></i>{{ error }}
     </div>
 
+    <!-- What the courier pull had to say. A parcel the courier could not be reached about keeps the
+         status it already had, so its sentence is a quiet note here rather than an error on the page. -->
+    <div *ngIf="parcelNote" class="alert-custom alert-info">
+      <i class="bi bi-info-circle me-2"></i>{{ parcelNote }}
+    </div>
+
     <!-- Loading State -->
     <div *ngIf="loading" class="loading-state">
       <div class="spinner"></div>
       <p>Loading your orders...</p>
     </div>
 
-    <!-- Empty State -->
-    <div *ngIf="!loading && orders.length === 0" class="empty-state">
+    <!-- Empty State - only when the list really came back empty (an error is shown above instead) -->
+    <div *ngIf="!loading && !error && orders.length === 0" class="empty-state">
       <div class="empty-icon">
         <i class="bi bi-bag-check"></i>
       </div>
@@ -56,6 +62,8 @@
             <h5>
               <i class="bi bi-receipt me-2"></i>{{ order.OrderNumber }}
               <span class="badge" [ngClass]="statusBadgeClass(order)">{{ order.Status }}</span>
+              <span class="badge bg-warning text-dark" *ngIf="isRefundPending(order)"
+                title="The refund of this cancelled order is with the shop team">Refund pending</span>
             </h5>
             <small class="order-meta">
               Placed on {{ order.OrderDate | date:'dd MMM yyyy' }} &middot;
@@ -71,6 +79,15 @@
               {{ isExpanded(order) ? 'Hide Details' : 'View Details' }}
             </button>
             <button
+              *ngIf="canPay(order)"
+              type="button"
+              class="btn btn-primary btn-sm"
+              [disabled]="busyOrderId === order.OrderId"
+              (click)="payNow(order)"
+            >
+              <i class="bi bi-credit-card-2-front me-1"></i> Pay now
+            </button>
+            <button
               *ngIf="canCheckPayment(order)"
               type="button"
               class="btn btn-outline-primary btn-sm"
@@ -80,7 +97,7 @@
               <i class="bi bi-credit-card me-1"></i> Check Payment
             </button>
             <button
-              *ngIf="order.CanCancel"
+              *ngIf="canCancel(order)"
               type="button"
               class="btn btn-outline-danger btn-sm"
               [disabled]="busyOrderId === order.OrderId"
@@ -95,8 +112,7 @@
         <div *ngIf="confirmingOrderId === order.OrderId" class="order-confirm">
           <p>
             <i class="bi bi-question-circle me-2"></i>
-            Cancel {{ order.OrderNumber }}? The reserved items go back on sale and the order cannot be
-            restored - you would have to place a new one.
+            {{ cancelConfirmText(order) }}
           </p>
           <div class="order-confirm-actions">
             <button
@@ -116,15 +132,111 @@
         <!-- Awaiting payment note -->
         <div *ngIf="canCheckPayment(order) && !order.IsPaid" class="order-payment-note">
           <i class="bi bi-info-circle me-2"></i>
-          This order is waiting for the payment to be completed. If money has already left your account,
-          click <strong>Check Payment</strong> and we will confirm the order straight away.
+          This order is waiting for the payment to be completed. Click <strong>Pay now</strong> to pay for
+          it; if money has already left your account, click <strong>Check Payment</strong> instead and we
+          will confirm the order straight away.
         </div>
 
         <!-- Payment received note -->
         <div *ngIf="order.IsPaid && order.StatusId !== 5" class="order-payment-note order-paid-note">
           <i class="bi bi-shield-check me-2"></i>
           Payment received{{ order.PaymentStatus ? ' (' + order.PaymentStatus + ')' : '' }}. Your order is
-          being prepared for shipping.
+          being prepared for shipping<span *ngIf="canCancel(order)"> - it is still with us, so you can cancel
+          it from here until it is shipped</span>.
+        </div>
+
+        <!-- Refund note: the order was cancelled after payment, so the money is owed back to the
+             customer - it is approved by the shop team and then sent back by the gateway. -->
+        <div *ngIf="isRefundPending(order)" class="order-payment-note order-refund-note">
+          <i class="bi bi-arrow-counterclockwise me-2"></i>
+          {{ refundNote(order) }}
+        </div>
+
+        <!-- Why 'Cancel Order' is gone: the status chain ends the customer's own cancellation at 'Shipped' -->
+        <div *ngIf="cancelUnavailableNote(order)" class="order-payment-note">
+          <i class="bi bi-info-circle me-2"></i>{{ cancelUnavailableNote(order) }}
+        </div>
+
+        <!-- The parcel: drawn only once the shop has recorded an AWB - or, for an order carried by the
+             shop's own delivery arrangement, the reference the shop minted for it - because an order with
+             no parcel has nothing to say about shipping. The status shown is the last one written down (it
+             travels with the order); it is brought up to date by the courier pull the page makes on open
+             and by 'Refresh parcel', where a courier stands behind it at all - a parcel with nobody to ask
+             is never looked up, and the card says so instead. -->
+        <div *ngIf="hasParcel(order)" class="order-shipment">
+          <div class="order-shipment-head">
+            <span class="order-shipment-icon" aria-hidden="true"><i class="bi bi-truck"></i></span>
+
+            <div class="order-shipment-summary">
+              <span class="order-shipment-label">
+                <span class="badge" [ngClass]="parcelBadgeClass(order)" *ngIf="parcelStatusText(order)">
+                  {{ parcelStatusText(order) }}
+                </span>
+                <!-- The provider id ('Shiprocket') is the shop's own name for its setup, so it is only shown
+                     for a parcel a courier really carries; a courier the team named is shown either way. -->
+                <span class="order-shipment-provider" *ngIf="parcelHasCourier(order) && order.Shipment?.provider">
+                  {{ order.Shipment?.provider }}<ng-container *ngIf="order.Shipment?.courierName">
+                    &middot; {{ order.Shipment?.courierName }}</ng-container>
+                </span>
+                <span class="order-shipment-provider" *ngIf="!parcelHasCourier(order) && order.Shipment?.courierName">
+                  {{ order.Shipment?.courierName }}
+                </span>
+              </span>
+
+              <small class="order-shipment-meta">
+                {{ parcelNumberLabel(order) }} <strong>{{ order.Shipment?.awbNumber }}</strong>
+                <ng-container *ngIf="order.Shipment?.deliveredOn">
+                  &middot; delivered on {{ order.Shipment?.deliveredOn | date:'dd MMM yyyy' }}
+                </ng-container>
+                <ng-container *ngIf="order.Shipment?.lastCheckedOn && !order.Shipment?.deliveredOn">
+                  &middot; last checked with the courier
+                  {{ order.Shipment?.lastCheckedOn | date:'dd MMM, h:mm a' }}
+                </ng-container>
+              </small>
+            </div>
+
+            <div class="order-shipment-actions">
+              <a
+                *ngIf="parcelTrackingUrl(order)"
+                class="btn btn-outline-primary btn-sm"
+                [href]="parcelTrackingUrl(order)"
+                target="_blank"
+                rel="noopener"
+                title="Open the courier's own tracking page for this parcel"
+              >
+                <i class="bi bi-box-arrow-up-right me-1"></i> Track parcel
+              </a>
+              <button
+                type="button"
+                class="btn btn-outline-secondary btn-sm"
+                *ngIf="parcelHasCourier(order)"
+                [disabled]="trackingBusy"
+                (click)="trackParcels()"
+                title="Ask the courier where this parcel is now"
+              >
+                <i class="bi bi-arrow-repeat me-1"></i>{{ trackingBusy ? 'Checking...' : 'Refresh parcel' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- The courier's own sentence, when it is not already the status line above. -->
+          <p class="order-shipment-latest" *ngIf="parcelCourierText(order)">
+            <i class="bi bi-info-circle me-1"></i>Courier's latest update: {{ parcelCourierText(order) }}
+          </p>
+
+          <!-- A parcel with no courier behind it is never going to report anything, so the customer is told
+               where it stands rather than left waiting on a refresh that cannot bring news. -->
+          <p class="order-shipment-latest" *ngIf="!parcelHasCourier(order)">
+            <i class="bi bi-info-circle me-1"></i>This parcel is being delivered by our own delivery
+            arrangement, so there is no courier tracking for it. Your order's status is kept up to date as
+            it moves - please contact us with the reference above if you would like an update in between.
+          </p>
+
+          <!-- There is nothing left to watch once the parcel is delivered or on its way back, so the
+               customer is told rather than left tapping a button that will never bring news. -->
+          <p class="order-shipment-closed" *ngIf="isParcelClosed(order)">
+            The courier has nothing more to report for this parcel.
+          </p>
         </div>
 
         <!-- Details: items, address, timeline -->
@@ -168,21 +280,38 @@
           </div>
 
           <div class="order-details-grid">
-            <div class="order-address" *ngIf="hasShippingAddress(order)">
-              <h6><i class="bi bi-geo-alt me-2"></i>Shipping Address</h6>
-              <p *ngIf="order.ShippingAddress.ContactName">{{ order.ShippingAddress.ContactName }}</p>
-              <p *ngIf="order.ShippingAddress.AddressLine1">{{ order.ShippingAddress.AddressLine1 }}</p>
-              <p *ngIf="order.ShippingAddress.AddressLine2">{{ order.ShippingAddress.AddressLine2 }}</p>
-              <p *ngIf="order.ShippingAddress.City || order.ShippingAddress.Zipcode">
-                {{ order.ShippingAddress.City }}<span *ngIf="order.ShippingAddress.State">, {{ order.ShippingAddress.State }}</span>
-                <span *ngIf="order.ShippingAddress.Zipcode"> - {{ order.ShippingAddress.Zipcode }}</span>
-              </p>
-              <p *ngIf="order.ShippingAddress.MobileNumber">
-                <i class="bi bi-telephone me-1"></i>{{ order.ShippingAddress.MobileNumber }}
-              </p>
-              <p *ngIf="order.ShippingAddress.EmailId">
-                <i class="bi bi-envelope me-1"></i>{{ order.ShippingAddress.EmailId }}
-              </p>
+            <div class="order-addresses">
+              <div class="order-address" *ngIf="hasShippingAddress(order)">
+                <h6><i class="bi bi-geo-alt me-2"></i>Shipping Address</h6>
+                <p *ngIf="order.ShippingAddress.ContactName">{{ order.ShippingAddress.ContactName }}</p>
+                <p *ngIf="order.ShippingAddress.AddressLine1">{{ order.ShippingAddress.AddressLine1 }}</p>
+                <p *ngIf="order.ShippingAddress.AddressLine2">{{ order.ShippingAddress.AddressLine2 }}</p>
+                <p *ngIf="order.ShippingAddress.City || order.ShippingAddress.Zipcode">
+                  {{ order.ShippingAddress.City }}<span *ngIf="order.ShippingAddress.State">, {{ order.ShippingAddress.State }}</span>
+                  <span *ngIf="order.ShippingAddress.Zipcode"> - {{ order.ShippingAddress.Zipcode }}</span>
+                </p>
+                <p *ngIf="order.ShippingAddress.MobileNumber">
+                  <i class="bi bi-telephone me-1"></i>{{ order.ShippingAddress.MobileNumber }}
+                </p>
+                <p *ngIf="order.ShippingAddress.EmailId">
+                  <i class="bi bi-envelope me-1"></i>{{ order.ShippingAddress.EmailId }}
+                </p>
+              </div>
+
+              <!-- Only shown when the order was billed somewhere else than it is delivered -->
+              <div class="order-address" *ngIf="hasBillingAddress(order)">
+                <h6><i class="bi bi-receipt me-2"></i>Billing Address</h6>
+                <p *ngIf="order.BillingAddress.ContactName">{{ order.BillingAddress.ContactName }}</p>
+                <p *ngIf="order.BillingAddress.AddressLine1">{{ order.BillingAddress.AddressLine1 }}</p>
+                <p *ngIf="order.BillingAddress.AddressLine2">{{ order.BillingAddress.AddressLine2 }}</p>
+                <p *ngIf="order.BillingAddress.City || order.BillingAddress.Zipcode">
+                  {{ order.BillingAddress.City }}<span *ngIf="order.BillingAddress.State">, {{ order.BillingAddress.State }}</span>
+                  <span *ngIf="order.BillingAddress.Zipcode"> - {{ order.BillingAddress.Zipcode }}</span>
+                </p>
+                <p *ngIf="order.BillingAddress.MobileNumber">
+                  <i class="bi bi-telephone me-1"></i>{{ order.BillingAddress.MobileNumber }}
+                </p>
+              </div>
             </div>
 
             <div class="order-timeline">

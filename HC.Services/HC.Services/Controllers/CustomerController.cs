@@ -1,4 +1,5 @@
 using HC.Business;
+using HC.Business.Dtos;
 using HC.Business.Security;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -12,11 +13,13 @@ public class CustomerController : ControllerBase
     private const string DefaultJwtSecret = "123456789abcdefgh";
 
     private readonly ICustomerService _customerService;
+    private readonly IPincodeService _pincodeService;
     private readonly string _jwtSecret;
 
-    public CustomerController(ICustomerService customerService, IConfiguration configuration)
+    public CustomerController(ICustomerService customerService, IPincodeService pincodeService, IConfiguration configuration)
     {
         _customerService = customerService;
+        _pincodeService = pincodeService;
         _jwtSecret = configuration["JWTSecret"] ?? DefaultJwtSecret;
     }
 
@@ -94,6 +97,67 @@ public class CustomerController : ControllerBase
             return Unauthorized(new { Result = 0, Messages = new[] { "Please sign in again." } });
 
         var result = await _customerService.SetPasswordAsync(customerId.Value, request.CurrentPassword, request.NewPassword);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// The signed-in customer's address book. The customer is identified by the token, so nothing
+    /// identifying is sent from the storefront and one customer can never read another's addresses.
+    /// </summary>
+    [HttpPost("GetAddresses")]
+    public async Task<ActionResult> GetAddresses()
+    {
+        var customerId = GetTokenCustomerId();
+        if (customerId == null)
+            return Unauthorized(new { Result = 0, Messages = new[] { "Please sign in to see your addresses." } });
+
+        var addresses = await _customerService.GetAddressesAsync(customerId.Value);
+        return Ok(addresses);
+    }
+
+    /// <summary>
+    /// Adds an address to the signed-in customer's address book, or updates one that is already in it
+    /// (AddressId &gt; 0). The saved address is then offered in checkout as the shipping or the billing
+    /// address.
+    /// </summary>
+    [HttpPost("SaveAddress")]
+    public async Task<ActionResult> SaveAddress([FromBody] SaveCustomerAddressRequest request)
+    {
+        var customerId = GetTokenCustomerId();
+        if (customerId == null)
+            return Unauthorized(new { Result = 0, Messages = new[] { "Please sign in to save an address." } });
+
+        var result = await _customerService.SaveAddressAsync(customerId.Value, request);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Removes an address from the signed-in customer's address book. An address an order was placed
+    /// with is refused - the order would lose the address it was shipped to.
+    /// </summary>
+    [HttpPost("DeleteAddress")]
+    public async Task<ActionResult> DeleteAddress([FromBody] DeleteCustomerAddressRequest request)
+    {
+        var customerId = GetTokenCustomerId();
+        if (customerId == null)
+            return Unauthorized(new { Result = 0, Messages = new[] { "Please sign in to remove an address." } });
+
+        var result = await _customerService.DeleteAddressAsync(customerId.Value, request.AddressId);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// The city, the state and the areas a PIN code covers, so the address forms can fill those in
+    /// instead of asking the customer to type them ('PIN code -> city, state and area').
+    ///
+    /// Deliberately open to everyone: checkout also runs for guests, and a PIN code is public
+    /// information. An unknown PIN or an unreachable directory is answered with Result = 0 and a reason,
+    /// never an error status - the customer types the address themselves and carries on.
+    /// </summary>
+    [HttpGet("GetPincode/{pincode}")]
+    public async Task<ActionResult> GetPincode(string pincode, CancellationToken cancellationToken)
+    {
+        var result = await _pincodeService.LookupAsync(pincode, cancellationToken);
         return Ok(result);
     }
 

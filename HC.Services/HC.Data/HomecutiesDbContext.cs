@@ -76,6 +76,10 @@ public partial class HomecutiesDbContext : DbContext
 
     public virtual DbSet<OrderItem> OrderItems { get; set; }
 
+    public virtual DbSet<OrderPayment> OrderPayments { get; set; }
+
+    public virtual DbSet<OrderShipment> OrderShipments { get; set; }
+
     public virtual DbSet<OrderStatus> OrderStatuses { get; set; }
 
     public virtual DbSet<Parameter> Parameters { get; set; }
@@ -825,6 +829,108 @@ public partial class HomecutiesDbContext : DbContext
                 .HasForeignKey(d => d.Sku)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_OrderItems_SKUs");
+        });
+
+        modelBuilder.Entity<OrderPayment>(entity =>
+        {
+            entity.HasKey(e => e.PaymentId);
+
+            entity.ToTable("OrderPayments");
+
+            entity.Property(e => e.PaymentId).HasColumnName("PaymentID");
+            entity.Property(e => e.OrderId).HasColumnName("OrderID");
+            entity.Property(e => e.Provider)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+            entity.Property(e => e.RazorpayOrderId)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.RazorpayPaymentId)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.Status)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+
+            // Money is decimal(18, 2) here (not the decimal(9, 2) of a single unit) because an order
+            // total is a sum of units and a refund must be able to carry it back.
+            entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.RefundAmount).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.FailureCode)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.FailureReason)
+                .HasMaxLength(500)
+                .IsUnicode(false);
+            entity.Property(e => e.RefundId)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.RefundStatus)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+            entity.Property(e => e.RefundFailureReason)
+                .HasMaxLength(500)
+                .IsUnicode(false);
+            entity.Property(e => e.RefundedOn).HasColumnType("datetime");
+
+            // The shop team approves a refund before it is sent (see RazorpayRefunds), so the payment
+            // row remembers when it was asked for and on what grounds.
+            entity.Property(e => e.RefundRequestedOn).HasColumnType("datetime");
+            entity.Property(e => e.RefundRequestedComment)
+                .HasMaxLength(500)
+                .IsUnicode(false);
+            entity.Property(e => e.CreatedOn).HasColumnType("datetime");
+            entity.Property(e => e.UpdatedOn).HasColumnType("datetime");
+
+            entity.HasOne(d => d.Order).WithMany(p => p.OrderPayments)
+                .HasForeignKey(d => d.OrderId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_OrderPayments_Orders");
+        });
+
+        modelBuilder.Entity<OrderShipment>(entity =>
+        {
+            entity.HasKey(e => e.ShipmentId);
+
+            entity.ToTable("OrderShipments");
+
+            entity.Property(e => e.ShipmentId).HasColumnName("ShipmentID");
+            entity.Property(e => e.OrderId).HasColumnName("OrderID");
+            entity.Property(e => e.Provider)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+            entity.Property(e => e.CourierName)
+                .HasMaxLength(100)
+                .IsUnicode(false);
+            entity.Property(e => e.AwbNumber)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.ShiprocketShipmentId).HasColumnName("ShiprocketShipmentID");
+            entity.Property(e => e.TrackingUrl)
+                .HasMaxLength(500)
+                .IsUnicode(false);
+
+            // What the courier billed the shop for this parcel (see OrderShipment.FreightCharge): the
+            // shop's own figure, optional, and never carried by the customer-facing reads.
+            entity.Property(e => e.FreightCharge).HasColumnType("decimal(18, 2)");
+
+            // The courier's wording is kept verbatim (the shop's own words are derived from it, see
+            // ShipmentStatusFlow), so this is the column that must never be trimmed to fit.
+            entity.Property(e => e.ProviderStatus)
+                .HasMaxLength(100)
+                .IsUnicode(false);
+            entity.Property(e => e.LastStatusText)
+                .HasMaxLength(500)
+                .IsUnicode(false);
+            entity.Property(e => e.DeliveredOn).HasColumnType("datetime");
+            entity.Property(e => e.LastCheckedOn).HasColumnType("datetime");
+            entity.Property(e => e.CreatedOn).HasColumnType("datetime");
+            entity.Property(e => e.UpdatedOn).HasColumnType("datetime");
+
+            entity.HasOne(d => d.Order).WithMany(p => p.OrderShipments)
+                .HasForeignKey(d => d.OrderId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_OrderShipments_Orders");
         });
 
         modelBuilder.Entity<OrderStatus>(entity =>

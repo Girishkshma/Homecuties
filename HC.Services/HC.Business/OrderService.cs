@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using HC.Business.Dtos;
+using HC.Business.Shipping;
 using HC.Data;
 using HC.Data.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -20,15 +21,27 @@ public partial class OrderService : IOrderService
     private readonly HomecutiesDbContext _context;
     private readonly ILogger<OrderService> _logger;
 
+    /// <summary>
+    /// The parcel side of an order (see HC.Business.Shipping): recorded once the shop has booked it with
+    /// a courier, read here for 'My Orders' and refreshed by the throttled pull the page asks for. Going
+    /// through the tracking service is what keeps this class free of any one provider's vocabulary.
+    /// </summary>
+    private readonly IShipmentTrackingService _shipmentTracking;
+
     /// <summary>Storefront payment gateway (Razorpay) credentials - empty when not configured.</summary>
     private readonly string _razorpayKeyId;
     private readonly string _razorpayKeySecret;
     private readonly string _razorpayWebhookSecret;
 
-    public OrderService(HomecutiesDbContext context, IConfiguration configuration, ILogger<OrderService> logger)
+    public OrderService(
+        HomecutiesDbContext context,
+        IConfiguration configuration,
+        ILogger<OrderService> logger,
+        IShipmentTrackingService shipmentTracking)
     {
         _context = context;
         _logger = logger;
+        _shipmentTracking = shipmentTracking;
         _razorpayKeyId = configuration["Razorpay:KeyId"] ?? string.Empty;
         _razorpayKeySecret = configuration["Razorpay:KeySecret"] ?? string.Empty;
         _razorpayWebhookSecret = configuration["Razorpay:WebhookSecret"] ?? string.Empty;

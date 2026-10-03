@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -10,6 +10,12 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.6" />
     <!-- Bearer (JWT) authentication for the admin API: validates the token issued at login. -->
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
+    <!-- Must stay on 2.x: the OpenAPI XML-comment source generator that ships with
+         Microsoft.AspNetCore.OpenApi emits code against the 2.x API surface, so a 3.x reference
+         fails the build with CS0200 ('IOpenApiMediaType.Example' is read only). Without this pin
+         NuGet resolves 2.0.0, which is inside the vulnerable range of GHSA-v5pm-xwqc-g5wc
+         (>= 2.0.0-preview.11, <= 2.7.4) and raises NU1903. -->
+    <PackageReference Include="Microsoft.OpenApi" Version="2.12.2" />
   </ItemGroup>
 
   <ItemGroup>

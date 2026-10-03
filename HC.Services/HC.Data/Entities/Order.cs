@@ -27,6 +27,11 @@ public partial class Order
 
     public virtual ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
 
+    public virtual ICollection<OrderPayment> OrderPayments { get; set; } = new List<OrderPayment>();
+
+    /// <summary>The parcel of this order (one row - see <see cref="OrderShipment"/>).</summary>
+    public virtual ICollection<OrderShipment> OrderShipments { get; set; } = new List<OrderShipment>();
+
     public virtual OrderStatus OrderStatus { get; set; } = null!;
 
     public virtual Partner Seller { get; set; } = null!;

@@ -2,15 +2,23 @@
   <div class="page-header">
     <h1>Orders</h1>
     <div class="header-actions">
+      <!-- The refund queue sits first: a cancellation asks for the money back, and the shop team has to
+           approve it, so the orders waiting for that are the ones the list is worked from. -->
+      <label class="refund-filter" [class.active]="refundsOnly"
+        title="Show only the orders the shop still owes money back on">
+        <input type="checkbox" [ngModel]="refundsOnly" (ngModelChange)="refundsOnly = $event; applyFilter()">
+        <span>Refunds to approve</span>
+        <span class="refund-count" *ngIf="pendingRefundCount > 0">{{ pendingRefundCount }}</span>
+      </label>
       <select class="filter-select" [ngModel]="statusFilter" (ngModelChange)="statusFilter = $event; applyFilter()">
         <option [value]="0">All statuses</option>
         <option *ngFor="let status of statuses" [value]="status.statusId">{{ status.status }}</option>
       </select>
       <div class="search-box">
-        <input type="text" [(ngModel)]="searchTerm" placeholder="Search by order #, customer or status..."
+        <input type="text" [(ngModel)]="searchTerm" placeholder="Search by order #, customer, customer ID, email or status..."
           (keyup.enter)="search()" class="search-input">
         <button (click)="search()" class="btn-search">Search</button>
-        <button *ngIf="searchTerm || statusFilter" (click)="clearSearch()" class="btn-clear">Clear</button>
+        <button *ngIf="searchTerm || statusFilter || refundsOnly" (click)="clearSearch()" class="btn-clear">Clear</button>
       </div>
     </div>
   </div>
@@ -18,27 +26,38 @@
   <div *ngIf="isLoading" class="loading">Loading orders...</div>
 
   <div *ngIf="!isLoading" class="table-container">
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Order #</th>
-          <th>Date</th>
-          <th>Customer</th>
-          <th>Items</th>
-          <th>Total</th>
-          <th>Payment</th>
-          <th>Status</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
+    <!-- The order list is the widest table in the admin panel (10 columns), so only the table itself
+         scrolls sideways. The pagination stays outside the scroll area and never slides away. -->
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Order #</th>
+            <th>Date</th>
+            <th>Customer</th>
+            <th>Customer ID</th>
+            <th>Customer email</th>
+            <th>Items</th>
+            <th>Total</th>
+            <th>Payment</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
         <tr *ngFor="let order of paginatedOrders">
           <td>{{ order.orderNumber }}</td>
           <td>{{ order.orderDate | date:'medium' }}</td>
           <td>{{ order.customerName }}</td>
+          <td class="customer-id">{{ order.customerId }}</td>
+          <td>{{ order.customerEmail || '-' }}</td>
           <td>{{ order.itemCount }}</td>
           <td>{{ order.totalAmount | currency:'INR' }}</td>
-          <td><span [class]="getPaymentBadgeClass(order.isPaid)">{{ order.isPaid ? 'Paid' : 'Not paid' }}</span></td>
+          <td>
+            <span [class]="getPaymentBadgeClass(order.isPaid)">{{ order.isPaid ? 'Paid' : 'Not paid' }}</span>
+            <span class="badge badge-refund" *ngIf="order.refundPending"
+              title="The customer cancelled this paid order - the refund is waiting to be approved on the order">Refund due</span>
+          </td>
           <td><span [class]="getStatusBadgeClass(order.statusId)">{{ order.status }}</span></td>
           <td class="actions">
             <button class="btn-sm btn-view" [routerLink]="['/orders', order.orderId]" title="Open the order, its items and its status">View</button>
@@ -46,10 +65,11 @@
           </td>
         </tr>
         <tr *ngIf="filteredOrders.length === 0">
-          <td colspan="8" class="empty">No orders found.</td>
+          <td colspan="10" class="empty">No orders found.</td>
         </tr>
-      </tbody>
-    </table>
+        </tbody>
+      </table>
+    </div>
 
     <!-- Pagination -->
     <div class="pagination" *ngIf="filteredOrders.length > 0">

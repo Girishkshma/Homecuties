@@ -564,6 +564,31 @@
   }
 }
 
+/* ===== Billing address switch (checkout) ===== */
+/* Everything about the invoice address is only needed while 'same as the delivery address' is off,
+   so the card leads with that one switch. */
+.billing-same {
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  background: var(--gray-100);
+
+  .form-check-input {
+    margin-top: 0.2rem;
+
+    &:checked {
+      background-color: var(--primary);
+      border-color: var(--primary);
+    }
+  }
+
+  .form-check-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--gray-800);
+  }
+}
+
 /* ===== Stock Warning Card (Checkout) ===== */
 .stock-warning-card {
   background: #fffbeb;
@@ -676,6 +701,55 @@
   p {
     color: var(--text-muted);
     margin-bottom: 1.5rem;
+  }
+}
+
+/* ===== Payment not completed (the order is saved as pending) ===== */
+.payment-pending {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+  margin-bottom: 1.5rem;
+  padding: 1.125rem 1.25rem;
+  border-radius: 12px;
+  background: #fff8ec;
+  border: 1px solid #f3d9ac;
+
+  .payment-pending-icon {
+    flex: 0 0 auto;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: #fdeccd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    i {
+      font-size: 1.15rem;
+      color: #b45309;
+    }
+  }
+
+  .payment-pending-body {
+    h5 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--gray-900);
+      margin-bottom: 0.35rem;
+    }
+
+    p {
+      font-size: 0.875rem;
+      color: var(--gray-700);
+      margin-bottom: 0.875rem;
+    }
+  }
+
+  .payment-pending-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
   }
 }
 
@@ -857,6 +931,120 @@
     border-color: #bbf7d0;
     color: #15803d;
   }
+
+  /* A cancelled order whose money is owed back: the refund is with the shop team, so the note is a
+     calmer blue than the amber 'waiting for payment' one rather than another warning. */
+  &.order-refund-note {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+    color: #1d4ed8;
+  }
+}
+
+/* ===== Parcel of an order (Shipment) ===== */
+/* Where the order has got to with the courier. It sits beside the order's own status rather than
+   replacing it, because the two can disagree for a while - a parcel can be stuck on the road while the
+   order is still 'Shipped'. Drawn only once an AWB has been recorded (see 'hasParcel'). */
+.order-shipment {
+  margin-top: 1rem;
+  padding: 0.75rem 0.875rem;
+  border-radius: 8px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+
+  .order-shipment-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .order-shipment-icon {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--white);
+    border: 1px solid #bfdbfe;
+    color: #1d4ed8;
+    font-size: 1rem;
+  }
+
+  .order-shipment-summary {
+    flex: 1 1 16rem;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .order-shipment-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+
+    /* The same pill the order's own status uses, so the two read as one family. */
+    .badge {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      padding: 0.3rem 0.6rem;
+    }
+
+    .order-shipment-provider {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--gray-700);
+    }
+  }
+
+  .order-shipment-meta {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.8125rem;
+
+    strong {
+      color: var(--gray-800);
+      letter-spacing: 0.3px;
+    }
+  }
+
+  .order-shipment-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+
+    .btn {
+      font-size: 0.8125rem;
+      padding: 0.3rem 0.75rem;
+      border-radius: var(--radius-sm);
+      white-space: nowrap;
+    }
+  }
+
+  /* The courier's own wording, shown when the status line above is our wording for it - so the customer
+     reads what the courier actually said, without it looking like a second update. */
+  .order-shipment-latest {
+    margin: 0.625rem 0 0;
+    padding-top: 0.5rem;
+    border-top: 1px dashed #bfdbfe;
+    font-size: 0.8125rem;
+    color: var(--gray-700);
+  }
+
+  /* Said once the courier is finished with the parcel (delivered, on its way back, or called off). */
+  .order-shipment-closed {
+    margin: 0.375rem 0 0;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-style: italic;
+  }
 }
 
 .order-details {
@@ -942,6 +1130,14 @@
     margin-bottom: 0.125rem;
     font-size: 0.8125rem;
     color: var(--gray-700);
+  }
+
+  /* The delivery address and - when the order was billed elsewhere - the billing address, one under
+     the other, so the two never get mixed up. */
+  .order-addresses {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
   }
 
   .order-timeline {

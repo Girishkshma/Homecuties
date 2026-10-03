@@ -78,6 +78,15 @@ public partial class OrderService : IOrderService
             };
         }
 
+        // The length limits of the CustomerAddresses columns. An over-long value would only fail at
+        // the INSERT - after the stock has been reserved - and the customer would be left with an
+        // unexplained error, so it is refused here while nothing has changed yet.
+        var addressProblem = ValidateTypedAddresses(request);
+        if (addressProblem != null)
+        {
+            return new CreateOrderResponse { Result = 0, Messages = new[] { addressProblem } };
+        }
+
         // Get the cart items
         CartResponseDto cartResponse;
         if (request.IsGuest)
@@ -221,22 +230,31 @@ public partial class OrderService : IOrderService
             ? await ResolveGuestCustomerIdAsync(request)
             : request.CustomerID;
 
-        // Create customer address
-        var address = new CustomerAddress
+        // Where the order is delivered and what it is invoiced to. A saved address picked in checkout
+        // is used as it stands; anything typed is stored in the customer's address book, so it can be
+        // picked again for the next order instead of being typed from scratch.
+        var shippingAddress = await ResolveShippingAddressAsync(orderCustomerId, request);
+        if (shippingAddress == null)
         {
-            CustomerId = orderCustomerId,
-            AddressTitle = "Shipping",
-            AddressLine1 = request.ShippingAddress,
-            City = request.City,
-            State = request.State,
-            Zipcode = request.ZipCode,
-            Country = "India",
-            MobileNumber = request.PhoneNumber,
-            EmailId = request.Email,
-            ContactName = ""
-        };
-        _context.CustomerAddresses.Add(address);
-        await _context.SaveChangesAsync();
+            return new CreateOrderResponse
+            {
+                Result = 0,
+                Messages = new[]
+                {
+                    "Please give the address this order should be delivered to (address, city, state and PIN code)."
+                }
+            };
+        }
+
+        var billingAddress = await ResolveBillingAddressAsync(orderCustomerId, request, shippingAddress);
+        if (billingAddress == null)
+        {
+            return new CreateOrderResponse
+            {
+                Result = 0,
+                Messages = new[] { "Please check the billing address you entered (address, city, state and PIN code)." }
+            };
+        }
 
         // Create the order
         var order = new Order
@@ -244,8 +262,8 @@ public partial class OrderService : IOrderService
             CustomerId = orderCustomerId,
             SellerId = 1, // Default seller
             OrderDate = DateTime.UtcNow,
-            BillingAddressId = address.AddressId,
-            ShippingAddressId = address.AddressId,
+            BillingAddressId = billingAddress.AddressId,
+            ShippingAddressId = shippingAddress.AddressId,
             OrderStatusId = 1 // Pending
         };
         _context.Orders.Add(order);
@@ -392,6 +410,10 @@ public partial class OrderService : IOrderService
             };
         }
 
+        // The attempt is written down before the browser is told about it: this row is what 'My Orders'
+        // shows, what 'Pay now' retries and what the refund is issued against.
+        await RecordPaymentAttemptAsync(order, razorpayOrderId, amountInPaise, DateTime.UtcNow);
+
         return new CreateOrderResponse
         {
             Result = 1,
@@ -417,6 +439,7 @@ public partial class OrderService : IOrderService
             .Include(o => o.OrderItems)
             .Include(o => o.OrderStatus)
             .Include(o => o.ShippingAddress)
+            .Include(o => o.BillingAddress)
             .Include(o => o.OrderHistories)
             .OrderByDescending(o => o.OrderDate)
             .AsNoTracking()
@@ -456,10 +479,38 @@ public partial class OrderService : IOrderService
             .AsNoTracking()
             .ToDictionaryAsync(s => s.OrderStatusId, s => s.Status);
 
+        // The money side: a cancelled paid order is waiting for its refund, and that is what 'My
+        // Orders' has to say about it. One read for every order (the newest payment row each), rather
+        // than an Include on the order query - only the refund state is used here.
+        var orderIds = orders.Select(o => o.OrderId).ToList();
+
+        var latestPayments = (await _context.OrderPayments
+                .Where(p => orderIds.Contains(p.OrderId))
+                .AsNoTracking()
+                .ToListAsync())
+            .GroupBy(p => p.OrderId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(p => p.PaymentId).First());
+
+        // The parcel of each order, in one query for the whole history: 'My Orders' shows it next to the
+        // order's own status. This is what was written down the last time the courier was asked - the
+        // page's own pull (RefreshShipmentsAsync) is what asks, so opening the history never waits for a
+        // courier and never fails because one is unreachable.
+        var shipments = await _shipmentTracking.GetForOrdersAsync(orderIds);
+
         return orders.Select(o =>
         {
             var statusName = o.OrderStatus?.Status ?? statusNames.GetValueOrDefault(o.OrderStatusId, "Pending");
-            var isPaid = o.OrderStatusId is OrderStatusConfirmed or OrderStatusShipped or OrderStatusDelivered;
+            var isPaid = OrderStatusFlow.IsPaid(o.OrderStatusId);
+
+            // Money we are still holding on an order that will not be delivered (or whose refund
+            // Razorpay refused) is owed back to the customer: the shop team approves it from the admin
+            // order screen - HC.Business.RazorpayRefunds tells the whole story.
+            var payment = latestPayments.GetValueOrDefault(o.OrderId);
+            var refundPending = payment != null &&
+                                (payment.Status == OrderPaymentStatus.RefundRequested ||
+                                 payment.Status == OrderPaymentStatus.RefundFailed ||
+                                 (o.OrderStatusId == OrderStatusCancelled &&
+                                  payment.Status == OrderPaymentStatus.Captured));
 
             return new OrderListDto
             {
@@ -470,28 +521,35 @@ public partial class OrderService : IOrderService
                 StatusId = o.OrderStatusId,
                 Status = statusName,
                 IsPaid = isPaid,
-                PaymentStatus = isPaid
-                    ? "Paid"
-                    : o.OrderStatusId == OrderStatusCancelled ? "Not charged" : "Payment pending",
+                RefundPending = refundPending,
 
-                // Only an order that has not been paid yet can be cancelled by the customer; cancelling
-                // a paid order would need a refund (handled by the shop team).
-                CanCancel = o.OrderStatusId == OrderStatusPending,
+                // The refund is what matters to the customer once a paid order is cancelled: the money
+                // is on its way back ('Refund pending' until the shop team approves it, 'Refunded' once
+                // it has gone), and only an order that was never charged reads 'Not charged'.
+                PaymentStatus = refundPending
+                    ? "Refund pending"
+                    : payment?.Status == OrderPaymentStatus.Refunded
+                        ? "Refunded"
+                        : isPaid
+                            ? "Paid"
+                            : o.OrderStatusId == OrderStatusCancelled ? "Not charged" : "Payment pending",
+
+                // A pending order is the only one that can still be paid for: confirmed and beyond is
+                // already paid, and a cancelled order puts its units back on the shelf.
+                CanPay = OrderStatusFlow.CanCustomerPay(o.OrderStatusId),
+
+                // The customer may cancel while the order is still in the shop's hands - Pending (nothing
+                // has been paid) or Confirmed (paid, and the money is given back). From Shipped onwards
+                // the parcel is on its way, so 'My Orders' stops offering it and the server refuses it.
+                CanCancel = OrderStatusFlow.CanCustomerCancel(o.OrderStatusId),
                 ItemCount = o.OrderItems.Count,
 
-                ShippingAddress = o.ShippingAddress == null
-                    ? new OrderAddressDto()
-                    : new OrderAddressDto
-                    {
-                        ContactName = o.ShippingAddress.ContactName,
-                        AddressLine1 = o.ShippingAddress.AddressLine1,
-                        AddressLine2 = o.ShippingAddress.AddressLine2 ?? "",
-                        City = o.ShippingAddress.City,
-                        State = o.ShippingAddress.State,
-                        Zipcode = o.ShippingAddress.Zipcode,
-                        MobileNumber = o.ShippingAddress.MobileNumber,
-                        EmailId = o.ShippingAddress.EmailId
-                    },
+                ShippingAddress = MapAddress(o.ShippingAddress),
+                BillingAddress = MapAddress(o.BillingAddress),
+
+                // The parcel the shop recorded for this order, if any - the customer's 'Track parcel' reads
+                // this, and the throttled pull replaces it with what the courier says right now.
+                Shipment = shipments.GetValueOrDefault(o.OrderId),
 
                 // OrderItems holds one row per physical unit, so equal units are grouped for display.
                 Items = o.OrderItems
@@ -518,6 +576,358 @@ public partial class OrderService : IOrderService
                     .ToList()
             };
         }).ToList();
+    }
+
+    /// <summary>Longest values the CustomerAddresses columns accept (see 'HC.Data/HomecutiesDbContext.cs').</summary>
+    private const int AddressLineMaxLength = 150;
+    private const int AddressTitleMaxLength = 20;
+    private const int AddressCityStateMaxLength = 50;
+    private const int AddressZipcodeMaxLength = 10;
+    private const int AddressMobileMaxLength = 12;
+    private const int AddressEmailMaxLength = 150;
+
+    /// <summary>Label of an address the customer typed at checkout without naming it.</summary>
+    private const string DefaultShippingAddressTitle = "Home";
+
+    /// <summary>Label of a billing address that is not the shipping address (see above).</summary>
+    private const string DefaultBillingAddressTitle = "Billing";
+
+    /// <summary>The only country the shop delivers to - the column is NOT NULL.</summary>
+    private const string DefaultAddressCountry = "India";
+
+    /// <summary>
+    /// Checks the addresses typed at checkout against the CustomerAddresses columns. A saved address
+    /// (ShippingAddressId / BillingAddressId) is already stored in those columns, so only the typed
+    /// fields need looking at. Returns the first problem found, or null when everything fits.
+    /// </summary>
+    private static string? ValidateTypedAddresses(CreateOrderRequest request)
+    {
+        if (request.ShippingAddressId == 0)
+        {
+            var shippingProblem = AddressLengthProblem(
+                request.ShippingAddress,
+                request.ShippingAddressLine2,
+                request.ShippingAddressTitle,
+                request.City,
+                request.State,
+                request.ZipCode,
+                request.PhoneNumber,
+                request.Email);
+
+            if (shippingProblem != null)
+            {
+                return shippingProblem;
+            }
+        }
+
+        if (!request.BillingSameAsShipping && request.BillingAddressId == 0)
+        {
+            return AddressLengthProblem(
+                request.BillingAddressLine1,
+                request.BillingAddressLine2,
+                request.BillingContactName,
+                request.BillingCity,
+                request.BillingState,
+                request.BillingZipCode,
+                request.BillingPhoneNumber,
+                request.BillingEmail);
+        }
+
+        return null;
+    }
+
+    private static string? AddressLengthProblem(
+        string? line1,
+        string? line2,
+        string? title,
+        string? city,
+        string? state,
+        string? zipcode,
+        string? mobile,
+        string? email)
+    {
+        if ((line1 ?? "").Trim().Length > AddressLineMaxLength || (line2 ?? "").Trim().Length > AddressLineMaxLength)
+            return $"Please keep each address line under {AddressLineMaxLength} characters.";
+
+        if ((title ?? "").Trim().Length > AddressTitleMaxLength)
+            return $"Please keep the address label under {AddressTitleMaxLength} characters.";
+
+        if ((city ?? "").Trim().Length > AddressCityStateMaxLength ||
+            (state ?? "").Trim().Length > AddressCityStateMaxLength)
+            return $"Please keep the city and state under {AddressCityStateMaxLength} characters.";
+
+        if ((zipcode ?? "").Trim().Length > AddressZipcodeMaxLength)
+            return "Please check the PIN code - it looks too long.";
+
+        if ((mobile ?? "").Trim().Length > AddressMobileMaxLength)
+            return "Please check the phone number - it looks too long.";
+
+        if ((email ?? "").Trim().Length > AddressEmailMaxLength)
+            return "Please check the email address - it looks too long.";
+
+        return null;
+    }
+
+    /// <summary>
+    /// The address the order is delivered to. An address picked from the customer's address book
+    /// (ShippingAddressId) is used as it stands: the id is matched against the customer first, so a
+    /// guessed id can never ship an order to somebody else's saved address, and no duplicate row is
+    /// written for an address that already exists. An address typed at checkout is stored in the
+    /// customer's address book - that is what the flat shipping fields have always done - so it can
+    /// be picked for the next order instead of being typed again; when the book already holds that
+    /// delivery address (see <see cref="FindMatchingAddressAsync"/>) the row that is there is used,
+    /// so typing the same address again does not add a second copy of it. Null means there is no
+    /// usable address at all.
+    /// </summary>
+    private async Task<CustomerAddress?> ResolveShippingAddressAsync(long customerId, CreateOrderRequest request)
+    {
+        if (request.ShippingAddressId > 0)
+        {
+            var saved = await FindSavedAddressAsync(customerId, request.ShippingAddressId);
+            if (saved != null)
+            {
+                return saved;
+            }
+        }
+
+        var line1 = (request.ShippingAddress ?? "").Trim();
+        var city = (request.City ?? "").Trim();
+        var state = (request.State ?? "").Trim();
+        var zipcode = (request.ZipCode ?? "").Trim();
+
+        if (line1.Length == 0 || city.Length == 0 || state.Length == 0 || zipcode.Length == 0)
+        {
+            return null;
+        }
+
+        var line2 = SecondLineOrNull(request.ShippingAddressLine2);
+        var mobile = (request.PhoneNumber ?? "").Trim();
+        var typedContactName = (request.ShippingContactName ?? "").Trim();
+
+        var known = await FindMatchingAddressAsync(customerId, line1, line2, city, state, zipcode, mobile, typedContactName);
+        if (known != null)
+        {
+            return known;
+        }
+
+        var contactName = typedContactName;
+        if (contactName.Length == 0 && !request.IsGuest)
+        {
+            contactName = await GetCustomerContactNameAsync(customerId);
+        }
+
+        var address = new CustomerAddress
+        {
+            CustomerId = customerId,
+            AddressTitle = TitleOr(request.ShippingAddressTitle, DefaultShippingAddressTitle),
+            AddressLine1 = line1,
+            AddressLine2 = line2,
+            City = city,
+            State = state,
+            Zipcode = zipcode,
+            Country = DefaultAddressCountry,
+            MobileNumber = mobile,
+            EmailId = (request.Email ?? "").Trim(),
+            ContactName = contactName
+        };
+
+        _context.CustomerAddresses.Add(address);
+        await _context.SaveChangesAsync();
+
+        return address;
+    }
+
+    /// <summary>
+    /// The address the order is invoiced to. It is the shipping address unless the customer asked for
+    /// a different one (BillingSameAsShipping = false); that different one is either picked from the
+    /// address book (BillingAddressId, checked against the customer like the shipping id) or typed in
+    /// checkout, in which case it is stored in the address book too - unless the book already holds
+    /// that billing address, in which case the row that is there is used (see
+    /// <see cref="FindMatchingAddressAsync"/>). Null means the billing address the customer gave is not
+    /// usable - the order is refused rather than silently billed to the shipping address.
+    /// </summary>
+    private async Task<CustomerAddress?> ResolveBillingAddressAsync(
+        long customerId,
+        CreateOrderRequest request,
+        CustomerAddress shippingAddress)
+    {
+        if (request.BillingSameAsShipping)
+        {
+            return shippingAddress;
+        }
+
+        if (request.BillingAddressId > 0)
+        {
+            var saved = await FindSavedAddressAsync(customerId, request.BillingAddressId);
+            if (saved != null)
+            {
+                return saved;
+            }
+        }
+
+        var line1 = (request.BillingAddressLine1 ?? "").Trim();
+        var city = (request.BillingCity ?? "").Trim();
+        var state = (request.BillingState ?? "").Trim();
+        var zipcode = (request.BillingZipCode ?? "").Trim();
+
+        if (line1.Length == 0 || city.Length == 0 || state.Length == 0 || zipcode.Length == 0)
+        {
+            return null;
+        }
+
+        var line2 = SecondLineOrNull(request.BillingAddressLine2);
+        var mobile = (request.BillingPhoneNumber ?? "").Trim();
+        var typedContactName = (request.BillingContactName ?? "").Trim();
+
+        var known = await FindMatchingAddressAsync(customerId, line1, line2, city, state, zipcode, mobile, typedContactName);
+        if (known != null)
+        {
+            return known;
+        }
+
+        var contactName = typedContactName;
+        if (contactName.Length == 0 && !request.IsGuest)
+        {
+            contactName = await GetCustomerContactNameAsync(customerId);
+        }
+
+        var billing = new CustomerAddress
+        {
+            CustomerId = customerId,
+            AddressTitle = DefaultBillingAddressTitle,
+            AddressLine1 = line1,
+            AddressLine2 = line2,
+            City = city,
+            State = state,
+            Zipcode = zipcode,
+            Country = DefaultAddressCountry,
+            MobileNumber = mobile,
+            EmailId = (request.BillingEmail ?? "").Trim(),
+            ContactName = contactName
+        };
+
+        _context.CustomerAddresses.Add(billing);
+        await _context.SaveChangesAsync();
+
+        return billing;
+    }
+
+    /// <summary>
+    /// One saved address of this customer. The customer id is part of the lookup on purpose: an
+    /// address id arriving from the browser must never resolve to somebody else's address.
+    /// </summary>
+    private async Task<CustomerAddress?> FindSavedAddressAsync(long customerId, long addressId)
+    {
+        return await _context.CustomerAddresses
+            .FirstOrDefaultAsync(a => a.AddressId == addressId && a.CustomerId == customerId);
+    }
+
+    /// <summary>
+    /// The row in this customer's address book that is already that delivery address, or null when the
+    /// customer has not stored it before. An address typed at checkout used to be written as a fresh row
+    /// every single time, so 'My Addresses' filled up with one copy of the same address per order placed
+    /// with it - and each copy then refuses to be deleted, because the order it was written for points
+    /// at it. The row that is already there is used instead, exactly as it stands: nothing on it is
+    /// rewritten, so an earlier order keeps showing the address and the contact details it was placed
+    /// with.
+    ///
+    /// The comparison is on the details that decide where the parcel goes and who is called about it -
+    /// both address lines, city, state, PIN and mobile number - ignoring case and surrounding spaces,
+    /// because those are what a re-typed address differs by in practice ("Bangalore" vs "bangalore", a
+    /// PIN typed with a stray space). The label ('Shipping', 'Home') and the e-mail are not part of it:
+    /// they do not change where the order goes, so re-typing a different label or e-mail is still the
+    /// same address.
+    ///
+    /// A recipient the customer named is part of it - somebody else receiving the parcel is a different
+    /// delivery and gets its own row. When they name nobody, the row kept for that address is used as
+    /// it stands: the customer's own name that was filled in for an earlier order is not a different
+    /// delivery, and treating it as one is exactly how the second copy used to appear.
+    /// </summary>
+    private async Task<CustomerAddress?> FindMatchingAddressAsync(
+        long customerId,
+        string line1,
+        string? line2,
+        string city,
+        string state,
+        string zipcode,
+        string mobile,
+        string contactName)
+    {
+        var addressLine1 = line1.Trim().ToLower();
+        var addressLine2 = (line2 ?? "").Trim().ToLower();
+        var addressCity = city.Trim().ToLower();
+        var addressState = state.Trim().ToLower();
+        var addressZipcode = zipcode.Trim().ToLower();
+        var addressMobile = mobile.Trim().ToLower();
+
+        var query = _context.CustomerAddresses
+            .Where(a => a.CustomerId == customerId)
+            .Where(a =>
+                a.AddressLine1.ToLower() == addressLine1 &&
+                (a.AddressLine2 ?? "").ToLower() == addressLine2 &&
+                a.City.ToLower() == addressCity &&
+                a.State.ToLower() == addressState &&
+                a.Zipcode.ToLower() == addressZipcode &&
+                a.MobileNumber.ToLower() == addressMobile);
+
+        var typedContactName = contactName.Trim().ToLower();
+        if (typedContactName.Length > 0)
+        {
+            query = query.Where(a => (a.ContactName ?? "").ToLower() == typedContactName);
+        }
+
+        return await query.FirstOrDefaultAsync();
+    }
+
+    /// <summary>The customer's own name - the contact name of a newly stored address when none is given.</summary>
+    private async Task<string> GetCustomerContactNameAsync(long customerId)
+    {
+        var name = await _context.Customers
+            .AsNoTracking()
+            .Where(c => c.CustomerId == customerId)
+            .Select(c => new { c.FirstName, c.LastName })
+            .FirstOrDefaultAsync();
+
+        return name == null ? "" : $"{name.FirstName} {name.LastName}".Trim();
+    }
+
+    private static string TitleOr(string? title, string fallback)
+    {
+        var trimmed = (title ?? "").Trim();
+
+        return trimmed.Length == 0 ? fallback : trimmed;
+    }
+
+    private static string? SecondLineOrNull(string? secondLine)
+    {
+        var trimmed = (secondLine ?? "").Trim();
+
+        return trimmed.Length == 0 ? null : trimmed;
+    }
+
+    /// <summary>
+    /// An order's address as 'My Orders' shows it. The id is kept so the storefront can tell a billing
+    /// address apart from the shipping one and only show it when the customer asked for a different one.
+    /// </summary>
+    private static OrderAddressDto MapAddress(CustomerAddress? address)
+    {
+        if (address == null)
+        {
+            return new OrderAddressDto();
+        }
+
+        return new OrderAddressDto
+        {
+            AddressId = address.AddressId,
+            ContactName = address.ContactName,
+            AddressLine1 = address.AddressLine1,
+            AddressLine2 = address.AddressLine2 ?? "",
+            City = address.City,
+            State = address.State,
+            Zipcode = address.Zipcode,
+            MobileNumber = address.MobileNumber,
+            EmailId = address.EmailId
+        };
     }
 
     /// <summary>

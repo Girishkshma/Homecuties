@@ -297,6 +297,19 @@ public class AdminOrderListDto
     public DateTime OrderDate { get; set; }
     [JsonPropertyName("customerName")]
     public string CustomerName { get; set; } = "";
+
+    /// <summary>
+    /// Customers.CustomerID of the customer the order belongs to - the id the shop team quotes when
+    /// a customer calls about an order, and the only way to tell two customers with the same name
+    /// apart.
+    /// </summary>
+    [JsonPropertyName("customerId")]
+    public long CustomerId { get; set; }
+
+    /// <summary>Customers.EmailID - the customer's email, shown next to the id in the order list.</summary>
+    [JsonPropertyName("customerEmail")]
+    public string CustomerEmail { get; set; } = "";
+
     [JsonPropertyName("statusId")]
     public short StatusId { get; set; }
     [JsonPropertyName("status")]
@@ -307,6 +320,15 @@ public class AdminOrderListDto
     public decimal TotalAmount { get; set; }
     [JsonPropertyName("itemCount")]
     public int ItemCount { get; set; }
+
+    /// <summary>
+    /// True while the order's money is owed back: the customer cancelled a paid order, so the refund
+    /// has been asked for and is waiting for the shop team's approval (see HC.Business.RazorpayRefunds).
+    /// A refund Razorpay refused, and a cancelled order whose capture was never given back, count as
+    /// owed too. These are the orders the list flags as 'Refund due'.
+    /// </summary>
+    [JsonPropertyName("refundPending")]
+    public bool RefundPending { get; set; }
 }
 
 public class AdminOrderDetailDto
@@ -319,6 +341,11 @@ public class AdminOrderDetailDto
     public DateTime OrderDate { get; set; }
     [JsonPropertyName("customerName")]
     public string CustomerName { get; set; } = "";
+
+    /// <summary>Customers.CustomerID, so the order is tied to one customer and not just a name.</summary>
+    [JsonPropertyName("customerId")]
+    public long CustomerId { get; set; }
+
     [JsonPropertyName("customerEmail")]
     public string CustomerEmail { get; set; } = "";
     [JsonPropertyName("customerMobile")]
@@ -346,11 +373,74 @@ public class AdminOrderDetailDto
     public List<AdminOrderHistoryDto> History { get; set; } = new();
 
     /// <summary>
-    /// The statuses this order may be moved to next (see AdminDashboardService.OrderStatusTransitions).
+    /// The statuses this order may be moved to next (see HC.Business.OrderStatusFlow).
     /// The admin screen only offers these steps, so an impossible jump cannot be picked at all.
     /// </summary>
     [JsonPropertyName("availableStatuses")]
     public List<AdminOrderStatusDto> AvailableStatuses { get; set; } = new();
+
+    /// <summary>
+    /// The state of the money when the order was cancelled after payment. <c>RefundPending</c> is true
+    /// while the refund has been asked for (by the customer's cancellation) and not yet approved -
+    /// that is when the order screen offers 'Approve refund' (the app sends it to Razorpay) and
+    /// 'Mark refunded' (the shop team refunded it in the Razorpay dashboard). The payment itself is
+    /// the row the refund is sent against: <c>RazorpayPaymentId</c> is null for the orders that have
+    /// no captured payment on record, which are the ones that must be refunded by hand.
+    /// </summary>
+    [JsonPropertyName("refundPending")]
+    public bool RefundPending { get; set; }
+
+    /// <summary>When the refund was asked for (the customer cancelling the paid order).</summary>
+    [JsonPropertyName("refundRequestedOn")]
+    public DateTime? RefundRequestedOn { get; set; }
+
+    /// <summary>Why the refund was asked for, as written by the cancellation.</summary>
+    [JsonPropertyName("refundRequestedComment")]
+    public string? RefundRequestedComment { get; set; }
+
+    /// <summary>The amount that will be given back: what the gateway took, else the order total.</summary>
+    [JsonPropertyName("refundAmount")]
+    public decimal? RefundAmount { get; set; }
+
+    /// <summary>Razorpay's refund id (RazorpayRefunds), empty for a refund made by hand.</summary>
+    [JsonPropertyName("refundId")]
+    public string? RefundId { get; set; }
+
+    /// <summary>Razorpay's refund status (processed / pending / failed) or 'manual'.</summary>
+    [JsonPropertyName("refundStatus")]
+    public string? RefundStatus { get; set; }
+
+    [JsonPropertyName("refundedOn")]
+    public DateTime? RefundedOn { get; set; }
+
+    /// <summary>
+    /// Why Razorpay refused the refund, so the team can retry with the reason in front of them - or the
+    /// note the team left when they recorded a refund they made by hand.
+    /// </summary>
+    [JsonPropertyName("refundFailureReason")]
+    public string? RefundFailureReason { get; set; }
+
+    /// <summary>
+    /// The captured Razorpay payment a refund is sent against, or null when the order has no captured
+    /// payment on record (an order paid before payments were recorded here) - such a refund has to be
+    /// made in the Razorpay dashboard and then marked refunded here.
+    /// </summary>
+    [JsonPropertyName("razorpayPaymentId")]
+    public string? RazorpayPaymentId { get; set; }
+
+    /// <summary>
+    /// The parcel of this order as it stands: the AWB, the courier, the tracking link, and the courier's
+    /// latest wording next to the shop's own status derived from it (see HC.Business.ShipmentStatusFlow).
+    /// Null while the shop has not recorded one yet - which is exactly when the Shipment card offers to
+    /// record it.
+    ///
+    /// This is what was written down the last time the parcel was looked at, so opening an order never
+    /// waits for a courier and never fails because one is unreachable. The fresh look is the Shipment
+    /// card's 'Track now' (POST api/admin/orders/{id}/track-shipment), which asks and writes down the
+    /// answer - and is also what can move the order on, never this field on its own.
+    /// </summary>
+    [JsonPropertyName("shipment")]
+    public OrderShipmentDto? Shipment { get; set; }
 }
 
 public class AdminAddressDto
@@ -427,7 +517,24 @@ public class AdminOrderStatusDto
     public string Status { get; set; } = "";
 }
 
-/// <summary>Body of "move this order to another status" in the admin order screen.</summary>
+/// <summary>
+/// Body of "move this order to another status" in the admin order screen.
+///
+/// Moving an order to Shipped asks about the parcel in the same move, because that is the moment the
+/// parcel becomes real: the shop team names the provider it was booked with (<see cref="Provider"/>) and
+/// types the consignment number that provider gave it (<see cref="AwbNumber"/>), and the two are
+/// recorded together with the move (see AdminDashboardService.UpdateOrderStatusAsync). None of it is
+/// required, though - an order that went out without a courier (handed over in person, or given to a
+/// delivery service this shop has no integration with) is simply dispatched, with no parcel recorded and
+/// nothing to track.
+///
+/// A parcel is recorded when there is one to record, and the provider decides what that means: a
+/// consignment number the team typed, or - against a provider that gives the parcel a reference of its
+/// own (the shop's own delivery service, <see cref="AwbNumber"/> blank) - the reference the system mints.
+/// When there is a parcel, every later courier call is made through the provider named here: the tracking
+/// service reads it back off the parcel (OrderShipments.Provider) and asks that adapter's own API, never a
+/// hard-coded one. The other steps need none of these fields.
+/// </summary>
 public class AdminOrderStatusUpdateRequest
 {
     [JsonPropertyName("statusId")]
@@ -439,6 +546,57 @@ public class AdminOrderStatusUpdateRequest
     /// </summary>
     [JsonPropertyName("comments")]
     public string? Comments { get; set; }
+
+    /// <summary>
+    /// Which shipping provider the parcel was booked with (<c>ShipmentProviderInfo.Name</c>, e.g.
+    /// 'Shiprocket'), used when the order is moved to Shipped with a parcel. Blank means the provider the
+    /// shop defaults to ('Shipping:DefaultProvider'), which is what a shop booking with a single aggregator
+    /// sends; a name this shop is not set up with is refused. The name also decides whether a blank
+    /// <see cref="AwbNumber"/> is a parcel this side mints a reference for.
+    /// </summary>
+    [JsonPropertyName("provider")]
+    public string? Provider { get; set; }
+
+    /// <summary>
+    /// The consignment number (AWB) the provider gave this parcel, sent when the order is moved to
+    /// Shipped. It is what every later courier lookup is made with, so it is what makes the move a parcel
+    /// at all: blank means either that the order went out without a parcel (no consignment number and a
+    /// provider that gives none), or that the provider named gives the parcel a reference of its own - the
+    /// shop's own delivery service - in which case the system mints one (see
+    /// IShipmentTrackingService.RecordsParcel).
+    /// </summary>
+    [JsonPropertyName("awbNumber")]
+    public string? AwbNumber { get; set; }
+
+    /// <summary>The courier the provider handed the parcel to, when the team knows it (optional).</summary>
+    [JsonPropertyName("courierName")]
+    public string? CourierName { get; set; }
+
+    /// <summary>
+    /// What the courier billed the shop for this parcel (the provider's own freight charge), when the
+    /// team has it - recorded with the parcel for the books, and never shown to the customer. Optional, and
+    /// only kept when the move records a parcel (see IShipmentTrackingService.RecordsParcel), because a
+    /// charge belongs to the parcel it was billed for: blank leaves whatever the parcel already holds, so
+    /// dispatching can never wipe a figure the Shipment card recorded earlier.
+    /// </summary>
+    [JsonPropertyName("freightCharge")]
+    public decimal? FreightCharge { get; set; }
+}
+
+/// <summary>
+/// Body of 'record that this refund was made by hand' in the admin order screen. Used when the refund
+/// went out in the Razorpay dashboard instead (an order with no captured payment on record, or one
+/// Razorpay refused): the payment row is marked Refunded, so the order stops being flagged as owing
+/// money. Approving a refund in the app needs no body.
+/// </summary>
+public class AdminOrderRefundRequest
+{
+    /// <summary>
+    /// Optional note about the refund that was made - kept on the payment row and in OrderHistory so
+    /// the order says how the money went back.
+    /// </summary>
+    [JsonPropertyName("comment")]
+    public string? Comment { get; set; }
 }
 
 // Customers

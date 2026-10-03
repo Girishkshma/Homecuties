@@ -86,6 +86,24 @@ public class OrderController : ControllerBase
     }
 
     /// <summary>
+    /// The throttled courier pull 'My Orders' makes when it opens, and again when the customer taps
+    /// 'Track parcel': the live parcels of the signed-in customer are looked up with their provider once
+    /// more and answered fresh. A parcel checked a moment ago - or one the courier is done with - is left
+    /// alone, so opening the page is not itself a courier call, and a courier that cannot be reached is a
+    /// sentence in the answer rather than an error on the page.
+    /// </summary>
+    [HttpPost("RefreshShipments")]
+    public async Task<ActionResult> RefreshShipments()
+    {
+        var customerId = GetTokenCustomerId();
+        if (customerId == null)
+            return Unauthorized(new { Result = 0, Messages = new[] { "Please sign in to track your parcels." } });
+
+        var result = await _orderService.RefreshShipmentsAsync(customerId.Value);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Cancels an unpaid order from 'My Orders'. The order is always matched against the signed-in
     /// customer, so a guessed id cannot cancel somebody else's order.
     /// </summary>
@@ -113,6 +131,22 @@ public class OrderController : ControllerBase
             return Unauthorized(new { Result = 0, Messages = new[] { "Please sign in to check a payment." } });
 
         var result = await _orderService.SyncOrderPaymentAsync(customerId.Value, request.OrderId);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Starts a fresh payment attempt for an order that is still waiting for its money - the 'Pay now'
+    /// button in 'My Orders'. The order is matched against the signed-in customer and the amount comes
+    /// from the order itself, so a retry can never pay less than the order costs.
+    /// </summary>
+    [HttpPost("RetryPayment")]
+    public async Task<ActionResult> RetryPayment([FromBody] OrderActionRequest request)
+    {
+        var customerId = GetTokenCustomerId();
+        if (customerId == null)
+            return Unauthorized(new { Result = 0, Messages = new[] { "Please sign in to pay for an order." } });
+
+        var result = await _orderService.RetryOrderPaymentAsync(customerId.Value, request.OrderId);
         return Ok(result);
     }
 

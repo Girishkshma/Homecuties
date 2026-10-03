@@ -18,3 +18,98 @@
   }
 }
 
+/* 'Refunds to approve' filter - the queue of cancelled paid orders the shop still owes money back
+   on. It reads as a switch (not a second dropdown) because it narrows the list to exactly one kind
+   of order, and it turns orange while it is on so it is obvious why rows are missing. */
+.refund-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 14px;
+  color: #333;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+
+  input {
+    cursor: pointer;
+    accent-color: #b35c00;
+  }
+
+  &:hover {
+    border-color: #ced4da;
+  }
+
+  &.active {
+    border-color: #ffc078;
+    background: #fff8ef;
+    color: #8a4b08;
+  }
+
+  /* How many orders are waiting - hidden when there are none, so the filter stays quiet. */
+  .refund-count {
+    min-width: 20px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    background: #b35c00;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+  }
+}
+
+/* Payment cell: the 'Refund due' chip follows the Paid chip of the same order. */
+.data-table tbody td .badge-refund {
+  margin-left: 6px;
+}
+
+/* No value in a cell of the order list may wrap: a row is read straight across, so a date
+   ('Sep 28, 2026, 2:59:21 PM'), a customer name and an e-mail address each stay on one line and
+   the table scrolls sideways instead (see .table-scroll below). Deliberately scoped to the order
+   list - it is the only admin table with a horizontal scroll wrapper; every other table would just
+   clip the value, because .table-container hides the overflow. */
+.data-table tbody td {
+  white-space: nowrap;
+}
+
+/* Customer id column of the order list - part of the pair (with the e-mail) that tells customers
+   apart even when two of them share a name. */
+.customer-id {
+  color: #495057;
+}
+
+/* The order list is the widest admin table (10 columns) - scroll it sideways when the columns no
+   longer fit instead of letting the shared .table-container clip them. Only the table scrolls; the
+   pagination sits outside this wrapper so it stays in place. */
+.table-scroll {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+
+  /* The global scrollbar rules only size the vertical bar - give the horizontal one a height too,
+     matching the same thumb colours. */
+  scrollbar-width: thin;
+  scrollbar-color: #ccc transparent;
+
+  &::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 4px;
+
+    &:hover {
+      background: #aaa;
+    }
+  }
+}
+

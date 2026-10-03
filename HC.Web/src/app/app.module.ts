@@ -26,6 +26,7 @@ import { ProductImagePipe } from './pipes/product-image.pipe';
 import { ForgotPasswordComponent } from './forgot-password/forgot-password.component';
 import { ResetPasswordComponent } from './reset-password/reset-password.component';
 import { SetPasswordComponent } from './set-password/set-password.component';
+import { ProfileComponent } from './profile/profile.component';
 import { customerTokenInterceptor } from './interceptors/customer-token.interceptor';
 
 @NgModule({
@@ -49,7 +50,8 @@ import { customerTokenInterceptor } from './interceptors/customer-token.intercep
     ProductImagePipe,
     ForgotPasswordComponent,
     ResetPasswordComponent,
-    SetPasswordComponent
+    SetPasswordComponent,
+    ProfileComponent
   ],
   imports: [
     BrowserModule,

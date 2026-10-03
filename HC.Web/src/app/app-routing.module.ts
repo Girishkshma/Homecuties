@@ -15,6 +15,7 @@ import { TermsOfServiceComponent } from './terms-of-service/terms-of-service.com
 import { ForgotPasswordComponent } from './forgot-password/forgot-password.component';
 import { ResetPasswordComponent } from './reset-password/reset-password.component';
 import { SetPasswordComponent } from './set-password/set-password.component';
+import { ProfileComponent } from './profile/profile.component';
 import { AuthGuard } from './guards/auth.guard';
 
 const routes: Routes = [
@@ -34,6 +35,7 @@ const routes: Routes = [
   { path: 'forgot-password', component: ForgotPasswordComponent },
   { path: 'reset-password/:token', component: ResetPasswordComponent },
   { path: 'set-password', component: SetPasswordComponent, canActivate: [AuthGuard] },
+  { path: 'profile', component: ProfileComponent, canActivate: [AuthGuard] },
   { path: '**', redirectTo: '' }
 ];
 

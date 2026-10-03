@@ -42,6 +42,14 @@
     color: #16a34a;
     border: 1px solid #bbf7d0;
   }
+
+  /* Something to know rather than something to fix: the parcel a courier could not be reached about
+     keeps the status it already had, so its sentence is shown here and not as an error. */
+  &.alert-info {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+  }
 }
 
 /* ===== Empty State ===== */
@@ -601,4 +609,146 @@
     color: #868e96;
   }
 }
+
+/* ===== Address book cards (checkout + 'My Profile') ===== */
+.address-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+/* One selectable saved address. The whole card is the radio button's label, so the customer can
+   click anywhere on the address instead of hunting for the dot. */
+.address-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border: 2px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: var(--transition-fast);
+
+  &:hover {
+    border-color: var(--gray-300);
+  }
+
+  &.selected {
+    border-color: var(--primary);
+    background: rgba(74, 108, 247, 0.03);
+  }
+
+  input[type='radio'] {
+    margin-top: 0.2rem;
+    flex-shrink: 0;
+    accent-color: var(--primary);
+  }
+}
+
+.address-choice-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.address-choice-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.15rem;
+}
+
+.address-label {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--gray-100);
+  color: var(--gray-700);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.address-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--gray-900);
+}
+
+.address-line {
+  font-size: 0.8125rem;
+  color: var(--gray-700);
+  margin-bottom: 0;
+}
+
+.address-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  margin: 0.75rem 0 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+
+  i {
+    margin-top: 0.1rem;
+  }
+
+  a {
+    font-weight: 600;
+  }
+}
+
+/* ===== PIN code lookup hints, and the fields it fills in (checkout + 'My Profile') =====
+   What the address forms say while a PIN code is being looked up, and what it filled in for the
+   customer - plus the city and the state themselves, which are read-only because the PIN code is the
+   only thing that fills them. Both pages use these, so they live with the shared address classes above. */
+.pincode-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  margin: 0.25rem 0 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+
+  .spinner-border {
+    width: 0.75rem;
+    height: 0.75rem;
+    margin-top: 0.15rem;
+    flex-shrink: 0;
+  }
+}
+
+/* The PIN code is unknown, or the lookup could not run: the city and the state could not be filled in. */
+.pincode-hint-error {
+  color: #b45309;
+}
+
+/* What the PIN code filled in, so it is obvious the form is already filled for them. */
+.pincode-hint-ok {
+  color: #15803d;
+}
+
+/* The city and the state themselves. They are read-only - the PIN code is the only thing that fills
+   them - and are dressed as answered rather than disabled, because they are filled in for the
+   customer. (Two classes, so this wins over the form's own '.form-control' rules.) */
+.form-control.from-pincode {
+  background-color: var(--gray-100);
+  color: var(--gray-800);
+  cursor: default;
+
+  &:focus {
+    border-color: var(--gray-300);
+    box-shadow: none;
+  }
+
+  &::placeholder {
+    color: var(--gray-500);
+    opacity: 1;
+  }
+}
+
 

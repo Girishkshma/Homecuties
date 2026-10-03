@@ -27,6 +27,10 @@
           <span>{{ order.customerName }}</span>
         </div>
         <div class="detail-item">
+          <label>Customer ID</label>
+          <span>{{ order.customerId }}</span>
+        </div>
+        <div class="detail-item">
           <label>Contact</label>
           <span>
             {{ order.customerEmail }}<ng-container *ngIf="order.customerMobile"> &middot; {{ order.customerMobile }}</ng-container>
@@ -41,6 +45,8 @@
           <span>
             <span [class]="getStatusBadgeClass(order.statusId)">{{ order.status }}</span>
             <span [class]="getPaymentBadgeClass(order.isPaid)">{{ order.isPaid ? 'Paid' : 'Not paid' }}</span>
+            <span class="badge badge-refund" *ngIf="order.refundPending"
+              title="The customer cancelled this paid order - the refund is waiting to be approved below">Refund due</span>
           </span>
         </div>
         <div class="detail-item">
@@ -52,6 +58,86 @@
           <span>{{ order.items.length }}</span>
         </div>
       </div>
+    </div>
+
+    <!-- Refund - the money of a paid order the customer cancelled. That cancellation only ASKED for it
+         (the API left the payment as RefundRequested); approving it here is what sends the money back
+         through Razorpay, and 'Mark refunded' closes one made by hand in the Razorpay dashboard. -->
+    <div class="detail-card refund-card" [class.refund-pending]="order.refundPending" *ngIf="showRefundCard">
+      <h3>Refund</h3>
+
+      <div class="detail-grid">
+        <div class="detail-item">
+          <label>Amount</label>
+          <span>{{ (order.refundAmount || itemsTotal) | currency:'INR' }}</span>
+        </div>
+        <div class="detail-item">
+          <label>State</label>
+          <span>
+            <span class="badge" [class.badge-refund]="order.refundPending" [class.badge-paid]="hasRefundRecord">
+              {{ order.refundPending ? 'Waiting for approval' : getRefundStatusText() }}
+            </span>
+          </span>
+        </div>
+        <div class="detail-item" *ngIf="order.refundRequestedOn">
+          <label>Asked for on</label>
+          <span>{{ order.refundRequestedOn | date:'medium' }}</span>
+        </div>
+        <div class="detail-item" *ngIf="order.refundedOn">
+          <label>Refunded on</label>
+          <span>{{ order.refundedOn | date:'medium' }}</span>
+        </div>
+        <div class="detail-item">
+          <label>Razorpay payment</label>
+          <span>{{ order.razorpayPaymentId || 'not on record' }}</span>
+        </div>
+        <div class="detail-item" *ngIf="order.refundId">
+          <label>Razorpay refund</label>
+          <span>{{ order.refundId }}</span>
+        </div>
+      </div>
+
+      <p class="hint" *ngIf="order.refundRequestedComment">
+        The customer's cancellation said: "{{ order.refundRequestedComment }}"
+      </p>
+
+      <p class="hint warn" *ngIf="order.refundFailureReason">
+        {{ order.refundPending ? 'Why the last attempt did not go through' : 'Note on the refund' }}:
+        {{ order.refundFailureReason }}
+      </p>
+
+      <ng-container *ngIf="order.refundPending">
+        <div class="form-group">
+          <label>Note the customer will read</label>
+          <textarea class="form-input" rows="3" [(ngModel)]="refundComment"
+            placeholder="e.g. Refunded to the payment method you used - the money reaches you within 5-7 working days"></textarea>
+          <p class="hint">
+            Kept on the order's payment row and in the order history, which the customer reads in
+            'My Orders' - keep it plain, and say how the money went back when you are recording a refund
+            you made yourself. Razorpay's own wording and ids stay on this screen.
+          </p>
+        </div>
+
+        <div class="inline-actions">
+          <button class="btn-secondary" [disabled]="isSavingRefund" (click)="markRefunded()"
+            title="Record a refund you made yourself in the Razorpay dashboard">
+            Mark refunded
+          </button>
+          <button class="btn-primary" [disabled]="isSavingRefund" (click)="approveRefund()">
+            {{ isSavingRefund ? 'Sending...' : 'Approve refund' }}
+          </button>
+        </div>
+
+        <p class="hint">
+          Approving gives the whole amount back through Razorpay and records it in the order history,
+          where the customer reads it in 'My Orders' - that note stays plain, because the customer is
+          never shown Razorpay's own wording or ids (those are in the error box above and on the payment
+          row). When the app cannot send it - the payment was taken before it was recorded here, or
+          Razorpay refuses - refund it in the Razorpay dashboard and record that with 'Mark refunded'.
+        </p>
+      </ng-container>
+
+      <div *ngIf="refundMessage" class="form-message" [class.error]="refundError">{{ refundMessage }}</div>
     </div>
 
     <!-- Items - OrderItems keeps one row per physical unit, so every SKU is visible -->
@@ -135,6 +221,160 @@
       </ul>
     </div>
 
+    <!-- Shipment - the parcel the shop team recorded. Recording it here is only this side's record of it
+         (booking is not dispatching): 'Track now' asks the courier and follows what it says, and that is
+         what moves the order and its units along - see the status workflow below. Two kinds of parcel end
+         up here: one booked with a courier aggregator (the AWB its panel gave), and one carried by the
+         shop's own delivery arrangement, which has no panel behind it - the system mints the reference for
+         it and there is nobody to ask where it is, so the card says so and the order is moved along from
+         the status list. An order with no parcel at all leaves this card empty - that is not something
+         missing. -->
+    <div class="detail-card shipment-card" [class.shipment-closed]="shipmentClosed">
+      <h3>Shipment</h3>
+
+      <p class="hint" *ngIf="!hasShipment">
+        No parcel has been recorded for this order yet. Dispatching the order records it in the same step
+        when the team has the consignment number (AWB) that provider gave (see Update status below) - an
+        order that went out without a courier has none, and is simply dispatched. Book the consignment in
+        your provider's own panel and record the AWB it gave you here when there is one.
+      </p>
+
+      <div class="detail-grid" *ngIf="hasShipment">
+        <div class="detail-item">
+          <label>Parcel</label>
+          <span>
+            <span [class]="getShipmentStageBadgeClass(shipment?.stage)">
+              {{ getShipmentStatusLine() }}
+            </span>
+          </span>
+        </div>
+        <div class="detail-item">
+          <label>{{ shipmentHasCourier ? 'AWB' : 'Reference' }}</label>
+          <span>{{ shipment?.awbNumber }}</span>
+        </div>
+        <div class="detail-item">
+          <label>Courier</label>
+          <span>{{ shipment?.courierName || 'not on record' }}</span>
+        </div>
+        <div class="detail-item">
+          <label>Provider</label>
+          <span>{{ shipment?.provider || 'not on record' }}</span>
+        </div>
+        <div class="detail-item" *ngIf="shipment?.freightCharge != null">
+          <label>Freight charged</label>
+          <span>{{ shipment?.freightCharge | currency:'INR' }}</span>
+        </div>
+        <div class="detail-item" *ngIf="getShipmentCourierText()">
+          <label>The courier says</label>
+          <span>{{ getShipmentCourierText() }}</span>
+        </div>
+        <div class="detail-item" *ngIf="shipment?.lastCheckedOn">
+          <label>Last asked</label>
+          <span>{{ shipment?.lastCheckedOn | date:'medium' }}</span>
+        </div>
+        <div class="detail-item" *ngIf="shipment?.deliveredOn">
+          <label>Delivered on</label>
+          <span>{{ shipment?.deliveredOn | date:'medium' }}</span>
+        </div>
+        <div class="detail-item" *ngIf="shipment?.orderStatus">
+          <label>Order moved to</label>
+          <span>{{ shipment?.orderStatus }}</span>
+        </div>
+      </div>
+
+      <p class="hint" *ngIf="hasShipment && shipmentHasCourier">
+        <a *ngIf="shipment?.trackingUrl" [href]="shipment?.trackingUrl" target="_blank" rel="noopener">Open the courier's tracking page</a>
+        <span *ngIf="!shipment?.trackingUrl">The courier has not reported a tracking link yet.</span>
+      </p>
+
+      <p class="hint" *ngIf="hasShipment && shipmentHasCourier && shipmentClosed">
+        The courier is finished with this parcel - there is nothing more to ask it.
+      </p>
+
+      <p class="hint" *ngIf="hasShipment && !shipmentHasCourier">
+        This parcel is carried by the shop's own delivery arrangement ({{ shipment?.provider }}), so there is
+        no courier to ask where it is. Move the order along from the status list below as it moves - the
+        customer sees the order status, and the reference above is what they can quote.
+      </p>
+
+      <div class="form-group">
+        <label>Shipping provider</label>
+        <select class="form-input" [(ngModel)]="shipmentProvider">
+          <option value="">-- Use the provider this shop defaults to --</option>
+          <option *ngFor="let provider of shipmentProviders" [value]="provider.name">
+            {{ provider.displayName }}{{ provider.isDefault ? ' (default)' : '' }}{{ provider.configured ? '' : ' - not set up' }}
+          </option>
+        </select>
+        <p class="hint">
+          The list is what this shop is registered with. A provider marked 'not set up' has no credentials
+          on this server, so the parcel can be recorded against it but its tracking cannot be fetched
+          until they are added.
+        </p>
+        <p class="hint warn" *ngIf="providerLoadError">{{ providerLoadError }}</p>
+      </div>
+
+      <div class="form-group">
+        <label>
+          AWB / tracking number <span class="req" *ngIf="!shipmentProviderMintsAwb">*</span>
+        </label>
+        <input class="form-input" type="text" [(ngModel)]="shipmentAwb" placeholder="e.g. 1234567890" />
+        <p class="hint">
+          Exactly as the provider's panel shows it - this is what the courier is asked about, and what
+          the customer can look up in 'My Orders'.
+        </p>
+        <p class="hint" *ngIf="shipmentProviderMintsAwb">
+          The provider picked has no panel to take a number from, so leaving this box blank is the point:
+          the system gives the parcel the shop's own reference (like 'HC261002-000123') and writes it on the
+          order. Type one in only when the service itself gave you a number.
+        </p>
+      </div>
+
+      <div class="form-group">
+        <label>Courier (optional)</label>
+        <input class="form-input" type="text" [(ngModel)]="shipmentCourier" placeholder="e.g. Delhivery" />
+      </div>
+
+      <div class="form-group">
+        <label>Tracking link (optional)</label>
+        <input class="form-input" type="text" [(ngModel)]="shipmentTrackingUrl"
+          placeholder="e.g. https://shiprocket.co/tracking/1234567890" />
+      </div>
+
+      <div class="form-group">
+        <label>Freight charged by the courier (₹, optional)</label>
+        <input class="form-input" type="number" step="0.01" min="0" [(ngModel)]="shipmentFreight"
+          placeholder="e.g. 78.50" />
+        <p class="hint">
+          What this parcel cost the shop - the courier's own bill, or what the shop's own delivery service
+          charged for it. Kept on the parcel for the books, and never shown to the customer. Leave it blank
+          until it is known: a blank box keeps whatever is already recorded, and 0 is for a parcel that was
+          not billed at all.
+        </p>
+      </div>
+
+      <div class="inline-actions">
+        <button class="btn-secondary" *ngIf="shipmentHasCourier"
+          [disabled]="isTrackingShipment || !hasShipment" (click)="trackShipment()"
+          title="Ask the courier about this parcel now">
+          {{ isTrackingShipment ? 'Asking the courier...' : 'Track now' }}
+        </button>
+        <button class="btn-primary" [disabled]="isSavingShipment" (click)="recordShipment()">
+          {{ isSavingShipment ? 'Saving...' : (hasShipment ? 'Update parcel' : 'Save parcel') }}
+        </button>
+      </div>
+
+      <p class="hint">
+        Dispatching the order (Update status below) already records the parcel with its provider and AWB,
+        when the team has that number; this card is for recording or correcting one afterwards, including
+        what the courier billed for it. Saving here only records the parcel - the order is not moved by it
+        - and it is written to the order history. 'Track now' is what asks the courier: when it reports
+        the parcel is on its way (or delivered, or coming back), the order and its units follow, as far as
+        the order's own lifecycle allows.
+      </p>
+
+      <div *ngIf="shipmentMessage" class="form-message" [class.error]="shipmentError">{{ shipmentMessage }}</div>
+    </div>
+
     <!-- Status workflow -->
     <div class="detail-card">
       <h3>Update status</h3>
@@ -151,6 +391,63 @@
             <option *ngFor="let status of order.availableStatuses" [ngValue]="status.statusId">{{ status.status }}</option>
           </select>
         </div>
+
+        <!-- Shipped is the step that also asks about the parcel: which provider it went out with, the
+             consignment number that provider gave (or a blank box, for a provider that gives the parcel a
+             reference itself - the shop's own delivery service), and what that service billed for it. None
+             of it is required - an order dispatched with no parcel at all is simply dispatched, with
+             nothing to track - and everything typed here is recorded with the move, against the provider
+             picked (the same list the Shipment card offers, from the API's registry). -->
+        <ng-container *ngIf="isShippedMove">
+          <div class="form-group">
+            <label>Shipping provider</label>
+            <select class="form-input" [(ngModel)]="statusProvider">
+              <option value="">-- Use the provider this shop defaults to --</option>
+              <option *ngFor="let provider of shipmentProviders" [value]="provider.name">
+                {{ provider.displayName }}{{ provider.isDefault ? ' (default)' : '' }}{{ provider.configured ? '' : ' - not set up' }}
+              </option>
+            </select>
+            <p class="hint">
+              The provider this parcel goes out with: its own integration is what fetches the tracking from
+              here on, where there is one to fetch. Pick the shop's own courier service when nothing is
+              booked with an aggregator - it has no panel, so the system gives the parcel a reference of its
+              own. One marked 'not set up' has no credentials on this server yet, so its tracking will say
+              so until they are added.
+            </p>
+            <p class="hint warn" *ngIf="providerLoadError">{{ providerLoadError }}</p>
+          </div>
+
+          <div class="form-group">
+            <label>Consignment number (AWB, optional)</label>
+            <input class="form-input" type="text" [(ngModel)]="statusAwb" placeholder="e.g. 1234567890" />
+            <p class="hint">
+              The number the provider gave this parcel. It is written on the order with the status, and
+              the courier's status is asked with it from then on. Leave it blank when there is no number to
+              type - handed over in person, or given to a delivery service this shop is not set up with:
+              pick that service as the provider above and the system gives the parcel a reference of its
+              own, or pick the courier's aggregator and the order is simply dispatched, with nothing to
+              track. If a parcel turns out to exist after all, it can be recorded on the Shipment card.
+            </p>
+          </div>
+
+          <div class="form-group">
+            <label>Courier (optional)</label>
+            <input class="form-input" type="text" [(ngModel)]="statusCourier" placeholder="e.g. Delhivery" />
+          </div>
+
+          <div class="form-group">
+            <label>Freight charged by the courier (₹, optional)</label>
+            <input class="form-input" type="number" step="0.01" min="0" [(ngModel)]="statusFreight"
+              placeholder="e.g. 78.50" />
+            <p class="hint">
+              What the provider billed for this parcel, when the team already has it - kept on the parcel for
+              the books and never shown to the customer. It belongs to the parcel this move records, so it
+              needs one: a consignment number above, or the provider that gives the parcel a reference of
+              its own. It can also be filled in later from the Shipment card, so dispatching is not held up
+              for it.
+            </p>
+          </div>
+        </ng-container>
 
         <div class="form-group">
           <label>
@@ -174,9 +471,11 @@
       <div *ngIf="actionMessage" class="form-message" [class.error]="actionError">{{ actionMessage }}</div>
 
       <p class="hint">
-        Dispatching and delivering move the units of the order along with it. Cancelling puts the units
-        the shop still holds back into the available stock; if the order was already paid, refund it in
-        the Razorpay dashboard.
+        Dispatching and delivering move the units of the order along with it, and dispatching is also what
+        records the parcel (the provider and the consignment number it gave), when the order went out with
+        one - the Shipment card and 'Track now' work from it. Cancelling puts the units the shop still
+        holds back into the available stock; cancelling a paid order only asks for the money back - its
+        refund is approved in the Refund card above.
       </p>
     </div>
   </ng-container>

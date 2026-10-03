@@ -245,6 +245,18 @@ public class AdminController : ControllerBase
         return Ok(statuses);
     }
 
+    /// <summary>
+    /// Moves an order to the next step of its lifecycle. Moving it to Shipped also records its parcel in
+    /// the same action, when there is one: the body carries the provider the parcel was booked with
+    /// ('provider'), the consignment number it gave ('awbNumber') and what it billed for the parcel
+    /// ('freightCharge', optional - the books' own figure, never shown to the customer), and they are
+    /// recorded against the order, so every later courier call goes through that provider's own adapter
+    /// (see HC.Business.Shipping). None of them is required: an order dispatched without a courier
+    /// (handed over in person, or given to a delivery service this shop has no integration with) simply
+    /// moves to Shipped, with no parcel recorded and nothing to track. An unknown provider, a freight
+    /// charge with no consignment number to keep it on, or a consignment the provider would not accept,
+    /// is refused and nothing is saved.
+    /// </summary>
     [Authorize(Policy = AdminPolicies.Orders)]
     [HttpPost("orders/{id}/status")]
     public async Task<ActionResult> UpdateOrderStatus(long id, [FromBody] AdminOrderStatusUpdateRequest request)
@@ -254,6 +266,94 @@ public class AdminController : ControllerBase
             return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
 
         var result = await _adminDashboardService.UpdateOrderStatusAsync(id, request, userId);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Approves the refund a cancelled paid order is waiting for: this is what sends the money back
+    /// through Razorpay. Only the refund still recorded as owed on the order can be approved, so a
+    /// second call cannot refund twice; when the app cannot send it (no captured payment on record, or
+    /// Razorpay refuses), the message says so and the team refunds it in the Razorpay dashboard and
+    /// records it with 'mark-refunded'.
+    /// </summary>
+    [Authorize(Policy = AdminPolicies.Orders)]
+    [HttpPost("orders/{id}/approve-refund")]
+    public async Task<ActionResult> ApproveOrderRefund(long id)
+    {
+        var userId = CurrentAdminUserId;
+        if (userId <= 0)
+            return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
+
+        var result = await _adminDashboardService.ApproveOrderRefundAsync(id, userId);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Records that the refund went out in the Razorpay dashboard instead of through the app, so the
+    /// order stops being flagged as owing the money.
+    /// </summary>
+    [Authorize(Policy = AdminPolicies.Orders)]
+    [HttpPost("orders/{id}/mark-refunded")]
+    public async Task<ActionResult> MarkOrderRefunded(long id, [FromBody] AdminOrderRefundRequest? request)
+    {
+        var userId = CurrentAdminUserId;
+        if (userId <= 0)
+            return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
+
+        var result = await _adminDashboardService.MarkOrderRefundedAsync(id, request?.Comment, userId);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// The shipping providers this shop is set up with, and whether each is actually configured - the
+    /// provider list of the order screen's Shipment card. It comes from the provider registry
+    /// (see HC.Business.Shipping), so the list is what is really wired up and nothing has to be
+    /// hard-coded in the admin app.
+    /// </summary>
+    [Authorize(Policy = AdminPolicies.Orders)]
+    [HttpGet("shipment-providers")]
+    public async Task<ActionResult> GetShipmentProviders()
+    {
+        var providers = await _adminDashboardService.GetShipmentProvidersAsync();
+        return Ok(providers);
+    }
+
+    /// <summary>
+    /// Records the parcel the shop team booked in the provider's own panel: the AWB, plus the courier
+    /// and tracking link when they were given them, and what the courier billed for it (the shop's own
+    /// figure, kept for the books and never shown to the customer; blank leaves what is recorded).
+    /// It never moves the order - booking a parcel is not dispatching it, and the order follows only the
+    /// courier's own reports ('track-shipment' below). The AWB is written to the order's history, so the
+    /// timeline says who recorded the parcel and when.
+    /// </summary>
+    [Authorize(Policy = AdminPolicies.Orders)]
+    [HttpPost("orders/{id}/shipment")]
+    public async Task<ActionResult> SaveOrderShipment(long id, [FromBody] SaveOrderShipmentRequest request)
+    {
+        var userId = CurrentAdminUserId;
+        if (userId <= 0)
+            return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
+
+        var result = await _adminDashboardService.SaveOrderShipmentAsync(id, request, userId);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// 'Track now' on the Shipment card: asks the courier about this order's parcel right now and writes
+    /// down what it said, moving the order - and its units - along when the courier's own status allows
+    /// it. Unlike the customer-facing pull this is never throttled, because the shop team asked on
+    /// purpose; a courier that cannot be reached leaves the order as it was, with the reason in the
+    /// answer.
+    /// </summary>
+    [Authorize(Policy = AdminPolicies.Orders)]
+    [HttpPost("orders/{id}/track-shipment")]
+    public async Task<ActionResult> TrackOrderShipment(long id)
+    {
+        var userId = CurrentAdminUserId;
+        if (userId <= 0)
+            return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
+
+        var result = await _adminDashboardService.TrackOrderShipmentAsync(id, userId);
         return Ok(result);
     }
 

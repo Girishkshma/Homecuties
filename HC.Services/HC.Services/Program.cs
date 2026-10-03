@@ -1,5 +1,6 @@
 using HC.Business;
 using HC.Business.Security;
+using HC.Business.Shipping;
 using HC.Data;
 using HC.Services;
 using HC.Services.Authorization;
@@ -65,6 +66,44 @@ builder.Services.AddScoped<IWishListService, WishListService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IAdminAuthService, AdminAuthService>();
 builder.Services.AddScoped<IAdminDashboardService, AdminDashboardService>();
+
+// PIN code lookup: the address forms send a 6-digit PIN code here and get back the city, the state and
+// the areas it covers, so the customer does not have to type them ('Customer/GetPincode'). The base
+// address comes from configuration ('Pincode:BaseUrl') so a mirror or a paid provider can take over
+// without a rebuild, and the timeout is short because a customer is waiting in front of the field.
+var pincodeBaseUrl = builder.Configuration["Pincode:BaseUrl"] ?? "https://api.postalpincode.in/";
+builder.Services.AddHttpClient<IPincodeService, PincodeService>(client =>
+{
+    client.BaseAddress = new Uri(pincodeBaseUrl);
+    client.Timeout = TimeSpan.FromSeconds(8);
+});
+
+// Shipping: the providers that carry the parcels of an order. One adapter per provider, registered here
+// and resolved through IShipmentProviderRegistry so nothing above the adapters names one of them - a
+// second provider is one more adapter and one more line here, no screen, no order rule and no database
+// column changes. Which provider is used is configuration ('Shipping:DefaultProvider'), and a parcel
+// remembers the one it was booked with ('OrderShipments.Provider'), so two providers can be used side by
+// side.
+//
+// The two registered are the two kinds the shop has: Shiprocket, an aggregator whose panel books the
+// consignment and hands back the AWB, and Custom - the service the shop arranges itself (a parcel handed
+// over in person, or given to a local courier dealt with by phone). The second has no panel, no
+// credentials and no tracking behind it, so the reference written on its parcels is minted here and it is
+// never asked where a parcel is (see CustomShipmentProvider).
+builder.Services.AddHttpClient<IShipmentProvider, ShiprocketShipmentProvider>(client =>
+{
+    // A customer is watching 'My Orders' while this runs, so a slow courier must not hold the page:
+    // the adapter reports the failure and the page carries on (the same rule the PIN code lookup keeps).
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+
+// The shop's own service, registered second: it holds no state and talks to nobody, so it is a singleton
+// (and always 'configured' - there is nothing to set up). Registered after the aggregator so that the
+// 'first provider that is configured' fallback still favours the shop's courier when no default is named
+// in configuration, which is what a shop that simply has not set 'Shipping:DefaultProvider' expects.
+builder.Services.AddSingleton<IShipmentProvider, CustomShipmentProvider>();
+builder.Services.AddScoped<IShipmentProviderRegistry, ShipmentProviderRegistry>();
+builder.Services.AddScoped<IShipmentTrackingService, ShipmentTrackingService>();
 
 // Configure CORS
 builder.Services.AddCors(options =>
@@ -251,6 +290,69 @@ if (string.IsNullOrWhiteSpace(builder.Configuration["Razorpay:WebhookSecret"]))
 else
 {
     app.Logger.LogInformation("Razorpay webhook endpoint: POST /api/Order/Webhook (signature validation on)");
+}
+
+// Log which shipping providers the shop's parcels go out with and whether they can actually be used:
+// without credentials no screen can track a parcel, and that has to be visible at startup rather than
+// discovered by a customer tapping 'Track parcel'. A provider that carries parcels without any tracking
+// behind it says so too - it is not misconfigured, it is simply not something to ask about.
+using (var shippingScope = app.Services.CreateScope())
+{
+    var shippingRegistry = shippingScope.ServiceProvider.GetRequiredService<IShipmentProviderRegistry>();
+
+    foreach (var provider in shippingRegistry.Describe())
+    {
+        // A provider's id is what a parcel is recorded with ('OrderShipments.Provider') and how its
+        // adapter is found again when the courier is asked, so one that no longer fits that column
+        // would quietly track through the default provider instead - asking the wrong aggregator about
+        // the AWB. Worth shouting about at startup rather than at the first customer's question.
+        if (provider.Name.Length > ShipmentTrackingService.ProviderMaxLength)
+        {
+            app.Logger.LogError(
+                "Shipping provider '{Provider}' has an id longer than the {MaxLength} characters " +
+                "'OrderShipments.Provider' can hold, so parcels booked with it would be tracked through " +
+                "the default provider instead. Give the adapter a shorter 'Name' (or widen the column) " +
+                "before any parcel is booked with it.",
+                provider.Name,
+                ShipmentTrackingService.ProviderMaxLength);
+        }
+
+        if (provider.Configured && !provider.ReportsTracking)
+        {
+            app.Logger.LogInformation(
+                "Shipping provider '{Provider}' is ready{DefaultMarker}: it carries parcels without a " +
+                "courier behind it, so the shop mints each parcel's reference itself and the order is " +
+                "moved along by hand.",
+                provider.Name,
+                provider.IsDefault ? " [default]" : string.Empty);
+        }
+        else if (provider.Configured)
+        {
+            app.Logger.LogInformation(
+                "Shipping provider '{Provider}' is ready{DefaultMarker}: {ApiBaseUrl} (tracking '{TrackingPath}').",
+                provider.Name,
+                provider.IsDefault ? " [default]" : string.Empty,
+                provider.ApiBaseUrl,
+                provider.TrackingPath);
+        }
+        else
+        {
+            app.Logger.LogWarning(
+                "Shipping provider '{Provider}' is registered but NOT configured, so parcels recorded " +
+                "against it cannot be tracked. Set its credentials (e.g. 'Shiprocket:Email' / " +
+                "'Shiprocket:Password', or the environment variables 'Shiprocket__Email' / " +
+                "'Shiprocket__Password') in the git-ignored 'appsettings.Local.json'.",
+                provider.Name);
+        }
+    }
+
+    // How long a parcel is left alone between two courier lookups: 'My Orders' refreshes the parcels
+    // whose last check is older than this, so opening the page is not itself a courier call.
+    app.Logger.LogInformation(
+        "Shipping pull throttle: {ThrottleMinutes} minute(s) between courier lookups of the same " +
+        "parcel (configure '{ThrottleKey}').",
+        builder.Configuration[ShipmentTrackingService.SyncThrottleKey] ?? "15",
+        ShipmentTrackingService.SyncThrottleKey);
 }
 
 // Configure the HTTP request pipeline.

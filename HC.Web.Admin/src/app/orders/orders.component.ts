@@ -18,6 +18,13 @@ export class OrdersComponent implements OnInit {
   searchTerm = '';
   statusFilter = 0;
 
+  /**
+   * True to show only the orders that are owed money back - a paid order the customer cancelled is
+   * waiting for the shop team to approve its refund (see RazorpayRefunds). That is the queue the
+   * list is worked from, so it gets its own filter beside the status one.
+   */
+  refundsOnly = false;
+
   // Pagination
   pageSize = 10;
   currentPage = 1;
@@ -54,13 +61,16 @@ export class OrdersComponent implements OnInit {
 
     this.filteredOrders = this.orders.filter(o => {
       const matchesStatus = !this.statusFilter || o.statusId === this.statusFilter;
+      const matchesRefund = !this.refundsOnly || o.refundPending;
       const matchesTerm =
         !term ||
         (o.orderNumber || '').toLowerCase().includes(term) ||
         (o.customerName || '').toLowerCase().includes(term) ||
+        (o.customerEmail || '').toLowerCase().includes(term) ||
+        String(o.customerId ?? '').includes(term) ||
         (o.status || '').toLowerCase().includes(term);
 
-      return matchesStatus && matchesTerm;
+      return matchesStatus && matchesRefund && matchesTerm;
     });
 
     this.currentPage = 1;
@@ -73,7 +83,13 @@ export class OrdersComponent implements OnInit {
   clearSearch(): void {
     this.searchTerm = '';
     this.statusFilter = 0;
+    this.refundsOnly = false;
     this.applyFilter();
+  }
+
+  /** How many orders in the full list are owed money back - the badge on the 'Refunds to approve' filter. */
+  get pendingRefundCount(): number {
+    return this.orders.filter(o => o.refundPending).length;
   }
 
   /**

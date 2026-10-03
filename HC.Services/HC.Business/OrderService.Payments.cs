@@ -21,14 +21,16 @@ public partial class OrderService : IOrderService
     // Razorpay order/payment statuses that matter here.
     private const string RazorpayStatusAuthorized = "authorized";
     private const string RazorpayStatusCaptured = "captured";
+    private const string RazorpayStatusFailed = "failed";
 
-    // Orders.OrderStatusID: 1 = Pending (set when the order is placed), 2 = Confirmed,
-    // 5 = Cancelled (set when the customer cancels from 'My Orders').
-    private const short OrderStatusPending = 1;
-    private const short OrderStatusConfirmed = 2;
-    private const short OrderStatusShipped = 3;
-    private const short OrderStatusDelivered = 4;
-    private const short OrderStatusCancelled = SkuAvailability.CancelledOrderStatusId;
+    // Orders.OrderStatusID: 1 = Pending (set when the order is placed), 2 = Confirmed, 3 = Shipped,
+    // 4 = Delivered, 5 = Cancelled (set when the order is cancelled from 'My Orders' or by the shop
+    // team). The values and the rules that tie them together live in OrderStatusFlow.
+    private const short OrderStatusPending = OrderStatusFlow.Pending;
+    private const short OrderStatusConfirmed = OrderStatusFlow.Confirmed;
+    private const short OrderStatusShipped = OrderStatusFlow.Shipped;
+    private const short OrderStatusDelivered = OrderStatusFlow.Delivered;
+    private const short OrderStatusCancelled = OrderStatusFlow.Cancelled;
 
     /// <summary>
     /// Shared client for Razorpay's REST API. The Authorization header is set per request (never on
@@ -118,16 +120,27 @@ public partial class OrderService : IOrderService
             return PaymentError("Payment verification failed - the payment does not belong to this order.");
         }
 
+        var status = ReadString(payment, "status") ?? string.Empty;
+
         if (ReadAmount(payment) < expectedAmountInPaise)
         {
             _logger.LogWarning(
                 "Payment verification failed: paid {Paid} paise but order {OrderId} requires {Expected} paise.",
                 ReadAmount(payment), request.OrderId, expectedAmountInPaise);
 
+            // Written down with the amount that was really taken: this is the payment the shop team has
+            // to refund by hand, and Razorpay is the only place that knows the amount.
+            await SavePaymentOutcomeAsync(
+                order,
+                request.RazorpayOrderId,
+                request.RazorpayPaymentId,
+                OrderPaymentStatus.FromRazorpay(status),
+                ReadAmount(payment),
+                failureCode: status,
+                failureReason: $"Razorpay took {ReadAmount(payment)} paise but the order needs {expectedAmountInPaise} paise.");
+
             return PaymentError("Payment verification failed - the amount paid does not match the order total.");
         }
-
-        var status = ReadString(payment, "status") ?? string.Empty;
 
         // 5. Capture when the payment is only authorised, then require "captured".
         if (string.Equals(status, RazorpayStatusAuthorized, StringComparison.Ordinal))
@@ -139,6 +152,17 @@ public partial class OrderService : IOrderService
                     "Capture failed for payment {PaymentId} (order {OrderId}): {Error}",
                     request.RazorpayPaymentId, request.OrderId, captureError);
 
+                // The bank is holding the money, so the attempt is kept as 'Authorized' together with
+                // the reason the capture failed - the shop team has to decide between a retry and a refund.
+                await SavePaymentOutcomeAsync(
+                    order,
+                    request.RazorpayOrderId,
+                    request.RazorpayPaymentId,
+                    OrderPaymentStatus.Authorized,
+                    expectedAmountInPaise,
+                    failureCode: "capture_failed",
+                    failureReason: captureError);
+
                 return PaymentError("The payment could not be captured. Please contact support - you have not been charged twice.");
             }
 
@@ -148,11 +172,34 @@ public partial class OrderService : IOrderService
         if (!string.Equals(status, RazorpayStatusCaptured, StringComparison.Ordinal))
         {
             _logger.LogWarning("Payment for order {OrderId} is in status '{Status}' - not confirming.", request.OrderId, status);
+
+            // The order stays unpaid and the customer may pay again ('Pay now' starts a fresh attempt),
+            // so what Razorpay answered is written down instead of being left to guesswork.
+            await SavePaymentOutcomeAsync(
+                order,
+                request.RazorpayOrderId,
+                request.RazorpayPaymentId,
+                OrderPaymentStatus.FromRazorpay(status),
+                expectedAmountInPaise,
+                failureCode: status,
+                failureReason: string.Equals(status, RazorpayStatusFailed, StringComparison.Ordinal)
+                    ? "Razorpay refused the payment."
+                    : null);
+
             return PaymentError($"The payment is not complete yet (status: {status}). Please contact support if money was debited.");
         }
 
-        // 6. The money is captured - confirm the order.
-        await ConfirmOrderAsync(order, $"Payment captured. Razorpay Payment ID: {request.RazorpayPaymentId}");
+        // 6. The money is captured: write the payment down first, then confirm the order.
+        await SavePaymentOutcomeAsync(
+            order,
+            request.RazorpayOrderId,
+            request.RazorpayPaymentId,
+            OrderPaymentStatus.Captured,
+            expectedAmountInPaise);
+
+        // The gateway's payment id stays on the payment row (OrderPayments.RazorpayPaymentId) and in the
+        // log; the order history is read by the customer in 'My Orders', so it only says the money came in.
+        await ConfirmOrderAsync(order, "Payment captured.");
 
         return new ResultDto { Result = 1, Messages = new[] { "Payment verified successfully." } };
     }
@@ -333,6 +380,54 @@ public partial class OrderService : IOrderService
             var paymentId = ReadString(paymentEntity, "id");
             var razorpayOrderId = ReadString(paymentEntity, "order_id") ?? ReadString(orderEntity, "id");
 
+            // Our own order id travels in the notes set when the Razorpay order was created.
+            var orderIdNote = ReadOrderIdNote(orderEntity) ?? ReadOrderIdNote(paymentEntity);
+            long.TryParse(orderIdNote, out var orderId);
+
+            // A refused attempt is something only the webhook knows: the customer may have closed the
+            // browser before Checkout said why. It is written down so the order can be paid for again
+            // and so support can answer 'why did my card fail?'. This is handled before the
+            // 'captured only' rule below, which is about confirming orders rather than about money.
+            if (string.Equals(paymentStatus, RazorpayStatusFailed, StringComparison.Ordinal))
+            {
+                if (orderId <= 0)
+                {
+                    _logger.LogWarning(
+                        "Webhook '{Event}' could not be matched to an order (Razorpay order '{RazorpayOrderId}').",
+                        eventName, razorpayOrderId);
+
+                    return new ResultDto { Result = 1, Messages = new[] { "No matching order." } };
+                }
+
+                var failedOrder = await _context.Orders
+                    .Include(o => o.OrderItems)
+                    .FirstOrDefaultAsync(o => o.OrderId == orderId);
+
+                if (failedOrder == null || failedOrder.OrderStatusId != OrderStatusPending)
+                {
+                    _logger.LogInformation(
+                        "Webhook '{Event}' for payment {PaymentId} ignored - order {OrderId} is not awaiting payment.",
+                        eventName, paymentId, orderId);
+
+                    return new ResultDto { Result = 1, Messages = new[] { $"Ignored '{eventName}'." } };
+                }
+
+                await SavePaymentOutcomeAsync(
+                    failedOrder,
+                    razorpayOrderId,
+                    paymentId,
+                    OrderPaymentStatus.Failed,
+                    ReadAmount(paymentEntity),
+                    failureCode: ReadString(paymentEntity, "error_code"),
+                    failureReason: ReadString(paymentEntity, "error_description") ?? $"Razorpay reported '{eventName}'.");
+
+                _logger.LogInformation(
+                    "Payment of order {OrderId} failed per webhook '{Event}' - the order stays pending.",
+                    orderId, eventName);
+
+                return new ResultDto { Result = 1, Messages = new[] { $"Recorded the failure of '{eventName}'." } };
+            }
+
             // Only a captured payment may confirm an order (an uncaptured one is auto-refunded).
             if (!string.Equals(paymentStatus, RazorpayStatusCaptured, StringComparison.Ordinal))
             {
@@ -342,10 +437,7 @@ public partial class OrderService : IOrderService
                 return new ResultDto { Result = 1, Messages = new[] { $"Ignored '{eventName}'." } };
             }
 
-            // Our own order id travels in the notes set when the Razorpay order was created.
-            var orderIdNote = ReadOrderIdNote(orderEntity) ?? ReadOrderIdNote(paymentEntity);
-
-            if (!long.TryParse(orderIdNote, out var orderId))
+            if (orderId <= 0)
             {
                 _logger.LogWarning(
                     "Webhook '{Event}' could not be matched to an order (Razorpay order '{RazorpayOrderId}').",
@@ -365,7 +457,30 @@ public partial class OrderService : IOrderService
             if (order.OrderStatusId == OrderStatusConfirmed)
                 return new ResultDto { Result = 1, Messages = new[] { "Order already confirmed." } };
 
-            await ConfirmOrderAsync(order, $"Payment captured (webhook '{eventName}'). Razorpay Payment ID: {paymentId}");
+            // The status chain decides whether this payment may still confirm the order. A report that
+            // arrives late for an order that has since been cancelled (its units are back on sale and
+            // its money was given back) or shipped must not drag the order backwards - the payment is
+            // logged so the shop team can look at the Razorpay dashboard instead.
+            if (!OrderStatusFlow.CanMove(order.OrderStatusId, OrderStatusConfirmed))
+            {
+                _logger.LogWarning(
+                    "Webhook '{Event}' was ignored for order {OrderId}: its status is {Status} and a payment " +
+                    "can no longer confirm it (Razorpay order '{RazorpayOrderId}', payment '{PaymentId}').",
+                    eventName, orderId, order.OrderStatusId, razorpayOrderId ?? "n/a", paymentId ?? "n/a");
+
+                return new ResultDto { Result = 1, Messages = new[] { "Order is no longer awaiting payment." } };
+            }
+
+            await SavePaymentOutcomeAsync(
+                order,
+                razorpayOrderId,
+                paymentId,
+                OrderPaymentStatus.Captured,
+                ReadAmount(paymentEntity));
+
+            // The payment id is on the payment row and in the log below - the history only tells the
+            // customer the money arrived.
+            await ConfirmOrderAsync(order, "Payment captured.");
 
             _logger.LogInformation("Order {OrderId} confirmed from webhook '{Event}'.", orderId, eventName);
             return new ResultDto { Result = 1, Messages = new[] { "Order confirmed." } };

@@ -19,6 +19,10 @@ import {
   AdminOrderDetail,
   AdminOrderStatusOption,
   AdminOrderStatusUpdateRequest,
+  AdminOrderRefundRequest,
+  AdminOrderShipment,
+  AdminShipmentProvider,
+  AdminSaveOrderShipmentRequest,
   AdminCustomer,
   AdminCustomerDetail,
   AdminPartner,
@@ -163,6 +167,62 @@ export class AdminService {
 
   updateOrderStatus(id: number, request: AdminOrderStatusUpdateRequest, userId: number): Observable<AdminResult> {
     return this.http.post<AdminResult>(`${this.apiUrl}/orders/${id}/status?userId=${userId}`, request, {
+      headers: this.getAuthHeaders()
+    });
+  }
+
+  /**
+   * Approves the refund a cancelled paid order is waiting for: the API sends the money back through
+   * Razorpay and writes it into the order history. The message coming back says what happened; when
+   * the refund has to be made by hand (nothing captured on record, or Razorpay refused) it says so and
+   * 'markOrderRefunded' closes it.
+   */
+  approveOrderRefund(id: number, userId: number): Observable<AdminResult> {
+    return this.http.post<AdminResult>(`${this.apiUrl}/orders/${id}/approve-refund?userId=${userId}`, null, {
+      headers: this.getAuthHeaders()
+    });
+  }
+
+  /**
+   * Records that the refund went out in the Razorpay dashboard instead of through the app, so the
+   * order stops being flagged as owing the money. The note is kept on the order's payment row.
+   */
+  markOrderRefunded(id: number, request: AdminOrderRefundRequest, userId: number): Observable<AdminResult> {
+    return this.http.post<AdminResult>(`${this.apiUrl}/orders/${id}/mark-refunded?userId=${userId}`, request, {
+      headers: this.getAuthHeaders()
+    });
+  }
+
+  /**
+   * The shipping providers this shop is set up with, for the Shipment card's provider picker. It comes
+   * from the API's provider registry, so nothing about providers is hard-coded here; an entry whose
+   * 'configured' is false is registered but has no credentials, and the card disables it.
+   */
+  getShipmentProviders(): Observable<AdminShipmentProvider[]> {
+    return this.http.get<AdminShipmentProvider[]>(`${this.apiUrl}/shipment-providers`, {
+      headers: this.getAuthHeaders()
+    });
+  }
+
+  /**
+   * Records the parcel the team booked in the provider's own panel (the AWB, and the courier and link
+   * when they have them). The order is not moved by this - booking is not dispatching - and the answer
+   * is the parcel card again, with the message saying what was written down.
+   */
+  saveOrderShipment(id: number, request: AdminSaveOrderShipmentRequest, userId: number): Observable<AdminOrderShipment> {
+    return this.http.post<AdminOrderShipment>(`${this.apiUrl}/orders/${id}/shipment?userId=${userId}`, request, {
+      headers: this.getAuthHeaders()
+    });
+  }
+
+  /**
+   * 'Track now': asks the courier about this order's parcel immediately and records what it said,
+   * moving the order (and its units) along when the courier's own status allows it. Never throttled,
+   * because the shop team asked on purpose; an unreachable courier comes back as a message, with the
+   * order left as it was.
+   */
+  trackOrderShipment(id: number, userId: number): Observable<AdminOrderShipment> {
+    return this.http.post<AdminOrderShipment>(`${this.apiUrl}/orders/${id}/track-shipment?userId=${userId}`, null, {
       headers: this.getAuthHeaders()
     });
   }

@@ -218,6 +218,44 @@
     background: #e9ecef;
     color: #6c757d;
   }
+
+  /* Money owed back on a cancelled order (see RazorpayRefunds): orange, because it needs the shop
+     team to act - approve the refund, or record the one made in the Razorpay dashboard. */
+  &.badge-refund {
+    background: #ffe8cc;
+    color: #8a4b08;
+  }
+
+  /* Where the courier says a parcel is (ShipmentStage of the order's shipment). Booked / In transit /
+     Out for delivery are the parcel on its way; Delivered and Cancelled reuse the colours of those
+     order steps above, and an unknown status stays the plain grey. */
+  &.badge-shipment-booked {
+    background: #e9ecef;
+    color: #495057;
+  }
+
+  &.badge-shipment-transit {
+    background: #cff4fc;
+    color: #055160;
+  }
+
+  &.badge-shipment-out {
+    background: #cfe2ff;
+    color: #084298;
+  }
+
+  /* The courier could not deliver it and will try again - the shop team may need to ring the customer. */
+  &.badge-shipment-undelivered {
+    background: #fff3cd;
+    color: #856404;
+  }
+
+  /* Coming back to the shop: the parcel is neither delivered nor lost, so it is not the money-owed
+     orange and not the cancelled red - it is a state of its own. */
+  &.badge-shipment-return {
+    background: #e2e3e5;
+    color: #41464b;
+  }
 }
 
 /* ---- Action Buttons in Tables ---- */

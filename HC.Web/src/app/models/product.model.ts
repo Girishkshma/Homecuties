@@ -65,6 +65,26 @@ export interface Customer {
   IsGuest: boolean;
 }
 
+/**
+ * One entry in the signed-in customer's address book ('api/Customer/GetAddresses').
+ * Checkout offers these as the address an order is shipped to, and - separately - as the address it
+ * is billed to, so a customer can store several addresses instead of typing one per order.
+ */
+export interface CustomerAddress {
+  AddressId: number;
+  /** The customer's own label for it ("Home", "Office", ...). */
+  AddressTitle: string;
+  ContactName: string;
+  AddressLine1: string;
+  AddressLine2: string;
+  City: string;
+  State: string;
+  Country: string;
+  Zipcode: string;
+  MobileNumber: string;
+  EmailId: string | null;
+}
+
 export interface HomeStats {
   ProductCount: number;
   CategoryCount: number;

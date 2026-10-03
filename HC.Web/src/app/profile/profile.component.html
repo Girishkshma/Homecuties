@@ -1,0 +1,232 @@
+<div class="profile-page">
+  <div class="container">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a routerLink="/">Home</a></li>
+        <li class="breadcrumb-item active">My Profile</li>
+      </ol>
+    </nav>
+
+    <h2 class="section-title">My Profile</h2>
+
+    <!-- Action result -->
+    <div *ngIf="notice" class="alert-custom alert-success">
+      <i class="bi bi-check-circle-fill me-2"></i>{{ notice }}
+    </div>
+
+    <!-- Error -->
+    <div *ngIf="error" class="alert-custom alert-error">
+      <i class="bi bi-exclamation-circle me-2"></i>{{ error }}
+    </div>
+
+    <div class="profile-grid">
+      <!-- Account details -->
+      <div class="profile-card">
+        <h5 class="card-title"><i class="bi bi-person-circle me-2"></i>Account Details</h5>
+
+        <div class="profile-field">
+          <span class="profile-field-label">Name</span>
+          <span class="profile-field-value">{{ fullName() || '-' }}</span>
+        </div>
+        <div class="profile-field">
+          <span class="profile-field-label">Email</span>
+          <span class="profile-field-value">{{ customer?.EmailId || '-' }}</span>
+        </div>
+        <div class="profile-field">
+          <span class="profile-field-label">Mobile</span>
+          <span class="profile-field-value">{{ customer?.MobileNumber || '-' }}</span>
+        </div>
+
+        <button type="button" class="btn btn-outline-primary w-100 mt-3" (click)="goToOrders()">
+          <i class="bi bi-receipt me-1"></i> My Orders
+        </button>
+      </div>
+
+      <!-- Address book -->
+      <div class="profile-card">
+        <div class="profile-card-head">
+          <h5 class="card-title mb-0"><i class="bi bi-geo-alt me-2"></i>My Addresses</h5>
+          <button type="button" class="btn btn-primary btn-sm" *ngIf="!showForm && !loading" (click)="startAddAddress()">
+            <i class="bi bi-plus-lg me-1"></i> Add Address
+          </button>
+        </div>
+
+        <p class="profile-hint">
+          These addresses are offered to you in checkout - both as the address your order is delivered
+          to and as the one it is billed to. Keep as many as you need: home, office, a relative's place.
+        </p>
+
+        <div *ngIf="loading" class="loading-state">
+          <div class="spinner"></div>
+          <p>Loading your addresses...</p>
+        </div>
+
+        <div *ngIf="!loading && addresses.length === 0 && !showForm" class="empty-state address-empty">
+          <div class="empty-icon">
+            <i class="bi bi-geo-alt"></i>
+          </div>
+          <h4>No saved addresses</h4>
+          <p>Save an address once and pick it at checkout instead of typing it out again.</p>
+          <button type="button" class="btn btn-primary" (click)="startAddAddress()">
+            <i class="bi bi-plus-lg me-1"></i> Add Address
+          </button>
+        </div>
+
+        <div class="profile-addresses" *ngIf="!loading">
+          <div
+            class="profile-address"
+            *ngFor="let address of addresses"
+            [class.address-busy]="busyAddressId === address.AddressId"
+          >
+            <div class="address-choice-head">
+              <span class="address-label">{{ address.AddressTitle }}</span>
+              <span class="address-name" *ngIf="address.ContactName">{{ address.ContactName }}</span>
+            </div>
+
+            <p class="address-line">{{ address.AddressLine1 }}</p>
+            <p class="address-line" *ngIf="address.AddressLine2">{{ address.AddressLine2 }}</p>
+            <p class="address-line">{{ address.City }}, {{ address.State }} - {{ address.Zipcode }}</p>
+            <p class="address-line" *ngIf="address.MobileNumber">
+              <i class="bi bi-telephone me-1"></i>{{ address.MobileNumber }}
+            </p>
+
+            <div class="profile-address-actions">
+              <button type="button" class="btn btn-outline-secondary btn-sm" (click)="startEditAddress(address)">
+                <i class="bi bi-pencil me-1"></i> Edit
+              </button>
+              <button
+                type="button"
+                class="btn btn-outline-danger btn-sm"
+                *ngIf="confirmingAddressId !== address.AddressId"
+                (click)="askToRemove(address)"
+              >
+                <i class="bi bi-trash me-1"></i> Remove
+              </button>
+            </div>
+
+            <div class="address-confirm" *ngIf="confirmingAddressId === address.AddressId">
+              <p>
+                Remove "{{ address.AddressTitle }} - {{ address.AddressLine1 }}"? An address one of your
+                orders was placed with cannot be removed, but it can be edited.
+              </p>
+              <div class="address-confirm-actions">
+                <button type="button" class="btn btn-danger btn-sm" (click)="removeAddress(address)">
+                  <i class="bi bi-trash me-1"></i> Remove Address
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" (click)="dismissRemove()">
+                  Keep It
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Add / edit form -->
+        <form *ngIf="showForm" class="address-form" (ngSubmit)="saveAddress()">
+          <h6>{{ form.AddressId > 0 ? 'Edit address' : 'New address' }}</h6>
+
+          <div *ngIf="formError" class="alert-custom alert-error">
+            <i class="bi bi-exclamation-circle me-2"></i>{{ formError }}
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Label</label>
+              <input class="form-control" [(ngModel)]="form.AddressTitle" name="addressTitle"
+                     placeholder="Home, Office, ..." maxlength="20" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Contact Name</label>
+              <input class="form-control" [(ngModel)]="form.ContactName" name="contactName"
+                     placeholder="Who receives the parcel?" />
+            </div>
+            <div class="col-12">
+              <label class="form-label">Address Line 1 *</label>
+              <input class="form-control" [(ngModel)]="form.AddressLine1" name="addressLine1"
+                     placeholder="House / flat, street" />
+            </div>
+            <div class="col-12">
+              <label class="form-label">Address Line 2</label>
+              <input class="form-control" [(ngModel)]="form.AddressLine2" name="addressLine2"
+                     placeholder="Landmark / area (optional)" />
+            </div>
+            <!-- The PIN code comes first: the city and the state are filled in from it and cannot be typed
+                 into, so the customer types only what a PIN code cannot know (see PincodeService). -->
+            <div class="col-md-4">
+              <label class="form-label">PIN Code *</label>
+              <input class="form-control" [(ngModel)]="form.Zipcode" name="zipcode"
+                     (ngModelChange)="onPincodeTyped($event)" maxlength="6" inputmode="numeric"
+                     placeholder="6-digit PIN code" />
+            </div>
+            <!-- Read-only: the PIN code is the only thing that fills these two in, so there is nothing to
+                 type - they are shown as answered rather than as fields to fill in. -->
+            <div class="col-md-4">
+              <label class="form-label">City *</label>
+              <input class="form-control from-pincode" [ngModel]="form.City" name="city" readonly
+                     placeholder="From your PIN code" />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">State *</label>
+              <input class="form-control from-pincode" [ngModel]="form.State" name="state" readonly
+                     placeholder="From your PIN code" />
+            </div>
+
+            <div class="col-12" *ngIf="lookingUpPincode || pincodeError || pincodeMessage">
+              <p class="pincode-hint" *ngIf="lookingUpPincode">
+                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                Looking up your PIN code...
+              </p>
+
+              <!-- The city and the state cannot be typed into, so a PIN code the directory cannot answer
+                   for is the only thing left to correct - which is what these say. -->
+              <p class="pincode-hint pincode-hint-error" *ngIf="!lookingUpPincode && pincodeError">
+                <i class="bi bi-exclamation-circle me-1"></i>{{ pincodeError }}
+              </p>
+
+              <p class="pincode-hint pincode-hint-ok" *ngIf="!lookingUpPincode && !pincodeError && pincodeMessage">
+                <i class="bi bi-check2-circle me-1"></i>{{ pincodeMessage }}
+              </p>
+            </div>
+
+            <!-- Nothing to report yet, so the line says where the city and the state come from instead. -->
+            <div class="col-12" *ngIf="!lookingUpPincode && !pincodeError && !pincodeMessage">
+              <p class="pincode-hint">
+                <i class="bi bi-info-circle me-1"></i>{{ cityStateHint }}
+              </p>
+            </div>
+
+            <!-- Every post office this PIN code covers is offered, as the public directory lists them and
+                 with the delivering one first - the locality a customer names is often not the office that
+                 delivers, and only the customer knows which one is theirs. -->
+            <div class="col-12" *ngIf="pincodeAreas.length > 1">
+              <label class="form-label">Area</label>
+              <select class="form-control" [(ngModel)]="pincodeChoice" name="pincodeArea"
+                      (ngModelChange)="onPincodeAreaChosen($event)">
+                <option value="">Choose the post office closest to you</option>
+                <option *ngFor="let area of pincodeAreas" [value]="area.Area">{{ pincodeAreaOption(area) }}</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Phone Number</label>
+              <input class="form-control" [(ngModel)]="form.MobileNumber" name="mobileNumber" maxlength="12" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Email</label>
+              <input type="email" class="form-control" [(ngModel)]="form.EmailId" name="emailId" />
+            </div>
+          </div>
+
+          <div class="address-form-actions">
+            <button type="submit" class="btn btn-primary" [disabled]="saving">
+              <span *ngIf="saving" class="spinner-border spinner-border-sm me-2" role="status"></span>
+              <i *ngIf="!saving" class="bi bi-check-circle me-1"></i>{{ saving ? 'Saving...' : 'Save Address' }}
+            </button>
+            <button type="button" class="btn btn-outline-secondary" (click)="cancelForm()" [disabled]="saving">
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

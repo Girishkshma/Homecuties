@@ -15,6 +15,31 @@ public interface IAdminDashboardService
     Task<AdminOrderDetailDto?> GetOrderDetailAsync(long orderId);
     Task<List<AdminOrderStatusDto>> GetOrderStatusesAsync();
     Task<AdminResultDto> UpdateOrderStatusAsync(long orderId, AdminOrderStatusUpdateRequest request, long currentUserId);
+    Task<AdminResultDto> ApproveOrderRefundAsync(long orderId, long currentUserId);
+    Task<AdminResultDto> MarkOrderRefundedAsync(long orderId, string? comment, long currentUserId);
+
+    /// <summary>
+    /// The shipping providers this shop is set up with (configured or not, with the default marked) -
+    /// what the Shipment card of the admin order screen offers when the shop team records a parcel, so
+    /// the provider is picked from what is really wired up rather than typed in by hand.
+    /// </summary>
+    Task<List<ShipmentProviderInfo>> GetShipmentProvidersAsync();
+
+    /// <summary>
+    /// Records the parcel the shop team booked in the provider's panel: the AWB, and the courier and
+    /// tracking link when they have them. This never moves the order - a parcel booked is not a parcel
+    /// dispatched, and the order follows the courier's own reports (see <see cref="TrackOrderShipmentAsync"/>).
+    /// The AWB is written to the order's history, so the timeline says who recorded the parcel and when.
+    /// </summary>
+    Task<OrderShipmentDto> SaveOrderShipmentAsync(long orderId, SaveOrderShipmentRequest request, long currentUserId);
+
+    /// <summary>
+    /// Asks the courier about this order's parcel right now ('Track now' on the admin order screen) and
+    /// writes down what it said, moving the order - and its units - along when the courier's own status
+    /// allows it. The shop team asked on purpose, so the throttle that protects the customer-facing pull
+    /// does not apply here.
+    /// </summary>
+    Task<OrderShipmentDto> TrackOrderShipmentAsync(long orderId, long currentUserId);
     Task<List<AdminCustomerListDto>> GetCustomersAsync();
     Task<AdminCustomerDetailDto?> GetCustomerDetailAsync(long customerId);
     Task<AdminResultDto> UpdateCustomerStatusAsync(long customerId, short customerStatusId);

@@ -22,9 +22,17 @@ export const customerTokenInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(authorizedRequest).pipe(
     catchError((error: unknown) => {
-      if (error instanceof HttpErrorResponse && error.status === 401 && token && isBrowser) {
+      // 401 means the token was missing, expired or is no longer accepted. The stored customer
+      // object alone is not a session (see AuthService.hasValidSession), so it is always thrown
+      // away here - otherwise a browser with a stale session keeps pretending to be signed in and
+      // 'My Orders' just looks empty instead of asking the customer to sign in again.
+      if (error instanceof HttpErrorResponse && error.status === 401 && isBrowser) {
         authService.clearSession();
-        router.navigate(['/login'], { queryParams: { returnUrl: router.url } });
+
+        // Navigating to '/login' from '/login' (or '/set-password') would only reload the page.
+        if (!router.url.startsWith('/login')) {
+          router.navigate(['/login'], { queryParams: { returnUrl: router.url } });
+        }
       }
 
       return throwError(() => error);
