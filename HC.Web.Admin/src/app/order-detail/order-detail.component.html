@@ -293,8 +293,9 @@
 
       <p class="hint" *ngIf="hasShipment && !shipmentHasCourier">
         This parcel is carried by the shop's own delivery arrangement ({{ shipment?.provider }}), so there is
-        no courier to ask where it is. Move the order along from the status list below as it moves - the
-        customer sees the order status, and the reference above is what they can quote.
+        no courier to ask where it is. Its status above follows the order: move the order along from the
+        status list below as it moves, and the parcel is recorded with the move - the customer sees both, and
+        the reference above is what they can quote.
       </p>
 
       <div class="form-group">

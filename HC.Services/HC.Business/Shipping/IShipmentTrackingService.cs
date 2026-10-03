@@ -55,6 +55,24 @@ public interface IShipmentTrackingService
     bool RecordsParcel(SaveOrderShipmentRequest request);
 
     /// <summary>
+    /// Brings a parcel the shop carries itself level with the order that has just been moved, as of
+    /// <paramref name="now"/> (the caller's own clock, so the move and the parcel it moved are one moment):
+    /// a dispatched order puts its parcel on the way, a delivered one ends its journey and writes down the
+    /// day it arrived. For such a parcel the shop's own move IS its movement (see
+    /// <see cref="IShipmentProvider.ReportsTracking"/>) - there is nothing behind it that would ever report
+    /// anything - and this is what keeps its card and 'My Orders' from saying "the shop's own delivery
+    /// arrangement" for a parcel that has already arrived, without ever saying when.
+    ///
+    /// A parcel with a courier behind it is left untouched: its provider is asked, never assumed, so the last
+    /// thing a real lookup wrote is not this method's to overwrite. A move that says nothing about a parcel
+    /// (Confirmed, Cancelled) mirrors nothing, and neither does an order with no parcel recorded.
+    ///
+    /// Answers with the sentence for the shop team, to sit beside the move's own answer, or "" when there was
+    /// nothing to bring level.
+    /// </summary>
+    Task<string> MirrorOrderStatusAsync(long orderId, short orderStatusId, DateTime now, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Asks the courier about this order's parcel right now and writes down what it said, moving the
     /// order (and its units) along if the courier's status allows it. The throttle that protects the
     /// customer-facing pull does not apply here: the shop team asked on purpose.

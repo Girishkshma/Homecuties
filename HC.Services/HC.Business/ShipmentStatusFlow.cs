@@ -148,6 +148,43 @@ public static class ShipmentStatusFlow
     };
 
     /// <summary>
+    /// Where a parcel the shop carries itself has got to, from the order status the shop team has just moved
+    /// the order to. Nobody is ever going to report on such a parcel (see
+    /// <see cref="IShipmentProvider.ReportsTracking"/>), so the shop's own move IS the parcel's movement -
+    /// and reading it here means both screens describe that parcel in the one vocabulary a courier's status
+    /// is described in, instead of it standing still forever.
+    ///
+    /// Only the two moves <see cref="OrderStatusFor"/> proposes for a real courier are mapped: a dispatched
+    /// order puts its parcel on the way and a delivered order ends its journey. Everything else is null, and
+    /// deliberately so - an order that is only Confirmed has no parcel out yet, and a cancelled order's
+    /// parcel is left exactly as it was recorded, because 'Pickup cancelled' is not what happened to a parcel
+    /// the shop delivered itself (this is the mapping that would have to lie to say otherwise).
+    /// </summary>
+    public static ShipmentStage? OwnDeliveryStageFor(short orderStatusId) => orderStatusId switch
+    {
+        OrderStatusFlow.Shipped => ShipmentStage.InTransit,
+        OrderStatusFlow.Delivered => ShipmentStage.Delivered,
+        _ => null
+    };
+
+    /// <summary>
+    /// What is written on a parcel the shop carries itself for the stage
+    /// <see cref="OwnDeliveryStageFor"/> worked out: the shop's own move, in the words the parcel is stored
+    /// with, so that everything which reads a parcel keeps reading one kind of thing.
+    ///
+    /// It lives here, beside <see cref="FromProviderText"/> - the only thing that ever reads it - because the
+    /// two are one idea: a stage is written down as this text and read back out of it, so a status written
+    /// here and a stage read later can never drift apart. The round trip is checked (see the shipping
+    /// harness), so a wording that stopped meaning what it says would be caught rather than believed.
+    /// </summary>
+    public static string OwnDeliveryText(ShipmentStage stage) => stage switch
+    {
+        ShipmentStage.InTransit => "Dispatched through the shop's own delivery",
+        ShipmentStage.Delivered => "Delivered through the shop's own delivery",
+        _ => string.Empty
+    };
+
+    /// <summary>
     /// True once there is nothing left to learn from the courier, so the tracking pull stops asking: a
     /// delivered parcel, one coming back, or a pickup that was called off. A failed delivery is NOT
     /// closed - the courier tries again, and that next attempt is exactly what 'My Orders' waits for.

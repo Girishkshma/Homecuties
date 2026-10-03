@@ -543,9 +543,13 @@ export class MyOrdersComponent implements OnInit, OnDestroy {
   /**
    * True once the courier is finished with the parcel (delivered, on its way back, or called off). Said
    * out loud, because otherwise the customer keeps asking for news that is never going to change.
+   *
+   * Only for a parcel a courier really carries: one on the shop's own delivery arrangement reaches 'closed'
+   * too, by following the order it belongs to (see parcelHasCourier), and telling the customer that 'the
+   * courier has nothing more to report' would name a courier that never had anything to do with it.
    */
   isParcelClosed(order: MyOrder): boolean {
-    return !!order.Shipment?.closed;
+    return this.parcelHasCourier(order) && !!order.Shipment?.closed;
   }
 
   /** Bootstrap colour of the status badge (Orders.OrderStatusID: 1..5). */

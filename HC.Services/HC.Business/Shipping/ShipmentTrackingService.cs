@@ -21,7 +21,9 @@ namespace HC.Business.Shipping;
 /// A parcel carried by a service the shop arranges itself has no courier behind it at all: its provider
 /// says so (<see cref="IShipmentProvider.ReportsTracking"/>), so the pull never asks about it and both
 /// screens offer no tracking for it - its order is moved along by the shop team's own status moves, and
-/// the reference written on the parcel is the one minted for it here.
+/// those moves are written on the parcel as they happen (<see cref="MirrorOrderStatusAsync"/>), so it says
+/// where it has got to without anyone being asked. The reference written on such a parcel is the one minted
+/// for it here.
 ///
 /// The pull is the only thing that advances an order by itself, and it does so under the order's own
 /// lifecycle rules (<see cref="OrderStatusFlow.CanMove"/>: a parcel collected makes a Confirmed order
@@ -279,9 +281,24 @@ public class ShipmentTrackingService : IShipmentTrackingService
 
         shipment.UpdatedOn = now;
 
+        // A parcel the shop carries itself takes its starting point from the order it belongs to, because the
+        // order is the only thing that knows where such a parcel has got to (see
+        // IShipmentProvider.ReportsTracking). Recording one against an order that has already been dispatched
+        // - or has already arrived - therefore leaves the parcel saying where it is, rather than saying
+        // nothing until the order happens to move again. No delivery date is offered with it: a parcel written
+        // down after the fact must not claim it arrived today (see StampOwnDelivery). A courier-carried parcel
+        // is not touched here: its own provider is asked, and tells the truth at the next pull.
+        var ownDeliveryStage = provider.ReportsTracking
+            ? (ShipmentStage?)null
+            : StampOwnDelivery(shipment, order.OrderStatusId, now, deliveredOn: null);
+
         var loginId = await AdminLoginIdAsync(currentUserId, cancellationToken);
         var recorded = $"Parcel booked with {provider.Describe().DisplayName}: AWB {awb}" +
-                       (courier.Length > 0 ? $" ({courier})" : string.Empty) + ".";
+                       (courier.Length > 0 ? $" ({courier})" : string.Empty) + "." +
+                       (ownDeliveryStage is { } ownDeliveryWhere
+                           ? $" Recorded as '{ShipmentStatusFlow.Describe(ownDeliveryWhere)}', which is where " +
+                             "the order already is."
+                           : string.Empty);
 
         _context.OrderHistories.Add(new OrderHistory
         {
@@ -316,6 +333,38 @@ public class ShipmentTrackingService : IShipmentTrackingService
             return false;
 
         return (provider ?? _providers.Default)?.AwbGeneratedBySystem ?? false;
+    }
+
+    /// <summary>
+    /// Brings a parcel the shop carries itself level with the order that has just been moved - the shop
+    /// team's own status move (see AdminDashboardService.UpdateOrderStatusAsync). Such a parcel has no
+    /// courier to ask about it, ever: the move the team just made IS its movement, so this writes that move
+    /// on the parcel - 'on the way' when the order was dispatched, 'Delivered' and the day it arrived when it
+    /// was delivered - and says so in the answer, because the team should read on the order screen what the
+    /// customer reads on theirs.
+    ///
+    /// A courier-carried parcel is left exactly as it is: it is asked, never assumed (see
+    /// <see cref="RefreshAsync"/>), and the last thing a real lookup wrote is not this method's to overwrite.
+    /// An order with no parcel recorded, and a move that says nothing about a parcel (Confirmed, Cancelled),
+    /// answer with "" and save nothing.
+    /// </summary>
+    public async Task<string> MirrorOrderStatusAsync(
+        long orderId, short orderStatusId, DateTime now, CancellationToken cancellationToken = default)
+    {
+        var shipment = await _context.OrderShipments
+            .FirstOrDefaultAsync(s => s.OrderId == orderId, cancellationToken);
+
+        // Nothing was ever recorded for this order, or a courier carries it and reports on it itself: either
+        // way there is nothing here to bring level.
+        if (shipment == null || ReportsTrackingFor(shipment.Provider))
+            return string.Empty;
+
+        if (StampOwnDelivery(shipment, orderStatusId, now, deliveredOn: now) is not { } stage)
+            return string.Empty;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return $"The parcel {shipment.AwbNumber} is recorded as '{ShipmentStatusFlow.Describe(stage)}' with it.";
     }
 
     /// <summary>
@@ -651,6 +700,57 @@ public class ShipmentTrackingService : IShipmentTrackingService
     /// </summary>
     private bool ReportsTrackingFor(string? providerName) =>
         (_providers.Find(providerName) ?? _providers.Default)?.ReportsTracking ?? false;
+
+    /// <summary>
+    /// Writes down where a parcel the shop carries itself has got to, from the order status that has just
+    /// been set - and answers the stage it wrote, or null when there was nothing to write.
+    ///
+    /// It is the one place a shop-side move becomes a parcel status (see
+    /// ShipmentStatusFlow.OwnDeliveryStageFor), so the order screen, 'My Orders' and the team's own answer
+    /// can never tell three different stories about one parcel.
+    ///
+    /// <paramref name="deliveredOn"/> is the day the parcel reached the customer, where that is known: the
+    /// move that carried it out passes its own moment (see MirrorOrderStatusAsync), while a parcel written
+    /// down after the fact passes nothing (see SaveAsync) and is then recorded as delivered without a date,
+    /// rather than dated with whenever somebody happened to fill the form in - the one date 'My Orders' shows
+    /// must never claim a parcel arrived when it did not (see OrderShipment.DeliveredOn).
+    ///
+    /// Three other details are deliberate: the courier's own columns are cleared and no last-checked time is
+    /// set, because there was no check and nobody to make one (any time left over from another provider was
+    /// already cleared when the parcel was written under this one - see SaveAsync); a parcel that already says
+    /// this, on the same date, is left exactly as it is; and a move that says nothing about a parcel writes
+    /// nothing at all. Those last two are what make the Shipped move safe, where the parcel is recorded and
+    /// the move mirrored in the same breath.
+    /// </summary>
+    private static ShipmentStage? StampOwnDelivery(
+        OrderShipment shipment, short orderStatusId, DateTime now, DateTime? deliveredOn)
+    {
+        if (ShipmentStatusFlow.OwnDeliveryStageFor(orderStatusId) is not { } stage)
+            return null;
+
+        var text = ShipmentStatusFlow.OwnDeliveryText(stage);
+
+        // The first party to know a delivery date wins, and none of the others can move it or wipe it by
+        // having nothing to offer: whichever move put the parcel in the customer's hands is the one that dates
+        // it. Every other stage carries no date at all - this column must never claim an arrival.
+        var arrivesOn = stage == ShipmentStage.Delivered
+            ? shipment.DeliveredOn ?? deliveredOn
+            : null;
+
+        if (string.Equals(shipment.ProviderStatus, text, StringComparison.Ordinal) &&
+            shipment.DeliveredOn == arrivesOn)
+        {
+            return null;
+        }
+
+        shipment.ProviderStatus = text;
+        shipment.ProviderStatusCode = null;
+        shipment.LastStatusText = null;
+        shipment.DeliveredOn = arrivesOn;
+        shipment.UpdatedOn = now;
+
+        return stage;
+    }
 
     /// <summary>
     /// A shipment row as both screens read it. <c>Status</c> is the shop's own wording for where the

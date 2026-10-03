@@ -381,6 +381,16 @@ public partial class AdminDashboardService : IAdminDashboardService
                 parcelNote = " " + string.Join(" ", parcel.Messages);
             }
 
+            // A parcel the shop carries itself is brought level with this very move, inside the same
+            // transaction: there is no courier behind it to report anything, so the move just made is what its
+            // card and 'My Orders' show - without this, both would go on saying "our own delivery arrangement"
+            // for a parcel that has already arrived, and never the day it did. A courier-carried parcel is left
+            // alone here (its provider is asked, never assumed), and a move with nothing to do with a parcel
+            // mirrors nothing at all, so this usually answers with "" (see
+            // IShipmentTrackingService.MirrorOrderStatusAsync).
+            var ownDeliveryNote = await _shipmentTracking.MirrorOrderStatusAsync(order.OrderId, request.StatusId, now);
+            var ownDeliveryText = ownDeliveryNote.Length > 0 ? " " + ownDeliveryNote : string.Empty;
+
             await _context.SaveChangesAsync();
 
             var unitNote = updatedUnits == 1 ? " 1 unit updated." : $" {updatedUnits} units updated.";
@@ -418,6 +428,7 @@ public partial class AdminDashboardService : IAdminDashboardService
                             $"{OrderNumber(order.OrderId)} is now {newStatusName}." +
                             (updatedUnits > 0 ? unitNote : string.Empty) +
                             parcelNote +
+                            ownDeliveryText +
                             $" {refundMessage}"
                         }
                     };
@@ -444,6 +455,7 @@ public partial class AdminDashboardService : IAdminDashboardService
                     $"{OrderNumber(order.OrderId)} is now {newStatusName}." +
                     (updatedUnits > 0 ? unitNote : string.Empty) +
                     parcelNote +
+                    ownDeliveryText +
                     refundNote
                 }
             };
