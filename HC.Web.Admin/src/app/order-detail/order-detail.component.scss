@@ -241,3 +241,46 @@
     color: #721c24;
   }
 }
+/* The units of a returned parcel, as the inspection lists them: one tick per physical unit, because one of three
+   identical tops can come back torn while the other two are fine. */
+.return-units {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fff;
+
+  .return-unit {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 0;
+    font-size: 13px;
+    font-weight: 400;
+    color: #333;
+    cursor: pointer;
+
+    input[type='checkbox'] {
+      flex: 0 0 auto;
+      width: 15px;
+      height: 15px;
+      margin-top: 2px;
+      accent-color: #4a6cf7;
+      cursor: pointer;
+    }
+
+    span {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.35;
+
+      small {
+        color: #999;
+        font-size: 11.5px;
+        letter-spacing: 0.2px;
+      }
+    }
+  }
+}

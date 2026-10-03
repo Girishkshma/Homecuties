@@ -3,7 +3,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Observable } from 'rxjs';
 import { AdminService } from '../services/admin.service';
 import { AuthService } from '../services/auth.service';
-import { AdminOrderDetail, AdminResult, AdminSaveOrderShipmentRequest, AdminOrderShipment, AdminShipmentProvider } from '../models/admin.model';
+import { AdminOrderDetail, AdminResult, AdminSaveOrderShipmentRequest, AdminOrderShipment, AdminShipmentProvider, AdminOrderReturn } from '../models/admin.model';
 
 /**
  * Everything the shop team needs for one order: what was bought (one row per physical unit, with its
@@ -73,6 +73,41 @@ export class OrderDetailComponent implements OnInit {
   shipmentMessage = '';
   shipmentError = false;
 
+  // Return: a delivered order's return (asked for by the customer), or one the courier's own report raised
+  // (a refusal, or a parcel that could not be delivered). The shop team answers it here - approving means
+  // the parcel is coming back, so the pickup is recorded on the same card with 'direction: Reverse' - and
+  // the order itself only becomes 'Returned', its units on the shelf and its money owed back, when the
+  // return is closed with the parcel in the shop (see HC.Business.OrderReturnFlow).
+  returnComment = '';
+  isDecidingReturn = false;
+  returnMessage = '';
+  returnError = false;
+
+  /** The pickup coming back: its own AWB, courier and freight, recorded against the return. */
+  returnProvider = '';
+  returnAwb = '';
+  returnCourier = '';
+  /** What the courier billed for the pickup (₹), or null while nobody has recorded it. */
+  returnFreight: number | null = null;
+  isSavingReturnPickup = false;
+
+  /**
+   * The optional note the 'parcel received' and 'close return' steps carry. It goes on the order's history, which
+   * the customer reads in 'My Orders' - unlike the answer's note, which is required and is what they are told.
+   */
+  returnStepComment = '';
+
+  /** The units the inspection found broken, by SKU: one of three identical tops can be torn and the others fine. */
+  damagedSkus: string[] = [];
+
+  /** What the inspection found, in the team's own words - kept on the return beside who looked and when. */
+  returnInspectionComment = '';
+
+  /** One flag per step, so a slow save cannot be started twice from the same card. */
+  isMarkingReturnReceived = false;
+  isSavingReturnInspection = false;
+  isClosingReturn = false;
+
   constructor(
     private adminService: AdminService,
     private authService: AuthService,
@@ -105,6 +140,9 @@ export class OrderDetailComponent implements OnInit {
         // The parcel already on the order is put back into the form, so correcting an AWB (or adding
         // the courier) starts from what is recorded instead of from an empty box.
         this.prefillShipmentForm();
+
+        // The return's own pickup, when one has been recorded, is put back the same way.
+        this.prefillReturnForm();
       },
       error: () => {
         this.loadError = 'The order could not be loaded. Please go back to the order list and try again.';
@@ -119,7 +157,7 @@ export class OrderDetailComponent implements OnInit {
     }
   }
 
-  /** Colour of the status chip: 1 Pending, 2 Confirmed, 3 Shipped, 4 Delivered, 5 Cancelled. */
+  /** Colour of the status chip: 1 Pending, 2 Confirmed, 3 Shipped, 4 Delivered, 5 Cancelled, 6 Returned. */
   getStatusBadgeClass(statusId: number): string {
     switch (statusId) {
       case 1: return 'badge badge-pending';
@@ -127,6 +165,7 @@ export class OrderDetailComponent implements OnInit {
       case 3: return 'badge badge-shipped';
       case 4: return 'badge badge-delivered';
       case 5: return 'badge badge-cancelled';
+      case 6: return 'badge badge-cancelled';
       default: return 'badge';
     }
   }
@@ -367,6 +406,7 @@ export class OrderDetailComponent implements OnInit {
       case 'OutForDelivery': return 'badge badge-shipment-out';
       case 'Delivered': return 'badge badge-delivered';
       case 'Undelivered': return 'badge badge-shipment-undelivered';
+      case 'Refused': return 'badge badge-shipment-undelivered';
       case 'Rto': return 'badge badge-shipment-return';
       case 'Cancelled': return 'badge badge-cancelled';
       default: return 'badge';
@@ -405,6 +445,343 @@ export class OrderDetailComponent implements OnInit {
     }
 
     return shipment.lastStatusText === shipment.providerStatus ? '' : shipment.lastStatusText;
+  }
+
+  /** The return this order carries, or null while it has never had one. */
+  get orderReturn(): AdminOrderReturn | null {
+    return this.order?.return ?? null;
+  }
+
+  /** True while the shop team can still answer the return - exactly when the card offers its two buttons. */
+  get canDecideReturn(): boolean {
+    return !!this.orderReturn?.canDecide;
+  }
+
+  /** True while the parcel can be booked back in - exactly when the card offers 'Parcel received'. */
+  get canMarkReceivedReturn(): boolean {
+    return !!this.orderReturn?.canMarkReceived;
+  }
+
+  /** True while the returned parcel can be looked over - the inspection, before the return is closed. */
+  get canInspectReturn(): boolean {
+    return !!this.orderReturn?.canInspect;
+  }
+
+  /** True while the return can be closed - the step that makes the order 'Returned' and asks for the refund. */
+  get canCloseReturn(): boolean {
+    return !!this.orderReturn?.canClose;
+  }
+
+  /** True when the unit with this SKU is ticked as broken and will be written off when the inspection is saved. */
+  isDamagedSku(sku: string): boolean {
+    return this.damagedSkus.indexOf(sku) >= 0;
+  }
+
+  /** The pickup the return is coming back on, or null while none has been recorded. */
+  get returnShipment(): AdminOrderShipment | null {
+    return this.orderReturn?.shipment ?? null;
+  }
+
+  /**
+   * True while the return is approved but nothing has been recorded about the parcel yet - when the card
+   * offers the pickup form. A return whose parcel is already known (a courier carrying it back on its own
+   * reports it on the tracking) simply shows it instead.
+   */
+  get returnPickupNeeded(): boolean {
+    const current = this.orderReturn;
+
+    return !!current && !this.returnShipment &&
+      (current.status === 'Arranged' || current.status === 'Received');
+  }
+
+  /** The pickup form's provider picker, asked the same question as the Shipment card's. */
+  get returnProviderMintsAwb(): boolean {
+    return this.providerMintsAwb(this.returnProvider);
+  }
+
+  /** The return's state for the card's badge, in the shop team's words. */
+  getReturnStatusText(): string {
+    switch (this.orderReturn?.status) {
+      case 'Requested': return 'Waiting for an answer';
+      case 'Arranged': return 'Approved - parcel coming back';
+      case 'Received': return 'Parcel received';
+      case 'Closed': return 'Returned and closed';
+      case 'Rejected': return 'Refused';
+      case 'Withdrawn': return 'Taken back by the customer';
+      default: return '';
+    }
+  }
+
+  /**
+   * Colour of the return badge, reusing the parcel colours so one card cannot read as two different things:
+   * what is waiting for the team, what is on its way, and what is finished.
+   */
+  getReturnBadgeClass(): string {
+    switch (this.orderReturn?.status) {
+      case 'Requested': return 'badge badge-shipment-undelivered';
+      case 'Arranged': return 'badge badge-shipment-return';
+      case 'Received': return 'badge badge-shipment-transit';
+      case 'Closed': return 'badge badge-delivered';
+      case 'Rejected': return 'badge badge-cancelled';
+      default: return 'badge';
+    }
+  }
+
+  /**
+   * Answers the return: approving it says the parcel is coming back (the pickup is booked on this card
+   * next), refusing it leaves the order exactly as it was - either way the order, its units and its money
+   * stay untouched until the return is closed with the parcel in the shop.
+   *
+   * The note is required because it is what the customer is told (the API refuses an empty one too), and
+   * the order is re-read on success so the card, the history and the return all say the same thing.
+   */
+  decideReturn(approved: boolean): void {
+    if (!this.order || this.isDecidingReturn) {
+      return;
+    }
+
+    if (!this.returnComment.trim()) {
+      this.returnMessage = approved
+        ? 'Say why the return is approved - the customer is told this note.'
+        : 'Say why the return is refused - the customer is told this note.';
+      this.returnError = true;
+      return;
+    }
+
+    const userId = this.authService.getUser()?.userId ?? 0;
+    if (!userId) {
+      this.returnMessage = 'Your admin session has no user id - please sign in again.';
+      this.returnError = true;
+      return;
+    }
+
+    this.isDecidingReturn = true;
+    this.returnMessage = '';
+    this.returnError = false;
+
+    this.adminService.decideOrderReturn(this.order.orderId, approved, this.returnComment.trim(), userId).subscribe({
+      next: (result) => {
+        this.isDecidingReturn = false;
+        this.returnError = result.result !== 1;
+        this.returnMessage = (result.messages || []).join(' ');
+
+        if (result.result === 1) {
+          this.returnComment = '';
+          this.loadOrder(this.order!.orderId);
+        }
+      },
+      error: () => {
+        this.isDecidingReturn = false;
+        this.returnError = true;
+        this.returnMessage = 'The return could not be answered. Nothing was saved - please try again.';
+      }
+    });
+  }
+
+  /**
+   * Records the parcel the return is coming back on: the pickup the team booked with the courier, or the
+   * courier's own return-to-origin. It is the same API call the Shipment card uses, told which leg it is
+   * ('direction: Reverse'), so the return's AWB, courier, tracking link and freight are kept exactly like
+   * the delivery's - and the parcel that went out is never touched by it.
+   */
+  recordReturnPickup(): void {
+    if (!this.order || this.isSavingReturnPickup) {
+      return;
+    }
+
+    if (!this.returnAwb.trim() && !this.returnProviderMintsAwb) {
+      this.returnMessage = 'Type the AWB the courier gave the pickup.';
+      this.returnError = true;
+      return;
+    }
+
+    if (this.returnFreight !== null && this.returnFreight < 0) {
+      this.returnMessage =
+        'The freight charge cannot be negative - enter what the courier billed for this pickup, or leave it blank.';
+      this.returnError = true;
+      return;
+    }
+
+    const userId = this.authService.getUser()?.userId ?? 0;
+    if (!userId) {
+      this.returnMessage = 'Your admin session has no user id - please sign in again.';
+      this.returnError = true;
+      return;
+    }
+
+    const request: AdminSaveOrderShipmentRequest = {
+      provider: this.returnProvider || null,
+      awbNumber: this.returnAwb.trim(),
+      courierName: this.returnCourier.trim() || null,
+      freightCharge: this.returnFreight,
+
+      // The one thing that makes this the return's own parcel rather than the delivery's.
+      direction: 'Reverse'
+    };
+
+    this.isSavingReturnPickup = true;
+    this.returnMessage = '';
+    this.returnError = false;
+
+    this.adminService.saveOrderShipment(this.order.orderId, request, userId).subscribe({
+      next: (result) => {
+        this.isSavingReturnPickup = false;
+        this.returnError = result.result !== 1;
+        this.returnMessage = (result.messages || []).join(' ');
+
+        if (result.result === 1) {
+          this.loadOrder(this.order!.orderId);
+        }
+      },
+      error: () => {
+        this.isSavingReturnPickup = false;
+        this.returnError = true;
+        this.returnMessage = 'The pickup could not be recorded. Nothing was saved - please try again.';
+      }
+    });
+  }
+
+  /**
+   * 'Parcel received': the parcel is physically back in the shop. The return becomes 'Received' and its units come
+   * off the delivery pools - off sale until the return is closed - while the order and the money are left exactly
+   * as they are, because both move at the close. The optional note goes on the order's history, which the customer
+   * reads in 'My Orders', and the order is re-read on success so the card, the history and the return agree.
+   */
+  markReturnReceived(): void {
+    if (!this.order || this.isMarkingReturnReceived) {
+      return;
+    }
+
+    const userId = this.authService.getUser()?.userId ?? 0;
+    if (!userId) {
+      this.returnMessage = 'Your admin session has no user id - please sign in again.';
+      this.returnError = true;
+      return;
+    }
+
+    this.isMarkingReturnReceived = true;
+    this.returnMessage = '';
+    this.returnError = false;
+
+    this.adminService.markOrderReturnReceived(this.order.orderId, this.returnStepComment.trim(), userId).subscribe({
+      next: (result) => {
+        this.isMarkingReturnReceived = false;
+        this.returnError = result.result !== 1;
+        this.returnMessage = (result.messages || []).join(' ');
+
+        if (result.result === 1) {
+          this.returnStepComment = '';
+          this.loadOrder(this.order!.orderId);
+        }
+      },
+      error: () => {
+        this.isMarkingReturnReceived = false;
+        this.returnError = true;
+        this.returnMessage = 'The parcel could not be booked back in. Nothing was saved - please try again.';
+      }
+    });
+  }
+
+  /** Ticks or unticks one unit for the inspection - per unit, because one of three identical tops can be torn. */
+  toggleDamagedSku(sku: string): void {
+    this.damagedSkus = this.isDamagedSku(sku)
+      ? this.damagedSkus.filter(current => current !== sku)
+      : [...this.damagedSkus, sku];
+  }
+
+  /**
+   * Saves the inspection: every ticked unit is written off - out of every sellable pool for good, so closing the
+   * return can never put it back on sale - and the note is kept on the return with who looked and when. Saving
+   * with nothing ticked is still an inspection: 'we looked and found nothing' is worth having on the record, which
+   * is exactly what the server writes down.
+   */
+  inspectReturn(): void {
+    if (!this.order || this.isSavingReturnInspection) {
+      return;
+    }
+
+    const userId = this.authService.getUser()?.userId ?? 0;
+    if (!userId) {
+      this.returnMessage = 'Your admin session has no user id - please sign in again.';
+      this.returnError = true;
+      return;
+    }
+
+    this.isSavingReturnInspection = true;
+    this.returnMessage = '';
+    this.returnError = false;
+
+    this.adminService
+      .markOrderReturnUnitsDamaged(
+        this.order.orderId, this.damagedSkus, this.returnInspectionComment.trim(), userId)
+      .subscribe({
+        next: (result) => {
+          this.isSavingReturnInspection = false;
+          this.returnError = result.result !== 1;
+          this.returnMessage = (result.messages || []).join(' ');
+
+          if (result.result === 1) {
+            this.damagedSkus = [];
+            this.returnInspectionComment = '';
+            this.loadOrder(this.order!.orderId);
+          }
+        },
+        error: () => {
+          this.isSavingReturnInspection = false;
+          this.returnError = true;
+          this.returnMessage = 'The inspection could not be saved. Nothing was written off - please try again.';
+        }
+      });
+  }
+
+  /**
+   * Closes the return - the step that settles it: the order becomes 'Returned', every unit the return brought back
+   * goes on sale again (the written-off ones stay written off) and the refund of what the customer paid is asked
+   * for. The Refund card on this same order is where that money is actually sent, so nothing leaves for the
+   * gateway here. Only a return whose parcel is back in the shop can be closed, and the card only offers this then.
+   */
+  closeReturn(): void {
+    if (!this.order || this.isClosingReturn) {
+      return;
+    }
+
+    const userId = this.authService.getUser()?.userId ?? 0;
+    if (!userId) {
+      this.returnMessage = 'Your admin session has no user id - please sign in again.';
+      this.returnError = true;
+      return;
+    }
+
+    this.isClosingReturn = true;
+    this.returnMessage = '';
+    this.returnError = false;
+
+    this.adminService.closeOrderReturn(this.order.orderId, this.returnStepComment.trim(), userId).subscribe({
+      next: (result) => {
+        this.isClosingReturn = false;
+        this.returnError = result.result !== 1;
+        this.returnMessage = (result.messages || []).join(' ');
+
+        if (result.result === 1) {
+          this.returnStepComment = '';
+          this.loadOrder(this.order!.orderId);
+        }
+      },
+      error: () => {
+        this.isClosingReturn = false;
+        this.returnError = true;
+        this.returnMessage = 'The return could not be closed. Nothing was saved - please try again.';
+      }
+    });
+  }
+
+  /** Puts the return's own parcel back into the pickup form (an empty form while there is none). */
+  private prefillReturnForm(): void {
+    const shipment = this.returnShipment;
+
+    this.returnAwb = shipment?.awbNumber || '';
+    this.returnCourier = shipment?.courierName || '';
+    this.returnFreight = shipment?.freightCharge ?? null;
   }
 
   /**

@@ -29,6 +29,13 @@ public enum ShipmentStage
     /// <summary>A failed attempt: the parcel is still with the courier and will be tried again.</summary>
     Undelivered,
 
+    /// <summary>
+    /// The customer would not take the parcel (a refusal at the doorstep). The courier will not try
+    /// again, so it is coming back to us - which is why an ask to the shop team goes with it
+    /// (<see cref="ReturnReasonFor"/>).
+    /// </summary>
+    Refused,
+
     /// <summary>Return to origin - the parcel is on its way back to us.</summary>
     Rto,
 
@@ -47,9 +54,10 @@ public enum ShipmentStage
 ///    only. An unrecognised wording is <see cref="ShipmentStage.Unknown"/>, which moves nothing.
 ///
 ///  * A courier status can advance an order (the parcel was picked up => Shipped, delivered =>
-///    Delivered) but can never cancel one and can never start a refund. 'Returned to origin' and a
-///    failed delivery are shown to the shop team as they are; writing an order off (and the money with
-///    it, see HC.Business.RazorpayRefunds) stays a human decision made on the admin order screen.
+///    Delivered) but can never cancel one and can never start a refund. A refusal or a return-to-origin
+///    raises a RETURN ASK for the shop team (<see cref="ReturnReasonFor"/>) and nothing else; writing an
+///    order off - and the money with it, see HC.Business.RazorpayRefunds - stays a human decision made on
+///    the admin order screen.
 ///
 /// The moves themselves are still the order lifecycle's (see <see cref="OrderStatusFlow.CanMove"/>):
 /// a stage only proposes, and the chain decides - so an unpaid order is never shipped by a courier
@@ -81,8 +89,14 @@ public static class ShipmentStatusFlow
         if (ContainsAny(text, "cancel"))
             return ShipmentStage.Cancelled;
 
-        if (ContainsAny(text, "undelivered", "not delivered", "delivery attempt", "delivery failed",
-                "delivery refused", "refused delivery", "consignee refused"))
+        // The customer would not take the parcel: the courier stops trying and it comes back to us. Read
+        // before 'Undelivered' - the parcel still in the courier's hands after a failed attempt - because
+        // a refusal is also reported as 'Undelivered ... Refused'. A PICKUP being refused is deliberately
+        // not this: that parcel never left the shop, so the wording below still has it.
+        if (!text.Contains("pickup") && (text.Contains("refused") || text.Contains("rejected")))
+            return ShipmentStage.Refused;
+
+        if (ContainsAny(text, "undelivered", "not delivered", "delivery attempt", "delivery failed"))
         {
             return ShipmentStage.Undelivered;
         }
@@ -99,10 +113,11 @@ public static class ShipmentStatusFlow
             return ShipmentStage.InTransit;
         }
 
-        // Booked but not collected yet: the parcel is still in the shop, so the order has not left it.
+        // Booked but not collected yet: the parcel is still in the shop, so the order has not left it. A pickup
+        // word alone is enough - scheduled, failed, refused, rescheduled: whatever it says, the parcel has not
+        // gone anywhere, and 'picked up' (the one that HAS gone) is matched above as InTransit.
         if (ContainsAny(text, "awb assigned", "awb generated", "label generated", "manifest",
-                "pickup scheduled", "pickup generated", "pickup pending", "pickup error",
-                "pickup failed", "pickup rescheduled", "ready to ship", "booked", "shipment created"))
+                "pickup", "ready to ship", "booked", "shipment created"))
         {
             return ShipmentStage.Booked;
         }
@@ -121,6 +136,7 @@ public static class ShipmentStatusFlow
         ShipmentStage.OutForDelivery => "Out for delivery",
         ShipmentStage.Delivered => "Delivered",
         ShipmentStage.Undelivered => "Delivery attempted - the courier will try again",
+        ShipmentStage.Refused => "Refused at the door - coming back to us",
         ShipmentStage.Rto => "Returning to the shop",
         ShipmentStage.Cancelled => "Pickup cancelled",
         _ => string.Empty
@@ -134,7 +150,8 @@ public static class ShipmentStatusFlow
     /// makes the order Shipped, and a delivered parcel makes it Delivered. Nothing else moves an order -
     /// a booked-but-not-collected parcel is NOT 'Shipped' (a label printed is not a dispatch, and the
     /// storefront shows 'Parcel booked' anyway), and an exception, an RTO or a cancelled pickup is the
-    /// shop team's call, not the courier's.
+    /// shop team's call, not the courier's (a refusal or an RTO does raise an ASK for them - see
+    /// <see cref="ReturnReasonFor"/> - but it is still they who decide it).
     ///
     /// Whether the move is allowed at all is still the order lifecycle's decision
     /// (<see cref="OrderStatusFlow.CanMove"/>), which is what keeps an unpaid order, an already
@@ -144,6 +161,24 @@ public static class ShipmentStatusFlow
     {
         ShipmentStage.InTransit or ShipmentStage.OutForDelivery => OrderStatusFlow.Shipped,
         ShipmentStage.Delivered => OrderStatusFlow.Delivered,
+        _ => null
+    };
+
+    /// <summary>
+    /// The return a courier's own status raises on the order, or null when it raises none: a parcel refused
+    /// at the doorstep (<see cref="OrderReturnReason.RefusedAtDoor"/>) or one coming back undelivered
+    /// (<see cref="OrderReturnReason.ReturnedToOrigin"/>).
+    ///
+    /// It is an ASK and never an answer: the tracking pull writes it down as a return in
+    /// <see cref="OrderReturnStatus.Requested"/> with Origin 'Courier' (see
+    /// <see cref="OrderReturnFlow.RequestAsync"/>), and the shop team decides it - so a parcel that came back
+    /// never turns into a refund on its own. A failed attempt the courier will try again is deliberately not
+    /// here: nothing has come back yet.
+    /// </summary>
+    public static string? ReturnReasonFor(ShipmentStage stage) => stage switch
+    {
+        ShipmentStage.Refused => OrderReturnReason.RefusedAtDoor,
+        ShipmentStage.Rto => OrderReturnReason.ReturnedToOrigin,
         _ => null
     };
 
@@ -186,11 +221,12 @@ public static class ShipmentStatusFlow
 
     /// <summary>
     /// True once there is nothing left to learn from the courier, so the tracking pull stops asking: a
-    /// delivered parcel, one coming back, or a pickup that was called off. A failed delivery is NOT
-    /// closed - the courier tries again, and that next attempt is exactly what 'My Orders' waits for.
+    /// delivered parcel, one the customer refused at the door, one coming back, or a pickup that was
+    /// called off. A failed delivery is NOT closed - the courier tries again, and that next attempt is
+    /// exactly what 'My Orders' waits for.
     /// </summary>
     public static bool IsClosed(ShipmentStage stage) => stage
-        is ShipmentStage.Delivered or ShipmentStage.Rto or ShipmentStage.Cancelled;
+        is ShipmentStage.Delivered or ShipmentStage.Refused or ShipmentStage.Rto or ShipmentStage.Cancelled;
 
     /// <summary>
     /// True while an order in this status can still follow its parcel, so a tracking pull is worth

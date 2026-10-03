@@ -22,77 +22,185 @@
 
   <div *ngIf="isLoading" class="loading">Loading dashboard data...</div>
 
-  <div *ngIf="!isLoading" class="stats-grid">
-    <div class="stat-card">
-      <div class="stat-icon products">🛍️</div>
-      <div class="stat-info">
-        <h3>{{ stats.totalProducts }}</h3>
-        <p>Total Products</p>
-      </div>
-    </div>
+  <div *ngIf="!isLoading" class="stats-sections">
+    <!-- Catalogue and people: the shapes of the business, not its day-to-day work. -->
+    <section class="stats-section">
+      <h2 class="section-title">Overview</h2>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon products">🛍️</div>
+          <div class="stat-info">
+            <h3>{{ stats.totalProducts }}</h3>
+            <p>Total Products</p>
+          </div>
+        </div>
 
-    <div class="stat-card">
-      <div class="stat-icon orders">📦</div>
-      <div class="stat-info">
-        <h3>{{ stats.totalOrders }}</h3>
-        <p title="Orders that are not cancelled">Active Orders</p>
-      </div>
-    </div>
+        <div class="stat-card">
+          <div class="stat-icon orders">📦</div>
+          <div class="stat-info">
+            <h3>{{ stats.totalOrders }}</h3>
+            <p title="Orders that are not cancelled">Active Orders</p>
+          </div>
+        </div>
 
-    <div class="stat-card">
-      <div class="stat-icon customers">👥</div>
-      <div class="stat-info">
-        <h3>{{ stats.totalCustomers }}</h3>
-        <p>Total Customers</p>
-      </div>
-    </div>
+        <div class="stat-card">
+          <div class="stat-icon customers">👥</div>
+          <div class="stat-info">
+            <h3>{{ stats.totalCustomers }}</h3>
+            <p>Total Customers</p>
+          </div>
+        </div>
 
-    <div class="stat-card">
-      <div class="stat-icon partners">🤝</div>
-      <div class="stat-info">
-        <h3>{{ stats.totalPartners }}</h3>
-        <p>Total Partners</p>
-      </div>
-    </div>
+        <div class="stat-card">
+          <div class="stat-icon partners">🤝</div>
+          <div class="stat-info">
+            <h3>{{ stats.totalPartners }}</h3>
+            <p>Total Partners</p>
+          </div>
+        </div>
 
-    <div class="stat-card">
-      <div class="stat-icon vendors">🏪</div>
-      <div class="stat-info">
-        <h3>{{ stats.totalVendors }}</h3>
-        <p>Total Vendors</p>
+        <div class="stat-card">
+          <div class="stat-icon vendors">🏪</div>
+          <div class="stat-info">
+            <h3>{{ stats.totalVendors }}</h3>
+            <p>Total Vendors</p>
+          </div>
+        </div>
       </div>
-    </div>
+    </section>
 
-    <div class="stat-card warning">
-      <div class="stat-icon pending">⏳</div>
-      <div class="stat-info">
-        <h3>{{ stats.pendingOrders }}</h3>
-        <p>Pending Orders</p>
-      </div>
-    </div>
+    <!-- Orders and their parcels: what the shop has to do and what is out with a courier right now. -->
+    <section class="stats-section">
+      <h2 class="section-title">Orders &amp; Shipments</h2>
+      <div class="stats-grid">
+        <div class="stat-card warning">
+          <div class="stat-icon pending">⏳</div>
+          <div class="stat-info">
+            <h3>{{ stats.pendingOrders }}</h3>
+            <p title="Orders placed but not paid yet - the customer can still pay or cancel">Pending Payment</p>
+          </div>
+        </div>
 
-    <div class="stat-card">
-      <div class="stat-icon cancelled">❌</div>
-      <div class="stat-info">
-        <h3>{{ stats.cancelledOrders }}</h3>
-        <p title="Cancelled orders are not counted in Active Orders or in the revenue">Cancelled Orders</p>
-      </div>
-    </div>
+        <div class="stat-card warning">
+          <div class="stat-icon dispatch">📮</div>
+          <div class="stat-info">
+            <h3>{{ stats.ordersToDispatch }}</h3>
+            <p title="Paid orders the shop has not handed to a courier yet">Orders to Dispatch</p>
+          </div>
+        </div>
 
-    <div class="stat-card">
-      <div class="stat-icon revenue">💰</div>
-      <div class="stat-info">
-        <h3>{{ stats.todayRevenue | currency:'INR' }}</h3>
-        <p title="Only orders whose payment was captured">Today's Revenue (paid)</p>
-      </div>
-    </div>
+        <div class="stat-card">
+          <div class="stat-icon transit">🚚</div>
+          <div class="stat-info">
+            <h3>{{ stats.shipmentsInProgress }}</h3>
+            <p title="Parcels with a courier and on the way (in transit or out for delivery)">Shipments in Progress</p>
+          </div>
+        </div>
 
-    <div class="stat-card">
-      <div class="stat-icon revenue">📈</div>
-      <div class="stat-info">
-        <h3>{{ stats.monthlyRevenue | currency:'INR' }}</h3>
-        <p title="Only orders whose payment was captured">Monthly Revenue (paid)</p>
+        <div class="stat-card">
+          <div class="stat-icon ofd">🛵</div>
+          <div class="stat-info">
+            <h3>{{ stats.outForDelivery }}</h3>
+            <p title="Parcels on the delivery van today">Out for Delivery</p>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon delivered">✅</div>
+          <div class="stat-info">
+            <h3>{{ stats.deliveredOrders }}</h3>
+            <p title="Orders handed to the customer">Delivered Orders</p>
+          </div>
+        </div>
+
+        <div class="stat-card alert">
+          <div class="stat-icon attention">⚠️</div>
+          <div class="stat-info">
+            <h3>{{ stats.shipmentsNeedingAttention }}</h3>
+            <p title="Parcels with a failed delivery or on their way back to the shop (RTO)">Shipments Needing Attention</p>
+          </div>
+        </div>
+
+        <div class="stat-card alert">
+          <div class="stat-icon refund">💸</div>
+          <div class="stat-info">
+            <h3>{{ stats.refundsDue }}</h3>
+            <p title="Orders the shop still owes money back on - approve or record the refund on the order">Refunds Due</p>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon cancelled">❌</div>
+          <div class="stat-info">
+            <h3>{{ stats.cancelledOrders }}</h3>
+            <p title="Cancelled orders are not counted in Active Orders or in the revenue">Cancelled Orders</p>
+          </div>
+        </div>
+
+        <!-- Returns: the three live states a return moves through, in the same vocabulary the Return card uses,
+             plus the orders whose parcel came back - counted on their own tile, exactly like a cancellation. -->
+        <div class="stat-card alert">
+          <div class="stat-icon attention">&#x21A9;&#xFE0F;</div>
+          <div class="stat-info">
+            <h3>{{ stats.returnsAwaitingDecision }}</h3>
+            <p title="Returns waiting for the team's answer - a customer's ask, or a refusal / return-to-origin the courier reported">
+              Returns Awaiting Decision
+            </p>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon transit">&#x1F69A;</div>
+          <div class="stat-info">
+            <h3>{{ stats.returnsComingBack }}</h3>
+            <p title="Approved returns whose parcel is on its way back to the shop - the pickup is booked">
+              Returns Coming Back
+            </p>
+          </div>
+        </div>
+
+        <div class="stat-card alert">
+          <div class="stat-icon dispatch">&#x1F4E6;</div>
+          <div class="stat-info">
+            <h3>{{ stats.returnsReceived }}</h3>
+            <p title="Returns whose parcel is back with the shop - look the units over, then close the return to refund">
+              Returns Received
+            </p>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon delivered">&#x21A9;&#xFE0F;</div>
+          <div class="stat-info">
+            <h3>{{ stats.returnedOrders }}</h3>
+            <p title="Orders whose parcel came back: the sale reversed, the units on the shelf and the money owed back">
+              Returned Orders
+            </p>
+          </div>
+        </div>
       </div>
-    </div>
+    </section>
+
+    <!-- Money actually in the bank: only captured payments count. -->
+    <section class="stats-section">
+      <h2 class="section-title">Revenue</h2>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon revenue">💰</div>
+          <div class="stat-info">
+            <h3>{{ stats.todayRevenue | currency:'INR' }}</h3>
+            <p title="Only orders whose payment was captured">Today's Revenue (paid)</p>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon revenue">📈</div>
+          <div class="stat-info">
+            <h3>{{ stats.monthlyRevenue | currency:'INR' }}</h3>
+            <p title="Only orders whose payment was captured">Monthly Revenue (paid)</p>
+          </div>
+        </div>
+      </div>
+    </section>
   </div>
 </div>

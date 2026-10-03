@@ -39,4 +39,19 @@ public interface IOrderService
     /// 'My Orders'), after checking with Razorpay that the earlier attempt really was not paid.
     /// </summary>
     Task<CreateOrderResponse> RetryOrderPaymentAsync(long customerId, long orderId);
+
+    /// <summary>
+    /// Asks for a return of a delivered order from 'My Orders' - 'Return' on the order, with the reason the
+    /// customer picked. The ask is written down and the shop team answers it from the admin order screen;
+    /// nothing is refunded and no unit moves until the return is closed with the parcel back in the shop
+    /// (see HC.Business.OrderReturnFlow for the rules this applies).
+    /// </summary>
+    Task<ResultDto> RequestReturnAsync(long customerId, RequestReturnRequest request);
+
+    /// <summary>
+    /// Takes a return request back, while the shop team has not answered it yet - the customer's way out of
+    /// asking by mistake. The order is left exactly as it was and the ask can be made again while the
+    /// return window is open.
+    /// </summary>
+    Task<ResultDto> WithdrawReturnAsync(long customerId, long orderId);
 }

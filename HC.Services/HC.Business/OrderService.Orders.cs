@@ -441,6 +441,10 @@ public partial class OrderService : IOrderService
             .Include(o => o.ShippingAddress)
             .Include(o => o.BillingAddress)
             .Include(o => o.OrderHistories)
+
+            // The legs of the order, because the return window is counted from the day the parcel reached
+            // the customer - the forward leg's own delivery date (see OrderReturnFlow.DeliveredOn).
+            .Include(o => o.OrderShipments)
             .OrderByDescending(o => o.OrderDate)
             .AsNoTracking()
             .ToListAsync();
@@ -497,20 +501,46 @@ public partial class OrderService : IOrderService
         // courier and never fails because one is unreachable.
         var shipments = await _shipmentTracking.GetForOrdersAsync(orderIds);
 
+        // The parcels coming back, in the same one query: once a return has been approved the customer is waiting
+        // on the pickup, and 'My Orders' follows it exactly like the parcel that went out. Only the orders that
+        // have such a leg are in the answer, so an order with no return is simply shown without one.
+        var returnShipments = await _shipmentTracking.GetReverseForOrdersAsync(orderIds);
+
+        // The returns of these orders, in one read for the whole history: 'My Orders' shows the customer
+        // where a return has got to and - while nothing has been answered yet - offers to take it back.
+        // Every row is read, not only the open ones, because a refused or closed return is still what
+        // belongs next to the order; the newest row per order is the one that counts (only one can ever be
+        // open at a time - see OrderReturnFlow.FindOpenAsync).
+        var returns = (await _context.OrderReturns
+                .Where(r => orderIds.Contains(r.OrderId))
+                .AsNoTracking()
+                .ToListAsync())
+            .GroupBy(r => r.OrderId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(r => r.ReturnId).First());
+
+        // One 'now' for the whole page, so every order is judged against the same moment and a page cannot
+        // show one order's window as open and another's as closed by a few milliseconds.
+        var now = DateTime.UtcNow;
+
         return orders.Select(o =>
         {
             var statusName = o.OrderStatus?.Status ?? statusNames.GetValueOrDefault(o.OrderStatusId, "Pending");
             var isPaid = OrderStatusFlow.IsPaid(o.OrderStatusId);
 
-            // Money we are still holding on an order that will not be delivered (or whose refund
-            // Razorpay refused) is owed back to the customer: the shop team approves it from the admin
-            // order screen - HC.Business.RazorpayRefunds tells the whole story.
+            // Money we are still holding on an order that will not be delivered (or whose refund Razorpay
+            // refused) is owed back to the customer: the shop team approves it from the admin order screen -
+            // HC.Business.RazorpayRefunds tells the whole story. A returned order counts exactly like a cancelled
+            // one (see OrderPaymentStatus.IsRefundOwed, which owns the rule).
             var payment = latestPayments.GetValueOrDefault(o.OrderId);
-            var refundPending = payment != null &&
-                                (payment.Status == OrderPaymentStatus.RefundRequested ||
-                                 payment.Status == OrderPaymentStatus.RefundFailed ||
-                                 (o.OrderStatusId == OrderStatusCancelled &&
-                                  payment.Status == OrderPaymentStatus.Captured));
+            var refundPending = payment != null && OrderPaymentStatus.IsRefundOwed(o.OrderStatusId, payment.Status);
+
+            // The order's own return, if it ever had one. The newest row carries everything the customer
+            // needs to read: where it has got to, whether anything can still be done about it, and - while it
+            // is open - that asking again is pointless. OrderReturnFlow owns the rules this mirrors.
+            var latestReturn = returns.GetValueOrDefault(o.OrderId);
+            var openReturn = latestReturn != null && OrderReturnStatus.IsOpen(latestReturn.Status)
+                ? latestReturn
+                : null;
 
             return new OrderListDto
             {
@@ -542,6 +572,18 @@ public partial class OrderService : IOrderService
                 // has been paid) or Confirmed (paid, and the money is given back). From Shipped onwards
                 // the parcel is on its way, so 'My Orders' stops offering it and the server refuses it.
                 CanCancel = OrderStatusFlow.CanCustomerCancel(o.OrderStatusId),
+
+                // The customer may ask for a return on exactly what the server accepts: delivered, nothing
+                // already waiting for an answer and inside the window (OrderReturnFlow.CanCustomerAsk). The
+                // window's last day travels with it, so "why can I not return this?" is answered on the page
+                // instead of after a failed call.
+                CanReturn = OrderReturnFlow.CanCustomerAsk(o, openReturn, _returnWindowDays, now),
+                CanWithdrawReturn = openReturn != null && OrderReturnStatus.CanWithdraw(openReturn.Status),
+                ReturnStatus = latestReturn?.Status,
+                ReturnReason = latestReturn?.Reason,
+                ReturnOrigin = latestReturn?.Origin,
+                ReturnRequestedOn = latestReturn?.RequestedOn,
+                ReturnWindowEndsOn = OrderReturnFlow.WindowEndsOn(o, _returnWindowDays),
                 ItemCount = o.OrderItems.Count,
 
                 ShippingAddress = MapAddress(o.ShippingAddress),
@@ -550,6 +592,10 @@ public partial class OrderService : IOrderService
                 // The parcel the shop recorded for this order, if any - the customer's 'Track parcel' reads
                 // this, and the throttled pull replaces it with what the courier says right now.
                 Shipment = shipments.GetValueOrDefault(o.OrderId),
+
+                // The parcel coming back, once the return has been approved: the customer follows what they sent
+                // back from here ('On its way back', 'Back with us').
+                ReturnShipment = returnShipments.GetValueOrDefault(o.OrderId),
 
                 // OrderItems holds one row per physical unit, so equal units are grouped for display.
                 Items = o.OrderItems

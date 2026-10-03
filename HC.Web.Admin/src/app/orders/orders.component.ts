@@ -25,6 +25,13 @@ export class OrdersComponent implements OnInit {
    */
   refundsOnly = false;
 
+  /**
+   * True to show only the orders that have a return on them - an ask waiting for the team to answer it, or
+   * a parcel on its way back. It is the queue returns are worked from, so it gets its own filter beside the
+   * refund one (see HC.Business.OrderReturnFlow).
+   */
+  returnsOnly = false;
+
   // Pagination
   pageSize = 10;
   currentPage = 1;
@@ -62,6 +69,7 @@ export class OrdersComponent implements OnInit {
     this.filteredOrders = this.orders.filter(o => {
       const matchesStatus = !this.statusFilter || o.statusId === this.statusFilter;
       const matchesRefund = !this.refundsOnly || o.refundPending;
+      const matchesReturn = !this.returnsOnly || o.returnPending;
       const matchesTerm =
         !term ||
         (o.orderNumber || '').toLowerCase().includes(term) ||
@@ -70,7 +78,7 @@ export class OrdersComponent implements OnInit {
         String(o.customerId ?? '').includes(term) ||
         (o.status || '').toLowerCase().includes(term);
 
-      return matchesStatus && matchesRefund && matchesTerm;
+      return matchesStatus && matchesRefund && matchesReturn && matchesTerm;
     });
 
     this.currentPage = 1;
@@ -84,6 +92,7 @@ export class OrdersComponent implements OnInit {
     this.searchTerm = '';
     this.statusFilter = 0;
     this.refundsOnly = false;
+    this.returnsOnly = false;
     this.applyFilter();
   }
 
@@ -92,9 +101,14 @@ export class OrdersComponent implements OnInit {
     return this.orders.filter(o => o.refundPending).length;
   }
 
+  /** How many orders have a live return - the badge on the 'Returns' filter. */
+  get pendingReturnCount(): number {
+    return this.orders.filter(o => o.returnPending).length;
+  }
+
   /**
-   * Colour of the status chip. The ids are Orders.OrderStatusID (1 Pending, 2 Confirmed,
-   * 3 Shipped, 4 Delivered, 5 Cancelled).
+   * Colour of the status chip. The ids are Orders.OrderStatusID (1 Pending, 2 Confirmed, 3 Shipped, 4 Delivered,
+   * 5 Cancelled, 6 Returned - the sales this shop reversed, so they read like a cancellation).
    */
   getStatusBadgeClass(statusId: number): string {
     switch (statusId) {
@@ -103,6 +117,7 @@ export class OrdersComponent implements OnInit {
       case 3: return 'badge badge-shipped';
       case 4: return 'badge badge-delivered';
       case 5: return 'badge badge-cancelled';
+      case 6: return 'badge badge-cancelled';
       default: return 'badge';
     }
   }

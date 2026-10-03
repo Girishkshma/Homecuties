@@ -150,6 +150,40 @@ public class OrderController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// Asks to send a delivered order back - the 'Return' button and its reason picker in 'My Orders'. The
+    /// order is always matched against the signed-in customer, so a guessed id cannot return somebody
+    /// else's parcel, and the server re-checks everything the page showed the button for: the order has
+    /// been delivered, the return window (<c>Returns:WindowDays</c>) is still open, no return is already
+    /// waiting and the reason is one the picker offers. Nothing is refunded here - the shop team answers
+    /// the ask from the admin order screen (see HC.Business.OrderReturnFlow).
+    /// </summary>
+    [HttpPost("RequestReturn")]
+    public async Task<ActionResult> RequestReturn([FromBody] RequestReturnRequest request)
+    {
+        var customerId = GetTokenCustomerId();
+        if (customerId == null)
+            return Unauthorized(new { Result = 0, Messages = new[] { "Please sign in to ask for a return." } });
+
+        var result = await _orderService.RequestReturnAsync(customerId.Value, request);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Takes a return request back, while the shop team has not answered it yet - the customer's way out of
+    /// asking by mistake. The order is matched against the signed-in customer and is left exactly as it was.
+    /// </summary>
+    [HttpPost("WithdrawReturn")]
+    public async Task<ActionResult> WithdrawReturn([FromBody] OrderActionRequest request)
+    {
+        var customerId = GetTokenCustomerId();
+        if (customerId == null)
+            return Unauthorized(new { Result = 0, Messages = new[] { "Please sign in to take a return back." } });
+
+        var result = await _orderService.WithdrawReturnAsync(customerId.Value, request.OrderId);
+        return Ok(result);
+    }
+
     /// <summary>Reads "Authorization: Bearer &lt;token&gt;" and returns the signed-in customer id when it is valid.</summary>
     private long? GetTokenCustomerId()
     {

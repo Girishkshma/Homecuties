@@ -96,17 +96,28 @@ public class ShipmentTrackingService : IShipmentTrackingService
     /// The parcel of an order as it was last written down, or null when no parcel has been recorded for
     /// it. This never calls the courier: it is what the screens read, and only the pull refreshes it.
     ///
+    /// A parcel is read by leg: the one that went out unless <paramref name="direction"/> asks for the
+    /// other one (see <c>OrderShipment.DirectionForward/DirectionReverse</c>), which is what the admin's
+    /// Return card does when it shows the pickup coming back.
+    ///
     /// A read that fails is answered with null, not with an exception: the parcel is an extra on the
     /// order screen, so a table that cannot be read (an unfinished deployment, say) has to cost that
     /// screen its parcel - never the order the shop team is looking at.
     /// </summary>
-    public async Task<OrderShipmentDto?> GetForOrderAsync(long orderId, CancellationToken cancellationToken = default)
+    public async Task<OrderShipmentDto?> GetForOrderAsync(
+        long orderId,
+        string? direction = null,
+        CancellationToken cancellationToken = default)
     {
+        // Which leg is being read: the parcel that went out unless the caller asked for the other one -
+        // only the admin's Return card reads a reverse parcel.
+        var leg = OrderShipment.NormaliseDirection(direction);
+
         try
         {
             var shipment = await _context.OrderShipments
                 .AsNoTracking()
-                .FirstOrDefaultAsync(s => s.OrderId == orderId, cancellationToken);
+                .FirstOrDefaultAsync(s => s.OrderId == orderId && s.Direction == leg, cancellationToken);
 
             return shipment == null ? null : ToDto(shipment);
         }
@@ -128,7 +139,8 @@ public class ShipmentTrackingService : IShipmentTrackingService
     /// and the admin order detail): one query for the whole page rather than one per order.
     ///
     /// What the courier billed for a parcel is stripped from the answer (see ForCustomer): a list read is
-    /// a customer-facing read.
+    /// a customer-facing read. So is the leg: a list shows the parcel the customer is waiting for (the
+    /// forward one) - a return's own leg belongs to the Return card of the admin order screen.
     ///
     /// Answered with an empty map when the read fails, for the reason <see cref="GetForOrderAsync"/>
     /// gives: the orders on the page are the screen, the parcels are the extra.
@@ -145,7 +157,7 @@ public class ShipmentTrackingService : IShipmentTrackingService
         {
             var shipments = await _context.OrderShipments
                 .AsNoTracking()
-                .Where(s => ids.Contains(s.OrderId))
+                .Where(s => ids.Contains(s.OrderId) && s.Direction == OrderShipment.DirectionForward)
                 .ToListAsync(cancellationToken);
 
             return shipments.ToDictionary(s => s.OrderId, s => ForCustomer(ToDto(s)));
@@ -167,6 +179,44 @@ public class ShipmentTrackingService : IShipmentTrackingService
     }
 
     /// <summary>
+    /// The parcels coming back, keyed by order id, for the screens that show a list: the return's own counterpart
+    /// of <see cref="GetForOrdersAsync"/>, one query for the whole page. An order with no return parcel is simply
+    /// absent from the answer, and what the courier billed is stripped, exactly as it is for the forward leg -
+    /// this read is the customer's own page.
+    /// </summary>
+    public async Task<Dictionary<long, OrderShipmentDto>> GetReverseForOrdersAsync(
+        IEnumerable<long> orderIds, CancellationToken cancellationToken = default)
+    {
+        var ids = orderIds.Distinct().ToList();
+
+        if (ids.Count == 0)
+            return new Dictionary<long, OrderShipmentDto>();
+
+        try
+        {
+            var shipments = await _context.OrderShipments
+                .AsNoTracking()
+                .Where(s => ids.Contains(s.OrderId) && s.Direction == OrderShipment.DirectionReverse)
+                .ToListAsync(cancellationToken);
+
+            return shipments.ToDictionary(s => s.OrderId, s => ForCustomer(ToDto(s)));
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // The page that asked is gone - not this service's answer to give (see PincodeService).
+            throw;
+        }
+        catch (Exception exception)
+        {
+            // The same belt and braces as the forward read: the orders on the page are the screen, the parcels
+            // are the extra (see GetForOrdersAsync).
+            _logger.LogWarning(exception, "Reading the return parcels of {OrderCount} orders failed.", ids.Count);
+
+            return new Dictionary<long, OrderShipmentDto>();
+        }
+    }
+
+    /// <summary>
     /// Records the parcel the shop team booked in the provider's panel. Only this side's record is
     /// written: the consignment itself is created by hand in the provider's panel, exactly as before.
     ///
@@ -178,6 +228,10 @@ public class ShipmentTrackingService : IShipmentTrackingService
     /// the shop's own figure for the books, so the customer-facing reads strip it (see ForCustomer), and
     /// an amount the request does not carry leaves whatever is already recorded alone - a form that does
     /// not ask for it can never wipe it.
+    ///
+    /// A parcel is recorded per leg (see <c>OrderShipment.DirectionForward/DirectionReverse</c>): the
+    /// request's <c>Direction</c> picks which one, blank meaning the parcel that went out - so the Return
+    /// card records a return's pickup with the very same call the Shipment card records a delivery with.
     /// </summary>
     public async Task<OrderShipmentDto> SaveAsync(
         long orderId,
@@ -188,6 +242,16 @@ public class ShipmentTrackingService : IShipmentTrackingService
         var awb = (request.AwbNumber ?? string.Empty).Trim();
         var courier = Trim(request.CourierName, CourierMaxLength);
         var trackingUrl = Trim(request.TrackingUrl, TrackingUrlMaxLength);
+
+        // A parcel is either the one going out or the one coming back. Anything else is a typo, and
+        // quietly writing it as 'Forward' would record a return's pickup as the delivery.
+        if (!OrderShipment.IsValidDirection(request.Direction))
+        {
+            return Failed(orderId,
+                $"'{request.Direction!.Trim()}' is not a parcel direction. Use " +
+                $"'{OrderShipment.DirectionForward}' for the parcel going out or " +
+                $"'{OrderShipment.DirectionReverse}' for the one coming back.");
+        }
 
         // What the courier billed for the parcel is optional - the provider's panel shows it when the
         // parcel is billed, which can be after the team dispatched it - but a negative charge is always a
@@ -243,12 +307,16 @@ public class ShipmentTrackingService : IShipmentTrackingService
         if (order == null)
             return Failed(orderId, "Order not found.");
 
+        // Which leg this call is about - the parcel that went out unless the caller (the Return card)
+        // asked for the one coming back.
+        var direction = OrderShipment.NormaliseDirection(request.Direction);
+
         var shipment = await _context.OrderShipments
-            .FirstOrDefaultAsync(s => s.OrderId == orderId, cancellationToken);
+            .FirstOrDefaultAsync(s => s.OrderId == orderId && s.Direction == direction, cancellationToken);
 
         if (shipment == null)
         {
-            shipment = new OrderShipment { OrderId = orderId, CreatedOn = now };
+            shipment = new OrderShipment { OrderId = orderId, Direction = direction, CreatedOn = now };
             _context.OrderShipments.Add(shipment);
         }
 
@@ -351,8 +419,11 @@ public class ShipmentTrackingService : IShipmentTrackingService
     public async Task<string> MirrorOrderStatusAsync(
         long orderId, short orderStatusId, DateTime now, CancellationToken cancellationToken = default)
     {
+        // Only the parcel that went out: the order follows its own delivery, so it is that leg which is
+        // mirrored - a return's own leg is reported on by the courier carrying it (or by the shop team
+        // recording the pickup), never by the order's status.
         var shipment = await _context.OrderShipments
-            .FirstOrDefaultAsync(s => s.OrderId == orderId, cancellationToken);
+            .FirstOrDefaultAsync(s => s.OrderId == orderId && s.Direction == OrderShipment.DirectionForward, cancellationToken);
 
         // Nothing was ever recorded for this order, or a courier carries it and reports on it itself: either
         // way there is nothing here to bring level.
@@ -383,7 +454,7 @@ public class ShipmentTrackingService : IShipmentTrackingService
         if (order == null)
             return Failed(orderId, "Order not found.");
 
-        var shipment = order.OrderShipments.FirstOrDefault();
+        var shipment = ForwardLeg(order.OrderShipments);
 
         if (shipment == null || string.IsNullOrWhiteSpace(shipment.AwbNumber))
         {
@@ -398,50 +469,44 @@ public class ShipmentTrackingService : IShipmentTrackingService
     /// The pull 'My Orders' makes on open: every live parcel of this customer that is due a lookup is
     /// asked about once, and the answer is handed back so the page can show it without another round trip.
     ///
-    /// Only the orders that can still follow their parcel are looked at (Confirmed and Shipped - see
-    /// <see cref="ShipmentStatusFlow.CanOrderFollow"/>), and each parcel only when its own throttle has
-    /// run out and the courier has not finished with it. A parcel that fails is answered with the last
-    /// thing that was known about it plus why it could not be refreshed, so the page never loses a status
-    /// it already had. Nothing here throws: a courier that is down must not stop 'My Orders' rendering.
+    /// It follows both of an order's legs. The parcel that went out is looked at while the order can still
+    /// follow it (Confirmed and Shipped - see <see cref="ShipmentStatusFlow.CanOrderFollow"/>), and the parcel
+    /// coming back is looked at once a return has been approved, so a customer who sent something back can see
+    /// where it is. Each parcel is only asked about when its own throttle has run out and the courier has not
+    /// finished with it; a parcel that fails is answered with the last thing that was known about it plus why it
+    /// could not be refreshed, so the page never loses a status it already had. Nothing here throws: a courier
+    /// that is down must not stop 'My Orders' rendering.
     /// </summary>
     public async Task<RefreshOrderShipmentsDto> RefreshForCustomerAsync(
         long customerId, CancellationToken cancellationToken = default)
     {
         // Provider-neutral 'still moving' statuses, written out because EF translates members, not method
-        // calls: Confirmed (the parcel may have been collected) and Shipped (it may have arrived).
+        // calls: Confirmed (the parcel may have been collected), Shipped (it may have arrived) and Delivered -
+        // which is where a return starts, so the parcel coming back has an order to be followed from. Delivered
+        // orders only ever contribute that second leg: nothing below lets an order that arrived move again.
         var orders = await _context.Orders
             .Include(o => o.OrderStatus)
             .Include(o => o.OrderItems)
             .Include(o => o.OrderShipments)
+            .Include(o => o.OrderReturns)
             .Where(o => o.CustomerId == customerId &&
                         (o.OrderStatusId == OrderStatusFlow.Confirmed ||
-                         o.OrderStatusId == OrderStatusFlow.Shipped))
+                         o.OrderStatusId == OrderStatusFlow.Shipped ||
+                         o.OrderStatusId == OrderStatusFlow.Delivered))
             .ToListAsync(cancellationToken);
 
         var now = DateTime.UtcNow;
         var result = new RefreshOrderShipmentsDto { Result = 1 };
 
-        foreach (var order in orders)
+        // One parcel, looked up and handed on as the customer may read it (the shop's own freight figure is
+        // stripped - see ForCustomer). A failure costs the page its parcel and never the page itself.
+        async Task PullAsync(Order order, OrderShipment parcel)
         {
-            var shipment = order.OrderShipments.FirstOrDefault();
-
-            // The query above is only a prefilter written out for EF (it translates members, not method
-            // calls); the lifecycle still decides whether an order may follow its parcel at all.
-            if (shipment == null || !ShipmentStatusFlow.CanOrderFollow(order.OrderStatusId) || !IsDue(shipment, now))
-                continue;
-
-            // A parcel with no courier behind it is not looked up at all, so nobody is handed a sentence
-            // about a lookup that was never going to happen - least of all the customer, who would read it
-            // as the shop's courier letting them down (see IShipmentProvider.ReportsTracking). Its order
-            // still moves: by the shop team's own status moves.
-            if (!ReportsTrackingFor(shipment.Provider))
-                continue;
-
             OrderShipmentDto answer;
 
             try
             {
-                answer = await RefreshOneAsync(order, shipment, now, currentUserId: 0, cancellationToken);
+                answer = await RefreshOneAsync(order, parcel, now, currentUserId: 0, cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -456,10 +521,9 @@ public class ShipmentTrackingService : IShipmentTrackingService
                     "Refreshing the parcel of order {OrderId} failed while it was being written down.",
                     order.OrderId);
 
-                continue;
+                return;
             }
 
-            // Handed on as the customer may read it: the shop's own figure is stripped (see ForCustomer).
             result.Shipments.Add(ForCustomer(answer));
 
             if (answer.Result == 0)
@@ -468,6 +532,37 @@ public class ShipmentTrackingService : IShipmentTrackingService
                     .Append(answer.Messages.FirstOrDefault() ??
                             "This parcel could not be checked with the courier just now.")
                     .ToArray();
+            }
+        }
+
+        foreach (var order in orders)
+        {
+            // The parcel the customer is waiting for, if the order can still follow it. The query above is only a
+            // prefilter written out for EF (it translates members, not method calls); the lifecycle still decides,
+            // so an order that has already arrived is not moved again by a courier scan.
+            var forward = ForwardLeg(order.OrderShipments);
+
+            if (forward != null && ShipmentStatusFlow.CanOrderFollow(order.OrderStatusId) &&
+                IsDue(forward, now) && ReportsTrackingFor(forward.Provider))
+            {
+                await PullAsync(order, forward);
+            }
+
+            // The parcel coming back, once a return has been approved: the pickup the shop team booked (or the
+            // courier's own return-to-origin) is followed too, so 'My Orders' says where what the customer sent
+            // back has got to. Only an approved return has a parcel to follow - an ask still waiting for the shop
+            // team's answer has none - and a parcel with no courier behind it is never looked up at all (see
+            // IShipmentProvider.ReportsTracking).
+            var openReturn = order.OrderReturns
+                .OrderByDescending(r => r.ReturnId)
+                .FirstOrDefault();
+
+            var reverse = ReverseLeg(order.OrderShipments);
+
+            if (openReturn != null && OrderReturnStatus.WasApproved(openReturn.Status) &&
+                reverse != null && IsDue(reverse, now) && ReportsTrackingFor(reverse.Provider))
+            {
+                await PullAsync(order, reverse);
             }
         }
 
@@ -563,7 +658,13 @@ public class ShipmentTrackingService : IShipmentTrackingService
         shipment.DeliveredOn = ShipmentStatusFlow.DeliveredOn(stage, snapshot.DeliveredOn, now);
 
         var message = PullMessage(awb, stage, shipment.ProviderStatus);
-        var proposal = ShipmentStatusFlow.OrderStatusFor(stage);
+
+        // Only the parcel that went out can move the order. A reverse leg's own 'Delivered' means the customer's
+        // parcel reached the SHOP, not that the order was delivered - reading it as the order arriving would undo
+        // the very return it is carrying - so nothing is proposed for a leg coming back.
+        var proposal = shipment.Direction == OrderShipment.DirectionForward
+            ? ShipmentStatusFlow.OrderStatusFor(stage)
+            : null;
 
         if (proposal is { } target)
         {
@@ -589,8 +690,74 @@ public class ShipmentTrackingService : IShipmentTrackingService
 
         await _context.SaveChangesAsync(cancellationToken);
 
+        // A refusal or a return-to-origin is the courier saying the parcel is coming back, and that is written down
+        // as a return waiting for the shop team's answer - never as a decision (see RaiseReturnAskAsync).
+        var asked = await RaiseReturnAskAsync(
+            order, shipment, stage, shipment.ProviderStatus, now, cancellationToken);
+
+        if (asked.Length > 0)
+            message += " " + asked;
+
         return ToDto(shipment, order.OrderStatusId,
             await StatusNameAsync(order.OrderStatusId, cancellationToken), result: 1, new[] { message });
+    }
+
+    /// <summary>
+    /// Writes down the return a courier's own status asks for, when it asks for one: a parcel refused at the
+    /// doorstep, or one coming back undelivered (see <see cref="ShipmentStatusFlow.ReturnReasonFor"/> and
+    /// <see cref="OrderReturnReason.IsCourierReason"/>). The ask is the courier's own (Origin 'Courier'), it only
+    /// ever ASKS - the shop team decides it - and it goes where a customer's own ask goes, so both are answered
+    /// from the same Return card.
+    ///
+    /// Three things are deliberately left out. An order that has already given its units back (cancelled, or a
+    /// previous return) raises nothing: the parcel coming back is not a new event for it, and its money is
+    /// already settled. The parcel coming back raises nothing either - a reverse leg IS that return's parcel, not
+    /// a second ask about it. And a refusal or RTO the courier keeps reporting raises nothing after the first
+    /// time: the order already has an open return, and the shop team is reminded rather than told about a second
+    /// one (only one can exist - see OrderReturnFlow.FindOpenAsync).
+    ///
+    /// Returns the sentence for the person who asked (the customer's page, or the shop team's 'Track now'), or ""
+    /// when no ask was raised.
+    /// </summary>
+    private async Task<string> RaiseReturnAskAsync(
+        Order order,
+        OrderShipment shipment,
+        ShipmentStage stage,
+        string providerStatus,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        if (shipment.Direction != OrderShipment.DirectionForward ||
+            ShipmentStatusFlow.ReturnReasonFor(stage) is not { } reasonCode ||
+            SkuAvailability.ReleasesUnits(order.OrderStatusId))
+        {
+            return string.Empty;
+        }
+
+        var alreadyOpen = await OrderReturnFlow.FindOpenAsync(_context, order.OrderId, cancellationToken);
+
+        if (alreadyOpen != null)
+        {
+            return $"A return of this order is already waiting to be answered " +
+                   $"({OrderReturnReason.Label(alreadyOpen.ReasonCode)}).";
+        }
+
+        var asked = await OrderReturnFlow.RequestAsync(
+            _context,
+            order,
+            OrderReturnOrigin.Courier,
+            reasonCode,
+            providerStatus.Length > 0 ? providerStatus : OrderReturnReason.Label(reasonCode),
+            requestedBy: null,
+            now,
+            cancellationToken);
+
+        _logger.LogInformation(
+            "The courier's own status of order {OrderId} raised return {ReturnId} for the shop team ({ReasonCode}).",
+            order.OrderId, asked.ReturnId, reasonCode);
+
+        return $"A return is now waiting to be answered ({OrderReturnReason.Label(reasonCode)}): the parcel is " +
+               "coming back to us.";
     }
 
     /// <summary>
@@ -771,6 +938,8 @@ public class ShipmentTrackingService : IShipmentTrackingService
             Result = result,
             Messages = messages ?? Array.Empty<string>(),
             OrderId = shipment.OrderId,
+            Direction = shipment.Direction,
+            IsReverse = shipment.Direction == OrderShipment.DirectionReverse,
             HasShipment = !string.IsNullOrWhiteSpace(shipment.AwbNumber),
             Provider = shipment.Provider ?? string.Empty,
             ReportsTracking = ReportsTrackingFor(shipment.Provider),
@@ -805,6 +974,22 @@ public class ShipmentTrackingService : IShipmentTrackingService
 
         return parcel;
     }
+
+    /// <summary>
+    /// The parcel that went out, out of the legs one order may carry (see
+    /// <c>OrderShipment.DirectionForward/DirectionReverse</c>): until a return is arranged an order has
+    /// only this one, and afterwards 'the parcel' still means this one unless a caller asks for the other
+    /// by name.
+    /// </summary>
+    private static OrderShipment? ForwardLeg(IEnumerable<OrderShipment> legs) =>
+        legs.FirstOrDefault(s => s.Direction == OrderShipment.DirectionForward);
+
+    /// <summary>
+    /// The parcel coming back, out of the legs one order may carry: a return's own leg. Null for every order that
+    /// has never had a return arranged - which is most of them - so callers can simply skip it.
+    /// </summary>
+    private static OrderShipment? ReverseLeg(IEnumerable<OrderShipment> legs) =>
+        legs.FirstOrDefault(s => s.Direction == OrderShipment.DirectionReverse);
 
     /// <summary>Nothing could be done, and here is why - in words for the person who asked.</summary>
     private static OrderShipmentDto Failed(long orderId, string message) => new()

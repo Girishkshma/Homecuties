@@ -33,6 +33,14 @@ public partial class OrderService : IOrderService
     private readonly string _razorpayKeySecret;
     private readonly string _razorpayWebhookSecret;
 
+    /// <summary>
+    /// How long a customer has to ask for a return (<c>Returns:WindowDays</c>), counted from the day the
+    /// parcel reached them - see <see cref="OrderReturnFlow"/>. It is the customer-facing window only: the
+    /// admin area never checks it, because the shop team may raise or accept a return whenever it is right
+    /// to.
+    /// </summary>
+    private readonly int _returnWindowDays;
+
     public OrderService(
         HomecutiesDbContext context,
         IConfiguration configuration,
@@ -45,6 +53,12 @@ public partial class OrderService : IOrderService
         _razorpayKeyId = configuration["Razorpay:KeyId"] ?? string.Empty;
         _razorpayKeySecret = configuration["Razorpay:KeySecret"] ?? string.Empty;
         _razorpayWebhookSecret = configuration["Razorpay:WebhookSecret"] ?? string.Empty;
+
+        // A missing or unreadable setting falls back to the documented default rather than to no window at
+        // all: a return is a promise to the customer, and it must not disappear because a key is misspelt.
+        _returnWindowDays = int.TryParse(configuration["Returns:WindowDays"], out var windowDays) && windowDays >= 0
+            ? windowDays
+            : OrderReturnFlow.DefaultWindowDays;
     }
 
     /// <summary>True when both Razorpay credentials are present (the gateway can be used).</summary>

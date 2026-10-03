@@ -23,6 +23,7 @@ public partial class AdminDashboardService : IAdminDashboardService
     private const short OrderStatusShipped = OrderStatusFlow.Shipped;
     private const short OrderStatusDelivered = OrderStatusFlow.Delivered;
     private const short OrderStatusCancelled = OrderStatusFlow.Cancelled; // 5
+    private const short OrderStatusReturned = OrderStatusFlow.Returned; // 6
 
     // SKUStatuses.SKUStatusID values and the pools a unit moves between live in SkuAvailability, so the
     // shop front, the admin screen and the tracking pull share one definition of where a unit is.
@@ -56,14 +57,26 @@ public partial class AdminDashboardService : IAdminDashboardService
                 TotalAmount = o.OrderItems.Sum(oi => oi.UnitPrice),
                 ItemCount = o.OrderItems.Count,
 
-                // A refund is owed on an order whose money we still hold: the customer cancelled a paid
-                // order (RefundRequested), a refund Razorpay refused (RefundFailed, retried from the
-                // order screen), or a cancelled order whose capture was never given back - an order
-                // cancelled by the shop team is refunded straight away, so it never shows up here.
+                // A refund is owed on an order whose money we still hold: a refund that has been asked for
+                // (RefundRequested), one Razorpay refused (RefundFailed, retried from the order screen), or a
+                // capture on an order that gave its units back - cancelled, or returned once its parcel came back -
+                // whose refund was never asked for. Written out for the database like every other rule in this
+                // query; OrderPaymentStatus.IsRefundOwed is the very same rule where C# can be used.
                 RefundPending = o.OrderPayments.Any(p =>
                     p.Status == OrderPaymentStatus.RefundRequested ||
                     p.Status == OrderPaymentStatus.RefundFailed ||
-                    (o.OrderStatusId == OrderStatusCancelled && p.Status == OrderPaymentStatus.Captured))
+                    ((o.OrderStatusId == OrderStatusCancelled ||
+                      o.OrderStatusId == SkuAvailability.ReturnedOrderStatusId) &&
+                     p.Status == OrderPaymentStatus.Captured)),
+
+                // The return the order carries, if it ever had one: the newest row's status, and whether that
+                // row is still live. This list is where "what is waiting for an answer" and "what is on its way
+                // back" are found, so it has to say so without every order being opened (see OrderReturnFlow).
+                ReturnStatus = o.OrderReturns
+                    .OrderByDescending(r => r.ReturnId)
+                    .Select(r => r.Status)
+                    .FirstOrDefault(),
+                ReturnPending = o.OrderReturns.Any(r => OrderReturnStatus.Open.Contains(r.Status))
             })
             .ToListAsync();
     }
@@ -165,10 +178,10 @@ public partial class AdminDashboardService : IAdminDashboardService
 
         if (payment != null)
         {
-            order.RefundPending = payment.Status == OrderPaymentStatus.RefundRequested
-                                  || payment.Status == OrderPaymentStatus.RefundFailed
-                                  || (order.StatusId == OrderStatusCancelled &&
-                                      payment.Status == OrderPaymentStatus.Captured);
+            // The same rule the order list and the dashboard flag as 'Refund due' - a refund that has been asked
+            // for, one that failed and is retried from here, or the capture of an order that gave its units back
+            // (cancelled, or returned) whose refund was never asked for.
+            order.RefundPending = OrderPaymentStatus.IsRefundOwed(order.StatusId, payment.Status);
 
             order.RefundRequestedOn = payment.RefundRequestedOn;
             order.RefundRequestedComment = payment.RefundRequestedComment;
@@ -195,6 +208,46 @@ public partial class AdminDashboardService : IAdminDashboardService
         // comes through the provider-neutral tracking service - which is also what keeps opening an order
         // off the courier's critical path: this only reads what was written down last time.
         order.Shipment = await _shipmentTracking.GetForOrderAsync(orderId);
+
+        // The return of this order, if it has one: the order-level record of it (see OrderReturnFlow), with
+        // the parcel coming back beside it - which is what the Return card needs to show the ask, offer the
+        // shop team's answer while one is waiting and hold the pickup's own AWB once it is booked. Read on its
+        // own like the parcel, and never a courier call: the card is refreshed by its own 'Track now'.
+        var orderReturn = await _context.OrderReturns
+            .AsNoTracking()
+            .Where(r => r.OrderId == orderId)
+            .OrderByDescending(r => r.ReturnId)
+            .FirstOrDefaultAsync();
+
+        if (orderReturn != null)
+        {
+            order.Return = new AdminOrderReturnDto
+            {
+                ReturnId = orderReturn.ReturnId,
+                Origin = orderReturn.Origin,
+                OriginLabel = OrderReturnOrigin.Label(orderReturn.Origin),
+                Status = orderReturn.Status,
+                ReasonCode = orderReturn.ReasonCode,
+                ReasonLabel = OrderReturnReason.Label(orderReturn.ReasonCode),
+                Reason = orderReturn.Reason,
+                RequestedOn = orderReturn.RequestedOn,
+                RequestedBy = orderReturn.RequestedBy,
+                DecisionOn = orderReturn.DecisionOn,
+                DecisionBy = orderReturn.DecisionBy,
+                DecisionComment = orderReturn.DecisionComment,
+                ReceivedOn = orderReturn.ReceivedOn,
+                ClosedOn = orderReturn.ClosedOn,
+                InspectionOn = orderReturn.InspectionOn,
+                InspectionBy = orderReturn.InspectionBy,
+                InspectionComment = orderReturn.InspectionComment,
+                CanDecide = OrderReturnStatus.CanDecide(orderReturn.Status),
+                CanMarkReceived = OrderReturnStatus.CanMarkReceived(orderReturn.Status),
+                CanInspect = OrderReturnStatus.CanInspect(orderReturn.Status),
+                CanClose = OrderReturnStatus.CanClose(orderReturn.Status),
+                IsOpen = OrderReturnStatus.IsOpen(orderReturn.Status),
+                Shipment = await _shipmentTracking.GetForOrderAsync(orderId, OrderShipment.DirectionReverse)
+            };
+        }
 
         // The steps that follow the status the order is in - the same chain the storefront reads, so an
         // order that has been shipped cannot be sent back and a cancelled one is the end of the line.
@@ -266,6 +319,11 @@ public partial class AdminDashboardService : IAdminDashboardService
                 return Error("Order not found.");
 
             var currentStatusName = order.OrderStatus?.Status ?? $"status {order.OrderStatusId}";
+
+            // Whether the customer's money was taken is read BEFORE the move: it is the current status that says
+            // so (see OrderStatusFlow.IsPaid), and the move is what takes that away - a returned order is not a
+            // paid one any more, its money is owed back.
+            var wasPaid = OrderStatusFlow.IsPaid(order.OrderStatusId);
 
             if (order.OrderStatusId == request.StatusId)
                 return Error($"{OrderNumber(order.OrderId)} is already {currentStatusName}.");
@@ -404,6 +462,24 @@ public partial class AdminDashboardService : IAdminDashboardService
             // pressed again from a server whose keys can see the payment. Rolling the cancellation back
             // instead would leave the order live and the money owed - the worst of both.
             var refundNote = string.Empty;
+
+            // Moving an order to 'Returned' is closing a return by hand, and the money goes with it: the refund is
+            // ASKED FOR here (the customer's own cancellation asks in exactly the same way, see
+            // RazorpayRefunds.RequestRefundAsync) and the shop team approves it on the Refund card, which is what
+            // sends it. Without this the return would quietly keep money that is owed back.
+            if (request.StatusId == OrderStatusReturned && wasPaid)
+            {
+                var (refundOwed, requestMessage) = await RazorpayRefunds.RequestRefundAsync(
+                    _context, order, ReturnedRefundReason, moneyWasTaken: wasPaid);
+
+                refundNote = " " + requestMessage;
+
+                if (refundOwed)
+                {
+                    await AddRefundHistoryAsync(
+                        order, now, RefundStillOwedNote(order.OrderId), currentUserId);
+                }
+            }
 
             if (request.StatusId == OrderStatusCancelled)
             {
@@ -612,9 +688,9 @@ public partial class AdminDashboardService : IAdminDashboardService
     /// <summary>
     /// The payment of <paramref name="order"/> that a refund may be approved for: the newest row whose
     /// status still says the money is owed - a RefundRequested (the customer cancelled a paid order), a
-    /// RefundFailed (Razorpay refused it, so it is retried from here), or the Captured row of an order
-    /// that was cancelled before its refund was ever recorded. Null when there is nothing left to give
-    /// back, which is what stops a second approval from refunding twice.
+    /// RefundFailed (Razorpay refused it, so it is retried from here), or the Captured row of an order that
+    /// was cancelled - or returned - before its refund was ever recorded. Null when there is nothing left to
+    /// give back, which is what stops a second approval from refunding twice.
     /// </summary>
     private async Task<OrderPayment?> FindRefundPaymentAsync(Order order)
     {
@@ -628,7 +704,10 @@ public partial class AdminDashboardService : IAdminDashboardService
 
         return payments.FirstOrDefault(p => p.Status == OrderPaymentStatus.RefundRequested)
             ?? payments.FirstOrDefault(p => p.Status == OrderPaymentStatus.RefundFailed)
-            ?? (order.OrderStatusId == OrderStatusCancelled
+
+            // An order that gave its units back - cancelled, or returned once its parcel came back - is the one
+            // whose capture can be refunded even though nothing ever asked for it (see SkuAvailability.ReleasesUnits).
+            ?? (SkuAvailability.ReleasesUnits(order.OrderStatusId)
                 ? payments.FirstOrDefault(p => p.Status == OrderPaymentStatus.Captured)
                 : null);
     }

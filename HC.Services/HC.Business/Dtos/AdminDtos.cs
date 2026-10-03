@@ -125,6 +125,82 @@ public class DashboardStatsDto
     /// <summary>Cancelled orders, counted on their own tile instead of in <see cref="TotalOrders"/>.</summary>
     [JsonPropertyName("cancelledOrders")]
     public int CancelledOrders { get; set; }
+
+    // The operational tiles below are the 'what needs doing now' half of the dashboard: they follow the
+    // order lifecycle (OrderStatusFlow) and the parcel (ShipmentStatusFlow), the same two maps the order
+    // screens read, so the dashboard can never describe an order differently than its own screen does.
+
+    /// <summary>
+    /// Paid orders (Confirmed) the shop has not dispatched yet - the packing/booking backlog. An order
+    /// in this status has been paid but is still with us, whether or not a parcel has been booked for it.
+    /// </summary>
+    [JsonPropertyName("ordersToDispatch")]
+    public int OrdersToDispatch { get; set; }
+
+    /// <summary>
+    /// Parcels on the way: the courier's own status reads InTransit or OutForDelivery
+    /// (see HC.Business.ShipmentStatusFlow). A parcel booked but not collected, delivered, coming back
+    /// or called off is not counted here.
+    /// </summary>
+    [JsonPropertyName("shipmentsInProgress")]
+    public int ShipmentsInProgress { get; set; }
+
+    /// <summary>Parcels out for delivery today - the live parcels the customer expects this very day.</summary>
+    [JsonPropertyName("outForDelivery")]
+    public int OutForDelivery { get; set; }
+
+    /// <summary>Orders handed to the customer (Delivered) - the end of the order lifecycle.</summary>
+    [JsonPropertyName("deliveredOrders")]
+    public int DeliveredOrders { get; set; }
+
+    /// <summary>
+    /// Parcels that need the shop team's eye: a failed delivery the courier will retry (Undelivered), one the
+    /// customer refused at the door (Refused) or one already returning to the shop (RTO). A courier status never
+    /// cancels an order - that stays a human decision - so these are flagged here rather than acted on. A refusal
+    /// and an RTO also leave a return waiting for the shop team's answer (see
+    /// HC.Business.ShipmentStatusFlow.ReturnReasonFor).
+    /// </summary>
+    [JsonPropertyName("shipmentsNeedingAttention")]
+    public int ShipmentsNeedingAttention { get; set; }
+
+    /// <summary>
+    /// Orders whose money the shop still holds and owes back: a refund that has been asked for
+    /// (RefundRequested), one Razorpay refused (RefundFailed), or the capture of an order that gave its units
+    /// back - cancelled, or returned once its parcel came back - whose refund was never asked for. The same rule
+    /// the order list flags as 'Refund due' (see OrderPaymentStatus.IsRefundOwed).
+    /// </summary>
+    [JsonPropertyName("refundsDue")]
+    public int RefundsDue { get; set; }
+
+    // The returns side of the same 'what needs doing now' work, in the vocabulary the Return card uses
+    // (OrderReturnStatus). Each of the three is a different job for the shop team: answer an ask, watch for a
+    // parcel coming back, or look over and close one that is back.
+
+    /// <summary>
+    /// Returns waiting for the shop team's answer (OrderReturnStatus.Requested) - a customer's ask, or a
+    /// refusal/return-to-origin the courier reported. Nothing moves until they answer it.
+    /// </summary>
+    [JsonPropertyName("returnsAwaitingDecision")]
+    public int ReturnsAwaitingDecision { get; set; }
+
+    /// <summary>Returns whose parcel is on its way back (OrderReturnStatus.Arranged), the pickup booked.</summary>
+    [JsonPropertyName("returnsComingBack")]
+    public int ReturnsComingBack { get; set; }
+
+    /// <summary>
+    /// Returns whose parcel is back with the shop (OrderReturnStatus.Received) - each one is an inspection and a
+    /// close away from being done, with the customer's money waiting on it.
+    /// </summary>
+    [JsonPropertyName("returnsReceived")]
+    public int ReturnsReceived { get; set; }
+
+    /// <summary>
+    /// Orders whose parcel came back and whose return was closed (Orders.OrderStatusID = 6): the sale reversed,
+    /// the units back on the shelf and the money owed back. Counted on its own tile, like
+    /// <see cref="CancelledOrders"/> - neither is an order that is still going anywhere.
+    /// </summary>
+    [JsonPropertyName("returnedOrders")]
+    public int ReturnedOrders { get; set; }
 }
 
 // Products
@@ -322,13 +398,25 @@ public class AdminOrderListDto
     public int ItemCount { get; set; }
 
     /// <summary>
-    /// True while the order's money is owed back: the customer cancelled a paid order, so the refund
-    /// has been asked for and is waiting for the shop team's approval (see HC.Business.RazorpayRefunds).
-    /// A refund Razorpay refused, and a cancelled order whose capture was never given back, count as
-    /// owed too. These are the orders the list flags as 'Refund due'.
+    /// True while the order's money is owed back: a refund that has been asked for and is waiting for the shop
+    /// team's approval (see HC.Business.RazorpayRefunds), one Razorpay refused, or the capture of an order that
+    /// gave its units back - cancelled, or returned once its parcel came back - whose refund was never asked for.
+    /// These are the orders the list flags as 'Refund due'.
     /// </summary>
     [JsonPropertyName("refundPending")]
     public bool RefundPending { get; set; }
+
+    /// <summary>
+    /// Where the order's return has got to (OrderReturnStatus.*), or null when the order never had one. The
+    /// newest return counts. The list flags a live one, so 'what is waiting for an answer' and 'what is on
+    /// its way back' can be seen without opening every order.
+    /// </summary>
+    [JsonPropertyName("returnStatus")]
+    public string? ReturnStatus { get; set; }
+
+    /// <summary>True while the order's return is live - waiting for an answer, or with its parcel on the way back.</summary>
+    [JsonPropertyName("returnPending")]
+    public bool ReturnPending { get; set; }
 }
 
 public class AdminOrderDetailDto
@@ -441,6 +529,14 @@ public class AdminOrderDetailDto
     /// </summary>
     [JsonPropertyName("shipment")]
     public OrderShipmentDto? Shipment { get; set; }
+
+    /// <summary>
+    /// The return of this order, or null when it has never had one (see <see cref="AdminOrderReturnDto"/>).
+    /// The Return card is built from this: the ask, the shop team's answer, the pickup once one is booked and
+    /// - later - the parcel being back and the return being closed.
+    /// </summary>
+    [JsonPropertyName("return")]
+    public AdminOrderReturnDto? Return { get; set; }
 }
 
 public class AdminAddressDto
@@ -595,6 +691,186 @@ public class AdminOrderRefundRequest
     /// Optional note about the refund that was made - kept on the payment row and in OrderHistory so
     /// the order says how the money went back.
     /// </summary>
+    [JsonPropertyName("comment")]
+    public string? Comment { get; set; }
+}
+
+/// <summary>
+/// The return of an order, as the admin Return card shows it: what was asked for and why, where the return
+/// has got to, what the shop team answered, and the parcel coming back once a pickup has been booked (see
+/// HC.Business.OrderReturnFlow for the lifecycle and CreateOrderReturnsTable.sql for the record itself).
+///
+/// An ask can come from the customer ('My Orders', on a delivered order) or from the courier's own tracking
+/// report (a refusal, or a parcel that could not be delivered) - <see cref="Origin"/> and
+/// <see cref="OriginLabel"/> say which, because an ask nobody made in words has to read differently on the
+/// screen. Nothing here carries money: the refund lives on the payment (<c>RefundPending</c> and friends on
+/// the order detail), so it can never be described in two places.
+/// </summary>
+public class AdminOrderReturnDto
+{
+    [JsonPropertyName("returnId")]
+    public long ReturnId { get; set; }
+
+    /// <summary>OrderReturnOrigin.*: 'Customer' or 'Courier'.</summary>
+    [JsonPropertyName("origin")]
+    public string Origin { get; set; } = "";
+
+    /// <summary>What the screen says about the origin ('Requested by the customer' / 'Reported by the courier').</summary>
+    [JsonPropertyName("originLabel")]
+    public string OriginLabel { get; set; } = "";
+
+    /// <summary>OrderReturnStatus.*: Requested / Arranged / Received / Closed / Rejected / Withdrawn.</summary>
+    [JsonPropertyName("status")]
+    public string Status { get; set; } = "";
+
+    /// <summary>OrderReturnReason.* - the coded reason returns are counted by.</summary>
+    [JsonPropertyName("reasonCode")]
+    public string ReasonCode { get; set; } = "";
+
+    /// <summary>The wording for <see cref="ReasonCode"/> - the screen never invents its own name for a reason.</summary>
+    [JsonPropertyName("reasonLabel")]
+    public string ReasonLabel { get; set; } = "";
+
+    /// <summary>Why, in the asker's own words (the courier's wording for a courier-raised ask).</summary>
+    [JsonPropertyName("reason")]
+    public string Reason { get; set; } = "";
+
+    [JsonPropertyName("requestedOn")]
+    public DateTime RequestedOn { get; set; }
+
+    /// <summary>The customer's e-mail for an ask they made, null for a courier's own report.</summary>
+    [JsonPropertyName("requestedBy")]
+    public string? RequestedBy { get; set; }
+
+    [JsonPropertyName("decisionOn")]
+    public DateTime? DecisionOn { get; set; }
+
+    /// <summary>The admin login id that approved or refused the ask.</summary>
+    [JsonPropertyName("decisionBy")]
+    public string? DecisionBy { get; set; }
+
+    /// <summary>The note they gave with their answer - what the customer is told, which is why it is required.</summary>
+    [JsonPropertyName("decisionComment")]
+    public string? DecisionComment { get; set; }
+
+    /// <summary>When the parcel was physically back with the shop.</summary>
+    [JsonPropertyName("receivedOn")]
+    public DateTime? ReceivedOn { get; set; }
+
+    /// <summary>When the return was closed - the order 'Returned', its units on the shelf, its money owed back.</summary>
+    [JsonPropertyName("closedOn")]
+    public DateTime? ClosedOn { get; set; }
+
+    /// <summary>When the returned parcel was looked over (see <see cref="InspectionComment"/>).</summary>
+    [JsonPropertyName("inspectionOn")]
+    public DateTime? InspectionOn { get; set; }
+
+    [JsonPropertyName("inspectionBy")]
+    public string? InspectionBy { get; set; }
+
+    /// <summary>
+    /// What the inspection found and why. Which units came back broken is the stock trail's business
+    /// (SKUHistory rows: those SKUs are moved to the 'Damage' pool, see SkuAvailability), this is the
+    /// sentence a human wrote with it.
+    /// </summary>
+    [JsonPropertyName("inspectionComment")]
+    public string? InspectionComment { get; set; }
+
+    /// <summary>
+    /// True while the shop team can still answer it (OrderReturnStatus.CanDecide) - exactly when the card
+    /// shows 'Approve' and 'Refuse'.
+    /// </summary>
+    [JsonPropertyName("canDecide")]
+    public bool CanDecide { get; set; }
+
+    /// <summary>
+    /// True while the return is live - waiting for an answer, or with its parcel on the way back
+    /// (OrderReturnStatus.IsOpen) - which is what the order list flags.
+    /// </summary>
+    [JsonPropertyName("isOpen")]
+    public bool IsOpen { get; set; }
+
+    /// <summary>
+    /// True while the shop team can book the parcel back in (OrderReturnStatus.CanMarkReceived) - exactly when
+    /// the card offers 'Parcel received'.
+    /// </summary>
+    [JsonPropertyName("canMarkReceived")]
+    public bool CanMarkReceived { get; set; }
+
+    /// <summary>
+    /// True while the parcel may be looked over (OrderReturnStatus.CanInspect): it is back with the shop, so a
+    /// unit that came back broken can be written off before the return is closed.
+    /// </summary>
+    [JsonPropertyName("canInspect")]
+    public bool CanInspect { get; set; }
+
+    /// <summary>
+    /// True while the return can be closed (OrderReturnStatus.CanClose) - exactly when the card offers
+    /// 'Close return': the order becomes 'Returned', the units go back on sale and the refund is asked for.
+    /// </summary>
+    [JsonPropertyName("canClose")]
+    public bool CanClose { get; set; }
+
+    /// <summary>
+    /// The parcel coming back - the pickup the shop team booked on this card, or the courier's own
+    /// return-to-origin. Null until one is recorded, which is exactly what the card offers once the return
+    /// has been approved.
+    /// </summary>
+    [JsonPropertyName("shipment")]
+    public OrderShipmentDto? Shipment { get; set; }
+}
+
+/// <summary>
+/// Body of the shop team's answer to a return (POST api/admin/orders/{id}/returns/decision):
+/// <see cref="Approved"/> says which answer it is and <see cref="Comment"/> is the note the customer is
+/// told - the screen insists on one, because 'refused' with no reason is nothing a customer can act on (it
+/// is kept in the order history as well).
+/// </summary>
+public class AdminOrderReturnDecisionRequest
+{
+    [JsonPropertyName("approved")]
+    public bool Approved { get; set; }
+
+    [JsonPropertyName("comment")]
+    public string? Comment { get; set; }
+}
+
+/// <summary>
+/// Body of the 'the parcel is back' step (POST api/admin/orders/{id}/returns/received): the shop team has the
+/// parcel in front of them. The note is optional and goes on the order's own trail, which the customer reads in
+/// 'My Orders'.
+/// </summary>
+public class AdminOrderReturnReceivedRequest
+{
+    [JsonPropertyName("comment")]
+    public string? Comment { get; set; }
+}
+
+/// <summary>
+/// Body of the inspection (POST api/admin/orders/{id}/returns/inspection): the units that came back broken -
+/// the SKUs of this order's own items, because one of three identical tops can be torn while the other two are
+/// fine - and what the shop team wrote about the parcel.
+///
+/// An inspection with no units named is still recorded ("we looked and found nothing"), which is deliberately a
+/// different thing from nobody having looked (see <see cref="AdminOrderReturnDto.InspectionOn"/>). Naming a SKU
+/// that is not this order's is ignored rather than written off (see SkuAvailability.MarkUnitsDamagedAsync).
+/// </summary>
+public class AdminOrderReturnInspectionRequest
+{
+    [JsonPropertyName("damagedSkus")]
+    public string[] DamagedSkus { get; set; } = Array.Empty<string>();
+
+    [JsonPropertyName("comment")]
+    public string? Comment { get; set; }
+}
+
+/// <summary>
+/// Body of the close (POST api/admin/orders/{id}/returns/close): an optional note for the order's own trail.
+/// Closing has nothing left to decide - the order becomes 'Returned', its units go back on sale and the refund
+/// is asked for - so this carries nothing but the note.
+/// </summary>
+public class AdminOrderReturnCloseRequest
+{
     [JsonPropertyName("comment")]
     public string? Comment { get; set; }
 }

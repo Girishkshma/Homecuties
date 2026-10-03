@@ -20,6 +20,7 @@ import {
   AdminOrderStatusOption,
   AdminOrderStatusUpdateRequest,
   AdminOrderRefundRequest,
+  AdminOrderReturn,
   AdminOrderShipment,
   AdminShipmentProvider,
   AdminSaveOrderShipmentRequest,
@@ -223,6 +224,58 @@ export class AdminService {
    */
   trackOrderShipment(id: number, userId: number): Observable<AdminOrderShipment> {
     return this.http.post<AdminOrderShipment>(`${this.apiUrl}/orders/${id}/track-shipment?userId=${userId}`, null, {
+      headers: this.getAuthHeaders()
+    });
+  }
+
+  /**
+   * The shop team's answer to a return: approve it (the parcel is coming back, so the pickup is booked
+   * from the same card) or refuse it (the order is left exactly as it was). The note is required - it is
+   * what the customer is told - and an ask that has already been answered is refused by the API, so one
+   * return can never be approved twice.
+   */
+  decideOrderReturn(id: number, approved: boolean, comment: string, userId: number): Observable<AdminResult> {
+    return this.http.post<AdminResult>(`${this.apiUrl}/orders/${id}/returns/decision?userId=${userId}`,
+      { approved, comment }, {
+      headers: this.getAuthHeaders()
+    });
+  }
+
+  /**
+   * 'Parcel received' on the Return card: the parcel is physically back with the shop. The return becomes
+   * 'Received' and its units come off the delivery pools (off sale until the return is closed); the order and the
+   * money are left exactly as they are - both move when the return is closed. The note is optional and goes on
+   * the order's history, which the customer reads in 'My Orders'.
+   */
+  markOrderReturnReceived(id: number, comment: string, userId: number): Observable<AdminResult> {
+    return this.http.post<AdminResult>(`${this.apiUrl}/orders/${id}/returns/received?userId=${userId}`,
+      { comment }, {
+      headers: this.getAuthHeaders()
+    });
+  }
+
+  /**
+   * The inspection of a parcel that came back: every SKU in 'damagedSkus' is a unit the team found broken, and
+   * each one is written off - out of every sellable pool for good, so closing the return cannot put it back on
+   * sale. A request with no units is still recorded ('we looked and found nothing'), which is deliberately a
+   * different thing from nobody having looked at all.
+   */
+  markOrderReturnUnitsDamaged(id: number, damagedSkus: string[], comment: string, userId: number): Observable<AdminResult> {
+    return this.http.post<AdminResult>(`${this.apiUrl}/orders/${id}/returns/inspection?userId=${userId}`,
+      { damagedSkus, comment }, {
+      headers: this.getAuthHeaders()
+    });
+  }
+
+  /**
+   * 'Close return' - the step that settles a return: the order becomes 'Returned', every unit the return brought
+   * back goes on sale again (the ones written off stay written off) and the refund of what the customer paid is
+   * asked for. Sending that money is a separate, deliberate step on the Refund card ('Approve refund'), so
+   * nothing leaves for the gateway from here.
+   */
+  closeOrderReturn(id: number, comment: string, userId: number): Observable<AdminResult> {
+    return this.http.post<AdminResult>(`${this.apiUrl}/orders/${id}/returns/close?userId=${userId}`,
+      { comment }, {
       headers: this.getAuthHeaders()
     });
   }

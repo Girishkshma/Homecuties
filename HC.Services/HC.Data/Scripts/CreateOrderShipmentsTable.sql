@@ -1,22 +1,28 @@
--- Create OrderShipments table: one row per order that has been handed to a courier.
+-- Create OrderShipments table: one row per leg of an order that has been handed to a courier.
 -- ShipmentTrackingService (HC.Business) writes this table: the shop team records the AWB, the courier
 -- and what that courier billed for the parcel here (the consignment itself is created by hand in the
 -- provider's own panel), and the tracking pull keeps the courier's own wording, the tracking link and
 -- the delivery date on it. An environment whose table already exists needs
--- AddOrderShipmentsFreightCharge.sql for the freight column.
+-- AddOrderShipmentsFreightCharge.sql for the freight column and AddOrderShipmentsDirection.sql for the
+-- direction column and the relaxed index.
 -- Without it nothing about the parcel is remembered: 'My Orders' could not say where the parcel is,
 -- and the admin order screen would have to keep the AWB in somebody's head.
 --
--- One row per ORDER (unique index below), because a return is booked as a new purchase and a
--- replacement is a new order - the same reasoning that gives OrderPayments one current attempt.
--- Relax that index the day the shop starts tracking a second leg (a pickup back from the customer)
--- on the same order row.
+-- One row per LEG of an order (the unique index below is on OrderID + Direction): 'Forward' is the
+-- parcel that went out, 'Reverse' the parcel coming back - the pickup the shop books when a delivered
+-- order is returned, or the courier's own return-to-origin. A returned order therefore carries a second
+-- row, tracked by the same code as the first, so the return's AWB, courier, freight charge and status
+-- trail are kept exactly like the parcel that went out.
 
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[OrderShipments]') AND type in (N'U'))
 BEGIN
     CREATE TABLE [dbo].[OrderShipments](
         [ShipmentID] [bigint] IDENTITY(1,1) NOT NULL,
         [OrderID] [bigint] NOT NULL,
+        -- Which leg this parcel is ('Forward' = going out, 'Reverse' = coming back - see
+        -- OrderShipment.DirectionForward/DirectionReverse). A returned order carries one row of each,
+        -- which is what the unique index below is keyed on.
+        [Direction] [varchar](10) NOT NULL CONSTRAINT [DF_OrderShipments_Direction] DEFAULT ('Forward'),
         -- The courier aggregator this parcel was booked with ('Shiprocket'), i.e. the adapter that can
         -- track it (see HC.Business.Shipping.IShipmentProvider). A column rather than a constant so a
         -- second provider can be used side by side (see OrderPayments.Provider).
@@ -56,9 +62,13 @@ BEGIN
     ALTER TABLE [dbo].[OrderShipments] ADD CONSTRAINT [FK_OrderShipments_Orders]
         FOREIGN KEY ([OrderID]) REFERENCES [dbo].[Orders] ([OrderID]);
 
-    -- The shipment of an order is always read by order, and an order has exactly one parcel.
-    CREATE UNIQUE NONCLUSTERED INDEX [IX_OrderShipments_OrderID]
-        ON [dbo].[OrderShipments] ([OrderID] ASC);
+    ALTER TABLE [dbo].[OrderShipments] ADD CONSTRAINT [CK_OrderShipments_Direction]
+        CHECK ([Direction] IN ('Forward', 'Reverse'));
+
+    -- A parcel is always read with its order, and an order has one row per leg: the one that went out
+    -- and - once a return is arranged - the one coming back.
+    CREATE UNIQUE NONCLUSTERED INDEX [IX_OrderShipments_OrderID_Direction]
+        ON [dbo].[OrderShipments] ([OrderID] ASC, [Direction] ASC);
 
     -- Support reads the parcel the other way round, from the tracking number the customer quotes.
     CREATE NONCLUSTERED INDEX [IX_OrderShipments_AwbNumber]
@@ -69,7 +79,8 @@ END
 ELSE
 BEGIN
     -- This script only creates the table as it stands now: a table from before the freight column needs
-    -- AddOrderShipmentsFreightCharge.sql run as well.
+    -- AddOrderShipmentsFreightCharge.sql run as well, and one from before a return had its own leg
+    -- needs AddOrderShipmentsDirection.sql.
     PRINT 'OrderShipments table already exists.';
 END
 GO

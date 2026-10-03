@@ -30,8 +30,15 @@ function serverShipment(fields: Partial<OrderShipment> = {}): OrderShipment {
     result: 1,
     messages: [],
     orderId: 5001,
+    // Every parcel this page reads is the one that went out unless the answer says otherwise: a return's
+    // pickup is the same shape with 'isReverse' true.
+    direction: 'Forward',
+    isReverse: false,
     hasShipment: true,
     provider: 'Shiprocket',
+    // A parcel with a courier behind it is the usual case; the shop's own delivery (no courier to ask) is
+    // named by the tests that are about it.
+    reportsTracking: true,
     courierName: 'Delhivery',
     awbNumber: 'AWB123456',
     trackingUrl: 'https://shiprocket.co/tracking/AWB123456',
@@ -142,6 +149,72 @@ describe('normalizeMyOrder parcels', () => {
     expect(order.Shipment?.trackingUrl).toBe('');
     expect(order.Shipment?.delivered).toBeFalse();
     expect(order.Shipment?.closed).toBeFalse();
+  });
+
+  /**
+   * An order carries two parcels once a return has been approved: the one that went out and the one coming
+   * back. They are answered in the same shape, told apart by 'isReverse', and 'My Orders' draws them in two
+   * strips - so one leg can never be mistaken for the other.
+   */
+  it('should keep the parcel coming back apart from the parcel that went out', () => {
+    const order = normalizeMyOrder(serverOrder({
+      Status: 'Delivered',
+      StatusId: 4,
+      Shipment: serverShipment({ providerStatus: 'Delivered', status: 'Delivered', stage: 'Delivered' }),
+      ReturnShipment: serverShipment({
+        direction: 'Reverse',
+        isReverse: true,
+        awbNumber: 'AWB-RETURN-1',
+        providerStatus: 'RTO In Transit',
+        status: 'Returning to the shop',
+        stage: 'Rto'
+      })
+    }));
+
+    expect(order.Shipment?.isReverse).toBeFalse();
+    expect(order.Shipment?.awbNumber).toBe('AWB123456');
+    expect(order.ReturnShipment?.isReverse).toBeTrue();
+    expect(order.ReturnShipment?.direction).toBe('Reverse');
+    expect(order.ReturnShipment?.stage).toBe('Rto');
+  });
+
+  it('should answer no return parcel on an order that never had one', () => {
+    const order = normalizeMyOrder(serverOrder({ Status: 'Delivered', StatusId: 4, Shipment: serverShipment() }));
+
+    expect(order.ReturnShipment).toBeNull();
+  });
+
+  it('should read a parcel a server build sent before returns had legs as the one that went out', () => {
+    // The older answer has no 'isReverse' at all: it can only ever be the delivery, because a return's own
+    // parcel did not exist when that build was written.
+    const order = normalizeMyOrder(serverOrder({
+      Status: 'Confirmed',
+      StatusId: 2,
+      Shipment: serverShipment({ direction: undefined, isReverse: undefined })
+    }));
+
+    expect(order.Shipment?.isReverse).toBeFalse();
+    expect(order.Shipment?.direction).toBe('Forward');
+  });
+
+  it('should remember who asked for the return, so the page can word it right', () => {
+    const courier = normalizeMyOrder(serverOrder({
+      Status: 'Delivered',
+      StatusId: 4,
+      ReturnStatus: 'Requested',
+      ReturnOrigin: 'Courier',
+      ReturnReason: 'Returned to sender (could not be delivered)'
+    }));
+
+    const customer = normalizeMyOrder(serverOrder({
+      Status: 'Delivered',
+      StatusId: 4,
+      ReturnStatus: 'Requested',
+      ReturnOrigin: 'Customer'
+    }));
+
+    expect(courier.ReturnOrigin).toBe('Courier');
+    expect(customer.ReturnOrigin).toBe('Customer');
   });
 });
 

@@ -42,4 +42,20 @@ public static class OrderPaymentStatus
         "failed" => Failed,
         _ => Created
     };
+
+    /// <summary>
+    /// True when this payment's money is owed back to the customer: a refund that has been asked for
+    /// (<see cref="RefundRequested"/>, waiting for the shop team's approval), one Razorpay refused
+    /// (<see cref="RefundFailed"/>, retried from the admin order screen), or a capture on an order that gave its
+    /// units back - cancelled, or returned once its parcel came back - whose refund was never asked for.
+    ///
+    /// The order's status is passed in as a plain value, because the order list and the dashboard read this rule
+    /// inside a database query (EF translates members, not method calls - see the note in
+    /// AdminDashboardService.GetOrdersAsync, which writes the same rule as SQL). It is one rule with two
+    /// spellings, and they are checked against each other by the tests.
+    /// </summary>
+    public static bool IsRefundOwed(short orderStatusId, string? paymentStatus) =>
+        paymentStatus == RefundRequested ||
+        paymentStatus == RefundFailed ||
+        (SkuAvailability.ReleasesUnits(orderStatusId) && paymentStatus == Captured);
 }

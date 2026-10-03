@@ -22,14 +22,27 @@ public interface IShipmentTrackingService
     /// The parcel recorded for an order as it stands (<c>null</c> when none has been recorded yet). It
     /// never calls the courier, so it is safe on any screen; use <see cref="RefreshAsync"/> for a fresh
     /// look.
+    ///
+    /// A parcel is read by leg: blank <paramref name="direction"/> is the one that went out (what every
+    /// screen but one means), and <c>OrderShipment.DirectionReverse</c> is the one coming back - the pickup
+    /// the Return card of the admin order screen shows.
     /// </summary>
-    Task<OrderShipmentDto?> GetForOrderAsync(long orderId, CancellationToken cancellationToken = default);
+    Task<OrderShipmentDto?> GetForOrderAsync(long orderId, string? direction = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// The parcels of several orders at once, keyed by order id - one query for a whole page. What the
     /// courier billed for a parcel is left out of the answer: this read is the customer's own page.
     /// </summary>
     Task<Dictionary<long, OrderShipmentDto>> GetForOrdersAsync(IEnumerable<long> orderIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The parcels coming back, keyed by order id - one query for a whole page, and the return's own counterpart
+    /// of <see cref="GetForOrdersAsync"/>. An order with no return parcel is simply absent: a reverse leg exists
+    /// only once a return has been approved (the pickup the shop team booked) or the courier itself reported the
+    /// parcel on its way back, and until then 'My Orders' shows the return's own status instead. What the courier
+    /// billed is stripped here too, because this read is the customer's own page.
+    /// </summary>
+    Task<Dictionary<long, OrderShipmentDto>> GetReverseForOrdersAsync(IEnumerable<long> orderIds, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Records the parcel the shop team booked in the provider's panel: the AWB, the courier and the

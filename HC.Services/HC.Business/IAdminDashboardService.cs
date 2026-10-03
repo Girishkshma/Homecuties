@@ -19,6 +19,39 @@ public interface IAdminDashboardService
     Task<AdminResultDto> MarkOrderRefundedAsync(long orderId, string? comment, long currentUserId);
 
     /// <summary>
+    /// The shop team's answer to a return: approve it (the parcel is coming back, and the pickup is booked
+    /// from the same card) or refuse it (the order is left exactly as it was). The note is required, because
+    /// it is what the customer is told. Nothing else moves on the answer - the order only becomes 'Returned',
+    /// with its units back on the shelf and its money owed back, when the return is closed after the parcel
+    /// is back (see HC.Business.OrderReturnFlow).
+    /// </summary>
+    Task<AdminResultDto> DecideOrderReturnAsync(long orderId, AdminOrderReturnDecisionRequest request, long currentUserId);
+
+    /// <summary>
+    /// 'Parcel received' on the Return card: the parcel is physically back with the shop. The return becomes
+    /// 'Received' and its units leave the delivery pools for the shop's own 'Returned' one - off sale until the
+    /// return is closed - and nothing else moves: the order is still Delivered and the money is untouched until
+    /// that close (see HC.Business.OrderReturnFlow).
+    /// </summary>
+    Task<AdminResultDto> MarkOrderReturnReceivedAsync(long orderId, AdminOrderReturnReceivedRequest request, long currentUserId);
+
+    /// <summary>
+    /// The inspection of a parcel that came back: the units the shop team names are written off - out of every
+    /// sellable pool for good - and their note is kept on the return. It is per unit, because one of three
+    /// identical tops can be torn while the other two are fine, and it is optional: a return with nothing wrong
+    /// with it is closed without one (see HC.Business.OrderReturnFlow).
+    /// </summary>
+    Task<AdminResultDto> MarkOrderReturnUnitsDamagedAsync(long orderId, AdminOrderReturnInspectionRequest request, long currentUserId);
+
+    /// <summary>
+    /// 'Close return' on the Return card: the return is done. The order becomes 'Returned', every unit the return
+    /// brought back goes on sale again (the ones written off stay written off) and the refund of what the customer
+    /// paid is asked for - the shop team approves that on the Refund card, which is what sends the money back (see
+    /// HC.Business.RazorpayRefunds).
+    /// </summary>
+    Task<AdminResultDto> CloseOrderReturnAsync(long orderId, AdminOrderReturnCloseRequest request, long currentUserId);
+
+    /// <summary>
     /// The shipping providers this shop is set up with (configured or not, with the default marked) -
     /// what the Shipment card of the admin order screen offers when the shop team records a parcel, so
     /// the provider is picked from what is really wired up rather than typed in by hand.

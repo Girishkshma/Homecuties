@@ -78,6 +78,8 @@ public partial class HomecutiesDbContext : DbContext
 
     public virtual DbSet<OrderPayment> OrderPayments { get; set; }
 
+    public virtual DbSet<OrderReturn> OrderReturns { get; set; }
+
     public virtual DbSet<OrderShipment> OrderShipments { get; set; }
 
     public virtual DbSet<OrderStatus> OrderStatuses { get; set; }
@@ -888,6 +890,67 @@ public partial class HomecutiesDbContext : DbContext
                 .HasConstraintName("FK_OrderPayments_Orders");
         });
 
+        modelBuilder.Entity<OrderReturn>(entity =>
+        {
+            entity.HasKey(e => e.ReturnId);
+
+            entity.ToTable("OrderReturns");
+
+            entity.Property(e => e.ReturnId).HasColumnName("ReturnID");
+            entity.Property(e => e.OrderId).HasColumnName("OrderID");
+
+            // 'Customer' or 'Courier' (OrderReturnOrigin) - which way the ask came in.
+            entity.Property(e => e.Origin)
+                .HasMaxLength(10)
+                .IsUnicode(false);
+
+            // The reason in the asker's own words, and which reason that is (OrderReturnReason.*).
+            entity.Property(e => e.Reason)
+                .HasMaxLength(500)
+                .IsUnicode(false);
+            entity.Property(e => e.ReasonCode)
+                .HasMaxLength(30)
+                .IsUnicode(false);
+
+            // Where the return has got to (OrderReturnStatus.*).
+            entity.Property(e => e.Status)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+
+            entity.Property(e => e.RequestedOn).HasColumnType("datetime");
+            entity.Property(e => e.RequestedBy)
+                .HasMaxLength(100)
+                .IsUnicode(false);
+
+            // The shop team's answer (who, when, and the note they had to give).
+            entity.Property(e => e.DecisionOn).HasColumnType("datetime");
+            entity.Property(e => e.DecisionBy)
+                .HasMaxLength(100)
+                .IsUnicode(false);
+            entity.Property(e => e.DecisionComment)
+                .HasMaxLength(500)
+                .IsUnicode(false);
+
+            // The parcel being back, the return being closed and what the inspection found.
+            entity.Property(e => e.ReceivedOn).HasColumnType("datetime");
+            entity.Property(e => e.ClosedOn).HasColumnType("datetime");
+            entity.Property(e => e.InspectionOn).HasColumnType("datetime");
+            entity.Property(e => e.InspectionBy)
+                .HasMaxLength(100)
+                .IsUnicode(false);
+            entity.Property(e => e.InspectionComment)
+                .HasMaxLength(500)
+                .IsUnicode(false);
+
+            entity.Property(e => e.CreatedOn).HasColumnType("datetime");
+            entity.Property(e => e.UpdatedOn).HasColumnType("datetime");
+
+            entity.HasOne(d => d.Order).WithMany(p => p.OrderReturns)
+                .HasForeignKey(d => d.OrderId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_OrderReturns_Orders");
+        });
+
         modelBuilder.Entity<OrderShipment>(entity =>
         {
             entity.HasKey(e => e.ShipmentId);
@@ -896,6 +959,13 @@ public partial class HomecutiesDbContext : DbContext
 
             entity.Property(e => e.ShipmentId).HasColumnName("ShipmentID");
             entity.Property(e => e.OrderId).HasColumnName("OrderID");
+
+            // Which leg of the order this parcel is (OrderShipment.DirectionForward/DirectionReverse):
+            // the same order carries a second row once its return is arranged, which is what the unique
+            // index on (OrderID, Direction) allows.
+            entity.Property(e => e.Direction)
+                .HasMaxLength(10)
+                .IsUnicode(false);
             entity.Property(e => e.Provider)
                 .HasMaxLength(20)
                 .IsUnicode(false);

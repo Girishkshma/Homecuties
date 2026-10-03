@@ -157,78 +157,28 @@ public partial class OrderService : IOrderService
     }
 
     /// <summary>
-    /// Asks for the refund of a paid order: the customer cancelled it, so the money is owed back, but
-    /// nothing is sent to Razorpay yet. The request is written on the order's payment row as
-    /// <see cref="OrderPaymentStatus.RefundRequested"/> (with the date and the reason), and the shop
-    /// team approves it from the admin order screen - that approval is what actually calls the
-    /// gateway (see RazorpayRefunds). Until then the customer is told the refund is under review.
+    /// Asks for the refund of a paid order the customer has cancelled: the money is owed back, but nothing is
+    /// sent to Razorpay yet - the request is written on the payment row
+    /// (<see cref="RazorpayRefunds.RequestRefundAsync"/>, which owns that rule and is where a closed return asks
+    /// too) and the shop team's approval is what actually calls the gateway.
     ///
-    /// A row is added when the order has none at all (paid before payments were recorded here, or paid
-    /// through a checkout whose result never reached us): the refund is still owed, so the shop team
-    /// must see it - the row simply carries no gateway payment id, and approving it tells them to
-    /// refund by hand.
-    ///
-    /// Fails closed on one thing: when the money has already been given back the request is not
-    /// written again, so a cancelled order can never be refunded twice.
+    /// <paramref name="moneyWasTaken"/> is what this caller knows about the order it is holding - a Confirmed
+    /// order has been paid for - read before the cancellation moves the order on.
     /// </summary>
-    private async Task<(bool RefundOwed, string Message)> RequestOrderRefundAsync(Order order, string comment)
+    private async Task<(bool RefundOwed, string Message)> RequestOrderRefundAsync(
+        Order order, string comment, bool moneyWasTaken)
     {
-        var orderNumber = OrderNumber(order.OrderId);
-        var now = DateTime.UtcNow;
+        var (refundOwed, message) = await RazorpayRefunds.RequestRefundAsync(
+            _context, order, comment, moneyWasTaken);
 
-        var payments = await _context.OrderPayments
-            .Where(p => p.OrderId == order.OrderId)
-            .OrderByDescending(p => p.PaymentId)
-            .ToListAsync();
-
-        var alreadyRefunded = payments.FirstOrDefault(p =>
-            p.Status == OrderPaymentStatus.Refunded || !string.IsNullOrEmpty(p.RefundId));
-
-        if (alreadyRefunded != null)
+        if (refundOwed)
         {
-            return (false,
-                $"The payment of {orderNumber} has already been refunded" +
-                (string.IsNullOrEmpty(alreadyRefunded.RefundId) ? "." : $" (Razorpay refund {alreadyRefunded.RefundId})."));
+            _logger.LogInformation(
+                "A refund was requested for order {OrderId} after it was cancelled by the customer ({Comment}).",
+                order.OrderId, comment);
         }
 
-        // The attempt the refund will be approved against: the one the gateway confirmed (that is the
-        // row that knows the payment id and the amount), else whatever the order has.
-        var payment = payments.FirstOrDefault(p =>
-            p.Status == OrderPaymentStatus.Captured && !string.IsNullOrEmpty(p.RazorpayPaymentId))
-            ?? payments.FirstOrDefault();
-
-        if (payment == null)
-        {
-            payment = new OrderPayment
-            {
-                OrderId = order.OrderId,
-                Provider = OrderPayment.RazorpayProvider,
-                CreatedOn = now
-            };
-
-            _context.OrderPayments.Add(payment);
-
-            if (order.OrderItems.Count > 0)
-            {
-                payment.AmountInPaise = (int)(order.OrderItems.Sum(oi => oi.UnitPrice) * 100);
-                payment.Amount = payment.AmountInPaise / 100m;
-            }
-        }
-
-        payment.Status = OrderPaymentStatus.RefundRequested;
-        payment.RefundRequestedOn = now;
-        payment.RefundRequestedComment = TruncateForColumn(comment, 500);
-        payment.UpdatedOn = now;
-
-        await _context.SaveChangesAsync();
-
-        _logger.LogInformation(
-            "A refund of {Amount} was requested for order {OrderId} after it was cancelled by the customer " +
-            "- it is waiting for the shop team to approve it ({Comment}).",
-            payment.Amount, order.OrderId, comment);
-
-        return (true,
-            $"The refund of {orderNumber} is waiting for the Homecuties team to approve it.");
+        return (refundOwed, message);
     }
 
     private static string TruncateForColumn(string value, int maxLength)

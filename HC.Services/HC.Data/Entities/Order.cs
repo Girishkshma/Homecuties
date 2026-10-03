@@ -29,7 +29,16 @@ public partial class Order
 
     public virtual ICollection<OrderPayment> OrderPayments { get; set; } = new List<OrderPayment>();
 
-    /// <summary>The parcel of this order (one row - see <see cref="OrderShipment"/>).</summary>
+    /// <summary>
+    /// The returns asked for on this order (at most one open at a time - see <see cref="OrderReturn"/>):
+    /// a delivered order can be returned once, and a refused parcel raises the ask on its own.
+    /// </summary>
+    public virtual ICollection<OrderReturn> OrderReturns { get; set; } = new List<OrderReturn>();
+
+    /// <summary>
+    /// The parcels of this order, one per leg (see <see cref="OrderShipment"/>): the one that went out,
+    /// and the one coming back once a return is arranged.
+    /// </summary>
     public virtual ICollection<OrderShipment> OrderShipments { get; set; } = new List<OrderShipment>();
 
     public virtual OrderStatus OrderStatus { get; set; } = null!;

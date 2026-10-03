@@ -30,11 +30,46 @@ public partial class AdminDashboardService : IAdminDashboardService
     /// reported on their own tile) and out of the revenue figures, and the revenue only adds up
     /// orders whose payment was captured - 'Today's revenue' is money in the bank, not a number of
     /// open orders.
+    ///
+    /// The order/shipment tiles come from the same two maps the order screens read - the lifecycle
+    /// (<see cref="OrderStatusFlow"/>) for the order counts and the parcel mapping
+    /// (<see cref="ShipmentStatusFlow"/>) for where the parcels have got to - so an order can never be
+    /// counted as 'to dispatch' here while its own screen shows it shipped.
     /// </summary>
     public async Task<DashboardStatsDto> GetDashboardStatsAsync()
     {
         var today = DateTime.UtcNow.Date;
         var monthStart = new DateTime(today.Year, today.Month, 1);
+
+        // Where the parcels of live orders have got to. The courier's own wording is what is stored
+        // (OrderShipments.ProviderStatus) and the shop's stage is derived from it in C# (ShipmentStatusFlow),
+        // so the distinct wordings are counted in the database and mapped here: one small query however many
+        // parcels the shop has, and the same mapping the screens read.
+        //
+        // Only the legs that went out: a return carries a second row for the parcel coming back, and counting
+        // it here would show one order as two parcels. What the shop has coming back is the returns' own
+        // business (their card, and the returns tiles).
+        var parcelWordings = await _context.OrderShipments
+            .AsNoTracking()
+            .Where(s => s.Direction == OrderShipment.DirectionForward)
+
+            // Parcels of orders that have given their units back are left out - a cancelled order, and now a
+            // returned one too, are not work the shop still has to do.
+            .Where(s => s.Order.OrderStatusId != OrderStatusCancelled &&
+                        s.Order.OrderStatusId != SkuAvailability.ReturnedOrderStatusId)
+            .GroupBy(s => s.ProviderStatus)
+            .Select(g => new { ProviderStatus = g.Key, Count = g.Count() })
+            .ToListAsync();
+
+        var parcelsByStage = new Dictionary<ShipmentStage, int>();
+        foreach (var row in parcelWordings)
+        {
+            var stage = ShipmentStatusFlow.FromProviderText(row.ProviderStatus);
+            parcelsByStage[stage] = parcelsByStage.GetValueOrDefault(stage) + row.Count;
+        }
+
+        // How many parcels are in the given stages - the shop's own answer, whatever words the courier used.
+        int ParcelsIn(params ShipmentStage[] stages) => stages.Sum(stage => parcelsByStage.GetValueOrDefault(stage));
 
         var stats = new DashboardStatsDto
         {
@@ -48,6 +83,45 @@ public partial class AdminDashboardService : IAdminDashboardService
             TotalPartners = await _context.Partners.CountAsync(),
             TotalVendors = await _context.Vendors.CountAsync(),
             PendingOrders = await _context.Orders.CountAsync(o => o.OrderStatusId == OrderStatusPending),
+
+            // Paid but not yet handed to a courier: the shop's packing/booking backlog.
+            OrdersToDispatch = await _context.Orders.CountAsync(o => o.OrderStatusId == OrderStatusConfirmed),
+
+            // Parcels on the way (a booked-but-not-collected parcel is still with us, so it is not here).
+            ShipmentsInProgress = ParcelsIn(ShipmentStage.InTransit, ShipmentStage.OutForDelivery),
+            OutForDelivery = ParcelsIn(ShipmentStage.OutForDelivery),
+
+            // The end of the order lifecycle.
+            DeliveredOrders = await _context.Orders.CountAsync(o => o.OrderStatusId == OrderStatusDelivered),
+
+            // Failed deliveries, refusals and returns: flagged for the shop team, never acted on by the courier
+            // (a refusal and an RTO also raise a return ask for them - see ShipmentStatusFlow.ReturnReasonFor).
+            ShipmentsNeedingAttention = ParcelsIn(
+                ShipmentStage.Undelivered, ShipmentStage.Refused, ShipmentStage.Rto),
+
+            // The money owed back - the same rule the order list flags as 'Refund due' and the order screen's
+            // Refund card shows: a refund that has been asked for, one Razorpay refused, or a capture on an order
+            // that gave its units back (cancelled, or returned) whose refund was never asked for.
+            RefundsDue = await _context.Orders.CountAsync(o => o.OrderPayments.Any(p =>
+                p.Status == OrderPaymentStatus.RefundRequested ||
+                p.Status == OrderPaymentStatus.RefundFailed ||
+                ((o.OrderStatusId == OrderStatusCancelled ||
+                  o.OrderStatusId == SkuAvailability.ReturnedOrderStatusId) &&
+                 p.Status == OrderPaymentStatus.Captured))),
+
+            // The returns side of the same 'what needs doing now' work, in the vocabulary the Return card uses
+            // (OrderReturnStatus): an ask waiting for an answer, a parcel on its way back, and one that is back
+            // with the shop waiting to be looked over and closed. ReturnedOrders is the other end of it - the
+            // orders whose units came back - and is counted on its own tile, exactly like a cancelled order.
+            ReturnsAwaitingDecision = await _context.OrderReturns
+                .CountAsync(r => r.Status == OrderReturnStatus.Requested),
+            ReturnsComingBack = await _context.OrderReturns
+                .CountAsync(r => r.Status == OrderReturnStatus.Arranged),
+            ReturnsReceived = await _context.OrderReturns
+                .CountAsync(r => r.Status == OrderReturnStatus.Received),
+            ReturnedOrders = await _context.Orders
+                .CountAsync(o => o.OrderStatusId == SkuAvailability.ReturnedOrderStatusId),
+
             TodayRevenue = await _context.Orders
                 .Where(o => o.OrderDate >= today && RevenueOrderStatuses.Contains(o.OrderStatusId))
                 .SumAsync(o => (decimal?)o.OrderItems.Sum(oi => oi.UnitPrice)) ?? 0,

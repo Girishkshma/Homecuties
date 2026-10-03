@@ -19,7 +19,17 @@ export class DashboardComponent implements OnInit {
     pendingOrders: 0,
     todayRevenue: 0,
     monthlyRevenue: 0,
-    cancelledOrders: 0
+    cancelledOrders: 0,
+    ordersToDispatch: 0,
+    shipmentsInProgress: 0,
+    outForDelivery: 0,
+    deliveredOrders: 0,
+    shipmentsNeedingAttention: 0,
+    refundsDue: 0,
+    returnsAwaitingDecision: 0,
+    returnsComingBack: 0,
+    returnsReceived: 0,
+    returnedOrders: 0
   };
   user: AdminUser | null = null;
   isLoading = true;

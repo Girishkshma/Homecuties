@@ -15,9 +15,10 @@ namespace HC.Data.Entities;
 /// Either way this row is where the AWB, the courier, the tracking link and the courier's latest status are
 /// kept, so both the storefront and the admin order screen can answer that question.
 ///
-/// One row per order (unique index, see CreateOrderShipmentsTable.sql): a return is booked as a new
-/// purchase and a replacement is a new order - the same reasoning that gives OrderPayments one current
-/// attempt.
+/// One row per LEG of an order (unique index on OrderID + Direction, see CreateOrderShipmentsTable.sql
+/// and AddOrderShipmentsDirection.sql): the parcel that went out is 'Forward', and a delivered order
+/// whose return is arranged gets a second 'Reverse' row for the pickup coming back. Both legs are
+/// tracked the same way, so "where is the parcel?" is answered the same whichever way it is travelling.
 /// </summary>
 public partial class OrderShipment
 {
@@ -38,9 +39,52 @@ public partial class OrderShipment
     /// </summary>
     public const string CustomProvider = "Custom";
 
+    /// <summary>
+    /// The parcel that went out to the customer - what every row written before a return existed is
+    /// (see AddOrderShipmentsDirection.sql, which adds the column with this default).
+    /// </summary>
+    public const string DirectionForward = "Forward";
+
+    /// <summary>
+    /// The parcel coming back: a pickup the shop books when a delivered order is returned, or the
+    /// courier's own return-to-origin. Tracked exactly like the forward leg, so the return's AWB,
+    /// courier, tracking link and status trail are read with the same code
+    /// (see HC.Business.Shipping.ShipmentTrackingService).
+    /// </summary>
+    public const string DirectionReverse = "Reverse";
+
     public long ShipmentId { get; set; }
 
     public long OrderId { get; set; }
+
+    /// <summary>
+    /// Which leg of the order this parcel is: <see cref="DirectionForward"/> for the parcel going out,
+    /// <see cref="DirectionReverse"/> for the one coming back. A returned order carries one of each, which
+    /// is why the table's unique index is on (OrderID, Direction) rather than OrderID alone.
+    /// </summary>
+    public string Direction { get; set; } = DirectionForward;
+
+    /// <summary>
+    /// True when <paramref name="direction"/> is one this table can hold: nothing at all (the field was
+    /// not sent, so the caller means the parcel that went out), <see cref="DirectionForward"/> or
+    /// <see cref="DirectionReverse"/>. Anything else is a typo the caller is told about rather than
+    /// written down (see ShipmentTrackingService.SaveAsync).
+    /// </summary>
+    public static bool IsValidDirection(string? direction) =>
+        string.IsNullOrWhiteSpace(direction) ||
+        string.Equals(direction.Trim(), DirectionForward, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(direction.Trim(), DirectionReverse, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The name a direction is really stored under: one of the two above, with anything absent meaning
+    /// <see cref="DirectionForward"/> - every row written before a return had a leg is one, and so is every
+    /// caller that does not ask about a leg. A value that came from a form is checked with
+    /// <see cref="IsValidDirection"/> first.
+    /// </summary>
+    public static string NormaliseDirection(string? direction) =>
+        string.Equals(direction?.Trim(), DirectionReverse, StringComparison.OrdinalIgnoreCase)
+            ? DirectionReverse
+            : DirectionForward;
 
     /// <summary>
     /// Which provider booked this parcel (<c>IShipmentProvider.Name</c>, e.g. "Shiprocket"). This is what

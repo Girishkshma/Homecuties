@@ -54,6 +54,90 @@ public static class RazorpayRefunds
         !string.IsNullOrWhiteSpace(keyId) && !string.IsNullOrWhiteSpace(keySecret);
 
     /// <summary>
+    /// Asks for the refund of an order whose money we still hold - nothing is sent to Razorpay here. The request
+    /// is written on the order's payment row as <see cref="OrderPaymentStatus.RefundRequested"/> (with the date
+    /// and the reason), and the shop team approves it from the admin order screen, which is what actually calls
+    /// the gateway (see <see cref="RefundOrderPaymentAsync"/>). Until then the customer is told the refund is
+    /// under review.
+    ///
+    /// It is the one place that asks, so a customer's cancellation and a closed return ask in exactly the same
+    /// way. <paramref name="moneyWasTaken"/> is the caller's own knowledge of the order it is holding - a
+    /// Confirmed order being cancelled, a Delivered one whose parcel came back - read BEFORE the caller moves the
+    /// order on: an order that was never charged has nothing owed, and no payment row is invented for it.
+    ///
+    /// Fails closed twice over: nothing is asked for an order that was never charged, and nothing is asked again
+    /// for one that has already been refunded - so a cancellation and a return racing each other, or the shop
+    /// team pressing 'Approve refund' twice, can only ever produce one refund. A row is added when the order has
+    /// none at all (paid before payments were recorded here, or paid through a checkout whose result never
+    /// reached us): the refund is still owed, so the shop team must see it - that row simply carries no gateway
+    /// payment id, and approving it tells them to refund by hand.
+    /// </summary>
+    public static async Task<(bool RefundOwed, string Message)> RequestRefundAsync(
+        HomecutiesDbContext context,
+        Order order,
+        string comment,
+        bool moneyWasTaken)
+    {
+        var orderNumber = OrderNumber(order.OrderId);
+        var now = DateTime.UtcNow;
+
+        var payments = await context.OrderPayments
+            .Where(p => p.OrderId == order.OrderId)
+            .OrderByDescending(p => p.PaymentId)
+            .ToListAsync();
+
+        var alreadyRefunded = payments.FirstOrDefault(p =>
+            p.Status == OrderPaymentStatus.Refunded || !string.IsNullOrEmpty(p.RefundId));
+
+        if (alreadyRefunded != null)
+        {
+            return (false,
+                $"The payment of {orderNumber} has already been refunded" +
+                (string.IsNullOrEmpty(alreadyRefunded.RefundId)
+                    ? "."
+                    : $" (Razorpay refund {alreadyRefunded.RefundId})."));
+        }
+
+        if (!moneyWasTaken)
+        {
+            return (false, $"No payment was taken for {orderNumber}, so there is nothing to refund.");
+        }
+
+        // The attempt the refund will be approved against: the one the gateway confirmed (that is the row that
+        // knows the payment id and the amount), else whatever the order has.
+        var payment = payments.FirstOrDefault(p =>
+            p.Status == OrderPaymentStatus.Captured && !string.IsNullOrEmpty(p.RazorpayPaymentId))
+            ?? payments.FirstOrDefault();
+
+        if (payment == null)
+        {
+            payment = new OrderPayment
+            {
+                OrderId = order.OrderId,
+                Provider = OrderPayment.RazorpayProvider,
+                CreatedOn = now
+            };
+
+            context.OrderPayments.Add(payment);
+
+            if (order.OrderItems.Count > 0)
+            {
+                payment.AmountInPaise = (int)(order.OrderItems.Sum(oi => oi.UnitPrice) * 100);
+                payment.Amount = payment.AmountInPaise / 100m;
+            }
+        }
+
+        payment.Status = OrderPaymentStatus.RefundRequested;
+        payment.RefundRequestedOn = now;
+        payment.RefundRequestedComment = Truncate(comment, 500);
+        payment.UpdatedOn = now;
+
+        await context.SaveChangesAsync();
+
+        return (true, $"The refund of {orderNumber} is waiting for the Homecuties team to approve it.");
+    }
+
+    /// <summary>
     /// Refunds the captured payment of <paramref name="order"/> in full and records it on the payment
     /// row. Runs on the caller's <see cref="HomecutiesDbContext"/> (and inside its transaction, when it
     /// has one); it never throws - a refusal is reported and the money is left owed on the payment row

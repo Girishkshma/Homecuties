@@ -1045,6 +1045,30 @@
     color: var(--text-muted);
     font-style: italic;
   }
+
+  /* The parcel coming back - the return's own leg. The same strip in the shop's 'returning' colour, with a
+     tag naming the leg, so one order's two parcels can never be read as one. */
+  &.order-shipment-return {
+    background: #fff7ed;
+    border-color: #fed7aa;
+
+    .order-shipment-icon {
+      border-color: #fed7aa;
+      color: #c2410c;
+    }
+
+    .order-shipment-latest {
+      border-top-color: #fed7aa;
+    }
+
+    .order-shipment-tag {
+      font-size: 0.6875rem;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      color: #c2410c;
+    }
+  }
 }
 
 .order-details {

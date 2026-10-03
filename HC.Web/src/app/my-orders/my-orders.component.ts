@@ -1,6 +1,6 @@
 import { Component, NgZone, OnDestroy, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { CreateOrderResponse, MyOrder, OrderShipment, PaymentService, RefreshOrderShipments } from '../services/payment.service';
+import { CreateOrderResponse, MyOrder, OrderActionResult, OrderShipment, PaymentService, RefreshOrderShipments, RETURN_REASONS } from '../services/payment.service';
 import { AuthService } from '../services/auth.service';
 import { UtilityService } from '../services/utility.service';
 import { PaymentWindowWatcher } from '../services/payment-window';
@@ -35,6 +35,18 @@ export class MyOrdersComponent implements OnInit, OnDestroy {
 
   /** Order the customer asked to cancel, waiting for the inline confirmation. */
   confirmingOrderId = 0;
+
+  /** Order the return form is open on (0 = no form open). */
+  returningOrderId = 0;
+
+  /** The reason code picked in the return form - one of RETURN_REASONS. */
+  returnReasonCode = '';
+
+  /** What the customer typed with the return request (optional). */
+  returnComment = '';
+
+  /** The reasons the return form offers: the codes the server accepts, with this page's words for them. */
+  readonly returnReasons = RETURN_REASONS;
 
   /** Order whose items / address / timeline are expanded. */
   expandedOrderId = 0;
@@ -114,6 +126,9 @@ export class MyOrdersComponent implements OnInit, OnDestroy {
    * throttles it - a parcel asked about a moment ago, or one the courier has finished with, is simply
    * not in the answer, which leaves the status already on the card untouched.
    *
+   * Both of an order's parcels come back this way: the one that went out, and - once a return has been
+   * approved - the one coming back, which is what the customer is waiting on by then.
+   *
    * Nothing here can break the page: a courier that could not be reached answers with its own sentence
    * and answers nothing else, so the last known status stays on the card and the sentence is put beside
    * the list instead of into the page's error line.
@@ -135,12 +150,24 @@ export class MyOrdersComponent implements OnInit, OnDestroy {
           return;
         }
 
-        // The answer carries only the parcels that were actually looked up (and only their own fields,
-        // never the order), so each one is put onto the order it belongs to and every other order is
-        // left exactly as it was read.
+        // The answer carries only the parcels that were actually looked up (and only their own fields, never
+        // the order), and it carries both legs: the parcel that went out and the one coming back. Each is folded
+        // onto the order it belongs to - by order id AND by leg, so a return's pickup can never overwrite the
+        // delivery - and every other order is left exactly as it was read.
         this.orders = this.orders.map(order => {
-          const lookup: OrderShipment | undefined = fresh.find(shipment => shipment.orderId === order.OrderId);
-          return lookup ? { ...order, Shipment: lookup } : order;
+          const legs: OrderShipment[] = fresh.filter(shipment => shipment.orderId === order.OrderId);
+          if (legs.length === 0) {
+            return order;
+          }
+
+          const forward = legs.find(leg => !leg.isReverse);
+          const reverse = legs.find(leg => leg.isReverse);
+
+          return {
+            ...order,
+            Shipment: forward ?? order.Shipment,
+            ReturnShipment: reverse ?? order.ReturnShipment
+          };
         });
       },
       error: (err) => {
@@ -203,6 +230,100 @@ export class MyOrdersComponent implements OnInit, OnDestroy {
       error: (err) => {
         this.busyOrderId = 0;
         this.error = 'We could not cancel the order. Nothing was changed - please try again or contact support.';
+        console.error(err);
+      }
+    });
+  }
+
+  /**
+   * Opens the return form for an order: the customer picks a reason and may add their own words. Nothing
+   * is sent yet - the request is written down by 'submitReturn' and answered by the shop team.
+   */
+  askToReturn(order: MyOrder): void {
+    this.notice = '';
+    this.error = '';
+    this.returnReasonCode = '';
+    this.returnComment = '';
+    this.returningOrderId = order.OrderId;
+  }
+
+  /** Closes the return form without asking for anything. */
+  dismissReturn(): void {
+    this.returningOrderId = 0;
+    this.returnReasonCode = '';
+    this.returnComment = '';
+  }
+
+  /**
+   * Sends the return request. The reason is required - it is what the shop counts returns by - and the
+   * customer's own words are not. The list is re-read afterwards, so the card shows the request exactly as
+   * the server wrote it: the same call answers a clear refusal when the window had quietly closed or when
+   * a request was already waiting.
+   */
+  submitReturn(order: MyOrder): void {
+    if (this.busyOrderId) {
+      return;
+    }
+
+    if (!this.returnReasonCode) {
+      this.error = 'Please choose why you are sending this order back.';
+      return;
+    }
+
+    this.busyOrderId = order.OrderId;
+    this.error = '';
+    this.notice = '';
+
+    this.paymentService.requestReturn(order.OrderId, this.returnReasonCode, this.returnComment.trim()).subscribe({
+      next: (result: OrderActionResult) => {
+        this.busyOrderId = 0;
+
+        if (result.Result !== 1) {
+          this.error = result.Messages?.join(' ') || 'We could not place your return request. Please try again.';
+          return;
+        }
+
+        this.returningOrderId = 0;
+        this.notice = result.Messages?.join(' ') || `We have your return request for ${order.OrderNumber}.`;
+        this.refreshOrders();
+      },
+      error: (err) => {
+        this.busyOrderId = 0;
+        this.error = 'We could not place your return request. Please try again in a moment.';
+        console.error(err);
+      }
+    });
+  }
+
+  /**
+   * Takes a return request back, while the shop team has not answered it yet - the way out of asking by
+   * mistake. The order is unchanged afterwards, so it can still be sent back while the window is open.
+   */
+  withdrawReturn(order: MyOrder): void {
+    if (this.busyOrderId) {
+      return;
+    }
+
+    this.busyOrderId = order.OrderId;
+    this.error = '';
+    this.notice = '';
+
+    this.paymentService.withdrawReturn(order.OrderId).subscribe({
+      next: (result: OrderActionResult) => {
+        this.busyOrderId = 0;
+
+        if (result.Result !== 1) {
+          this.error = result.Messages?.join(' ') || 'We could not take the return request back.';
+          return;
+        }
+
+        this.notice = result.Messages?.join(' ') ||
+          `Your return request for ${order.OrderNumber} has been taken back.`;
+        this.refreshOrders();
+      },
+      error: (err) => {
+        this.busyOrderId = 0;
+        this.error = 'We could not take the return request back. Please try again in a moment.';
         console.error(err);
       }
     });
@@ -522,12 +643,22 @@ export class MyOrdersComponent implements OnInit, OnDestroy {
 
   /** Bootstrap colour of the parcel badge, from the stage the server worked out (see ShipmentStatusFlow). */
   parcelBadgeClass(order: MyOrder): string {
-    switch (order.Shipment?.stage) {
+    return this.parcelStageBadgeClass(order.Shipment?.stage);
+  }
+
+  /**
+   * The badge colour one stage is drawn in, for either leg: a refusal at the door reads like a delivery that did
+   * not happen, and one returning to the shop is dark rather than green - it is the end of the parcel's journey,
+   * but not the end the customer hoped for.
+   */
+  parcelStageBadgeClass(stage: string | undefined): string {
+    switch (stage) {
       case 'Booked': return 'bg-secondary';
       case 'InTransit': return 'bg-info text-dark';
       case 'OutForDelivery': return 'bg-primary';
       case 'Delivered': return 'bg-success';
       case 'Undelivered': return 'bg-warning text-dark';
+      case 'Refused': return 'bg-warning text-dark';
       case 'Rto': return 'bg-dark';
       case 'Cancelled': return 'bg-danger';
       // Anything else is 'Unknown' - the courier has not said anything this side recognises yet.
@@ -552,6 +683,63 @@ export class MyOrdersComponent implements OnInit, OnDestroy {
     return this.parcelHasCourier(order) && !!order.Shipment?.closed;
   }
 
+  // The parcel coming back - the return's own leg. It is read exactly like the one that went out (the server
+  // sends it in the same shape, see OrderShipmentDto), so the two strips are the same strip with a different
+  // headline, and only the field it is read from tells them apart.
+
+  /** True when a parcel coming back has been recorded - the return's pickup, or the courier's own return. */
+  hasReturnParcel(order: MyOrder): boolean {
+    return !!order.ReturnShipment && order.ReturnShipment.hasShipment;
+  }
+
+  /**
+   * True when a courier stands behind the parcel coming back. False for the shop collecting it itself, where
+   * there is nobody to ask and the page says so rather than offering a lookup that cannot bring news.
+   */
+  returnParcelHasCourier(order: MyOrder): boolean {
+    return order.ReturnShipment?.reportsTracking !== false;
+  }
+
+  /** What the return parcel's number is called: the courier's AWB, or the reference the shop gave it. */
+  returnParcelNumberLabel(order: MyOrder): string {
+    return this.returnParcelHasCourier(order) ? 'AWB' : 'Reference';
+  }
+
+  /** Where the parcel coming back is, in the shop's words for what the courier said (or the courier's own). */
+  returnParcelStatusText(order: MyOrder): string {
+    const shipment = order.ReturnShipment;
+    return shipment ? (shipment.status || shipment.providerStatus) : '';
+  }
+
+  /** The courier's latest sentence for the return parcel ('' when the status line above is already it). */
+  returnParcelCourierText(order: MyOrder): string {
+    const shipment = order.ReturnShipment;
+    if (!shipment || !shipment.lastStatusText) {
+      return '';
+    }
+
+    return shipment.lastStatusText === shipment.providerStatus ? '' : shipment.lastStatusText;
+  }
+
+  /** The badge colour of the return parcel - the same stages as the other leg. */
+  returnParcelBadgeClass(order: MyOrder): string {
+    return this.parcelStageBadgeClass(order.ReturnShipment?.stage);
+  }
+
+  /** The courier's tracking page for the return parcel, when it reported one. */
+  returnParcelTrackingUrl(order: MyOrder): string {
+    return order.ReturnShipment?.trackingUrl || '';
+  }
+
+  /**
+   * True once the courier is finished with the parcel coming back - it has reached us, or the pickup was called
+   * off. Only for a parcel a courier carries: one the shop collects itself reaches 'closed' by following the
+   * return, and telling the customer a courier has nothing to report would name one that never had it.
+   */
+  isReturnParcelClosed(order: MyOrder): boolean {
+    return this.returnParcelHasCourier(order) && !!order.ReturnShipment?.closed;
+  }
+
   /** Bootstrap colour of the status badge (Orders.OrderStatusID: 1..5). */
   statusBadgeClass(order: MyOrder): string {
     switch (order.StatusId) {
@@ -560,6 +748,74 @@ export class MyOrdersComponent implements OnInit, OnDestroy {
       case 4: return 'bg-success';
       case 5: return 'bg-danger';
       default: return 'bg-warning text-dark';
+    }
+  }
+
+  /** True while the return form is open on this order. */
+  isReturnFormOpen(order: MyOrder): boolean {
+    return this.returningOrderId === order.OrderId;
+  }
+
+  /**
+   * True while the order may be sent back - the server's own answer (delivered, inside the window and
+   * nothing already waiting), so the button can never be offered for something the server would refuse.
+   */
+  canReturn(order: MyOrder): boolean {
+    return order.CanReturn;
+  }
+
+  /** True while a return request on this order may still be taken back - nobody has answered it yet. */
+  canWithdrawReturn(order: MyOrder): boolean {
+    return order.CanWithdrawReturn;
+  }
+
+  /** The badge shown next to the status while the order carries a return ('' when it has none). */
+  returnStatusLabel(order: MyOrder): string {
+    switch (order.ReturnStatus) {
+      case 'Requested': return 'Return requested';
+      case 'Arranged': return 'Return approved';
+      case 'Received': return 'Return received';
+      case 'Closed': return 'Returned';
+      case 'Rejected': return 'Return refused';
+      case 'Withdrawn': return 'Return withdrawn';
+      default: return '';
+    }
+  }
+
+  /**
+   * What the card says about the order's return: where it has got to and what happens next. Every sentence
+   * keeps the one thing the customer cares about straight - nothing is refunded until the parcel is back
+   * with the shop and the shop closes the return.
+   */
+  returnNote(order: MyOrder): string {
+    switch (order.ReturnStatus) {
+      case 'Requested':
+        // The ask can be the customer's own or one the courier reported (a parcel refused at the door, or one that
+        // could not be delivered): the two are worded apart, because nobody asked for the second one.
+        return order.ReturnOrigin === 'Courier'
+          ? `The courier has told us a parcel of ${order.OrderNumber} is coming back to us` +
+            (order.ReturnReason ? ` (${order.ReturnReason})` : '') +
+            '. Our team is looking at it, and we will tell you what happens next.'
+          : `You asked to send ${order.OrderNumber} back` +
+            (order.ReturnReason ? ` (${order.ReturnReason})` : '') +
+            '. Our team is looking at the request - you can take it back from here until they answer it.';
+      case 'Arranged':
+        return 'Your return is approved, so the parcel is on its way back to us - you can follow it below. ' +
+          'Once it reaches us we close the return and the refund is placed with the payment method you used.';
+      case 'Received':
+        return 'The parcel is back with us and is being checked in. The refund is placed as soon as the ' +
+          'return is closed, usually within a few working days of that.';
+      case 'Closed':
+        return 'This order has been returned and the refund has been placed with our team - the money goes ' +
+          'back to the payment method you used, usually within a few working days of their approval.';
+      case 'Rejected':
+        return 'We could not accept the return of this order, so nothing about it has changed. Please ' +
+          'contact support@homecuties.com if you would like us to look at it again.';
+      case 'Withdrawn':
+        return 'You took your return request back, so the order is unchanged. You can ask again while the ' +
+          'return window is open.';
+      default:
+        return '';
     }
   }
 

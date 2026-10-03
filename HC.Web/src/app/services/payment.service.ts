@@ -116,6 +116,14 @@ export interface OrderShipment {
   messages: string[];
 
   orderId: number;
+  /**
+   * Which leg of the order this parcel is: 'Forward' (the one that went out) or 'Reverse' (the one coming back -
+   * a return's pickup, or the courier's own return-to-origin). 'isReverse' says the same thing as a flag, for the
+   * page's own convenience.
+   */
+  direction: string;
+  /** True when this is the parcel coming back - a return's own leg. */
+  isReverse: boolean;
   /** False while the shop has not recorded an AWB for this order yet. */
   hasShipment: boolean;
   /** The shipping provider the parcel was booked with ('Shiprocket', or 'Custom' - the shop's own service). */
@@ -184,6 +192,36 @@ export interface MyOrder {
    */
   RefundPending: boolean;
   CanCancel: boolean;
+  /**
+   * True while the customer may ask to send the order back: it has been delivered, nothing is already
+   * waiting for an answer and the return window is still open. The server checks all three itself (see
+   * HC.Business.OrderReturnFlow), so a wrong guess here can only produce a clear refusal.
+   */
+  CanReturn: boolean;
+  /** True while a return request may still be taken back - nobody has answered it yet. */
+  CanWithdrawReturn: boolean;
+  /**
+   * Where the order's return has got to: 'Requested' (waiting for the shop team), 'Arranged' (approved,
+   * the parcel is on its way back), 'Received', 'Closed', or 'Rejected' / 'Withdrawn'. Null when the order
+   * has never had one (the server sends the newest return, so an order that was returned once and
+   * delivered again shows the latest).
+   */
+  ReturnStatus: string | null;
+  /** Why the return was asked for, in the asker's own words. Null when there is no return. */
+  ReturnReason: string | null;
+  /** When the return was asked for. Null when there is no return. */
+  ReturnRequestedOn: string | null;
+  /**
+   * Who asked for the return: 'Customer' (the customer's own ask), 'Courier' (a parcel the courier reported
+   * coming back - refused at the door, or undelivered) or null when there is no return. The two are worded apart
+   * in 'My Orders': nobody asked for the second one.
+   */
+  ReturnOrigin: string | null;
+  /**
+   * The last day the order may be sent back - the day the parcel reached the customer plus the shop's
+   * return window. Null when the order was never delivered, i.e. there is no window at all.
+   */
+  ReturnWindowEndsOn: string | null;
   /** True while the order still owes money, so 'Pay now' can be offered on it. */
   CanPay: boolean;
   ItemCount: number;
@@ -201,6 +239,14 @@ export interface MyOrder {
    * wording is pulled separately ('Order/RefreshShipments').
    */
   Shipment: OrderShipment | null;
+
+  /**
+   * The parcel coming back - the return's own leg - or null while there is none. It is recorded once a return
+   * has been approved (the pickup the shop booked) or when the courier itself reports the parcel on its way
+   * back, and the page draws it exactly like 'Shipment' so the customer can follow what they sent back. The two
+   * are always the two different legs, never one parcel shown twice.
+   */
+  ReturnShipment: OrderShipment | null;
 }
 
 /**
@@ -216,8 +262,27 @@ const ORDER_STATUS_IDS: { [status: string]: number } = {
   Confirmed: 2,
   Shipped: 3,
   Delivered: 4,
-  Cancelled: 5
+  Cancelled: 5,
+  Returned: 6
 };
+
+/**
+ * Why an order can be sent back, as the return form offers it. The codes are the contract with the server
+ * (HC.Business.OrderReturnReason accepts these five and nothing else); the labels are this page's own words
+ * for them, because the customer is choosing before any request exists.
+ */
+export interface ReturnReasonOption {
+  Code: string;
+  Label: string;
+}
+
+export const RETURN_REASONS: ReturnReasonOption[] = [
+  { Code: 'NotNeeded', Label: 'No longer needed' },
+  { Code: 'WrongItem', Label: 'Wrong item sent' },
+  { Code: 'Damaged', Label: 'Arrived damaged' },
+  { Code: 'NotAsDescribed', Label: 'Not as described' },
+  { Code: 'Other', Label: 'Something else' }
+];
 
 /**
  * Fills in the fields an older server build may not send yet (StatusId, IsPaid, CanCancel, ItemCount,
@@ -257,6 +322,16 @@ export function normalizeMyOrder(raw: RawMyOrder | null | undefined): MyOrder {
     // or Confirmed (paid, and the money is refunded). The server is the one that enforces the status
     // chain, so a wrong guess here can only produce a clear refusal.
     CanCancel: order.CanCancel ?? (statusId === ORDER_STATUS_IDS['Pending'] || statusId === ORDER_STATUS_IDS['Confirmed']),
+    // A return is only ever offered once the server has said so: whether the order is delivered AND the
+    // window is still open AND nothing is already waiting is the server's answer to give (see
+    // OrderReturnFlow), and it sends the window's last day with it so the page can explain itself.
+    CanReturn: order.CanReturn ?? false,
+    CanWithdrawReturn: order.CanWithdrawReturn ?? false,
+    ReturnStatus: order.ReturnStatus ?? null,
+    ReturnReason: order.ReturnReason ?? null,
+    ReturnRequestedOn: order.ReturnRequestedOn ?? null,
+    ReturnOrigin: order.ReturnOrigin ?? null,
+    ReturnWindowEndsOn: order.ReturnWindowEndsOn ?? null,
     // Paying again is only offered while the order is still waiting for its money. The server has the
     // last word (it checks the earlier attempt at Razorpay first), so a wrong guess here can only
     // produce a clear refusal - never a second charge.
@@ -266,7 +341,8 @@ export function normalizeMyOrder(raw: RawMyOrder | null | undefined): MyOrder {
     BillingAddress: order.BillingAddress ?? emptyOrderAddress(),
     Items: items,
     History: order.History ?? [],
-    Shipment: normalizeOrderShipment(order.Shipment)
+    Shipment: normalizeOrderShipment(order.Shipment),
+    ReturnShipment: normalizeOrderShipment(order.ReturnShipment)
   };
 }
 
@@ -286,6 +362,10 @@ export function normalizeOrderShipment(raw: Partial<OrderShipment> | null | unde
     result: raw.result ?? 1,
     messages: raw.messages ?? [],
     orderId: raw.orderId ?? 0,
+    // A server build without the leg fields (or a parcel recorded before returns had one) is the parcel that
+    // went out: that is what every row written before a return existed is.
+    direction: raw.direction ?? 'Forward',
+    isReverse: raw.isReverse ?? false,
     hasShipment: true,
     provider: raw.provider ?? '',
     // A parcel with no courier behind it is the exception, so 'no answer from the server' counts as one
@@ -413,6 +493,32 @@ export class PaymentService {
   retryPayment(orderId: number): Observable<CreateOrderResponse> {
     return this.http.post<CreateOrderResponse>(
       this.config.getBaseServUrl() + 'Order/RetryPayment',
+      { OrderId: orderId }
+    );
+  }
+
+  /**
+   * Asks to send a delivered order back - the return form in 'My Orders'. The reason code is one of
+   * RETURN_REASONS (the server refuses anything else) and the customer's own words are optional, because
+   * the shop team reads them while the code is what returns are counted by.
+   *
+   * Nothing is refunded by this call: the request is written down and the shop team answers it from the
+   * admin order screen. The money goes back once the parcel is with the shop and the return is closed.
+   */
+  requestReturn(orderId: number, reasonCode: string, reason: string): Observable<OrderActionResult> {
+    return this.http.post<OrderActionResult>(
+      this.config.getBaseServUrl() + 'Order/RequestReturn',
+      { OrderId: orderId, ReasonCode: reasonCode, Reason: reason }
+    );
+  }
+
+  /**
+   * Takes a return request back, while the shop team has not answered it yet. The order is left exactly as
+   * it was, so it can be returned again later while the window is open.
+   */
+  withdrawReturn(orderId: number): Observable<OrderActionResult> {
+    return this.http.post<OrderActionResult>(
+      this.config.getBaseServUrl() + 'Order/WithdrawReturn',
       { OrderId: orderId }
     );
   }

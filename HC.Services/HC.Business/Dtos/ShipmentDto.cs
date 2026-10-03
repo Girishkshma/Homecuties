@@ -129,6 +129,20 @@ public class OrderShipmentDto
     [JsonPropertyName("orderId")]
     public long OrderId { get; set; }
 
+    /// <summary>
+    /// Which leg of the order this parcel is: 'Forward' (the one that went out) or 'Reverse' (the one
+    /// coming back - a return's pickup, or the courier's own return-to-origin; see
+    /// <c>OrderShipment.DirectionForward/DirectionReverse</c> and <see cref="IsReverse"/>). The Return card
+    /// of the admin order screen is what reads a reverse parcel today; 'My Orders' shows the forward one
+    /// with the return's own status beside it.
+    /// </summary>
+    [JsonPropertyName("direction")]
+    public string Direction { get; set; } = "Forward";
+
+    /// <summary>True when this is the parcel coming back - a return's own leg.</summary>
+    [JsonPropertyName("isReverse")]
+    public bool IsReverse { get; set; }
+
     /// <summary>False while the shop has not recorded an AWB for this order yet.</summary>
     [JsonPropertyName("hasShipment")]
     public bool HasShipment { get; set; }
@@ -216,6 +230,17 @@ public class OrderShipmentDto
 /// </summary>
 public class SaveOrderShipmentRequest
 {
+    /// <summary>
+    /// Which leg this parcel is: blank (the default) is the parcel going out to the customer, and
+    /// 'Reverse' is the one coming back - the pickup the shop books once a return has been approved, or
+    /// the courier's own return-to-origin. Anything else is refused, because a parcel is one of those two
+    /// things and no third one exists (see OrderShipment.IsValidDirection). The Return card of the admin
+    /// order screen records a reverse parcel with this field; the Shipment card and the Shipped move leave
+    /// it blank, exactly as before.
+    /// </summary>
+    [JsonPropertyName("direction")]
+    public string? Direction { get; set; }
+
     /// <summary>
     /// Which shipping provider the parcel was booked with (<c>ShipmentProviderInfo.Name</c>). Blank
     /// means the configured default (<c>Shipping:DefaultProvider</c>), which is what a shop booking with

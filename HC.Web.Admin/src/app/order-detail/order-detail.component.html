@@ -140,6 +140,237 @@
       <div *ngIf="refundMessage" class="form-message" [class.error]="refundError">{{ refundMessage }}</div>
     </div>
 
+    <!-- Return - a delivered order the customer wants to send back, or one the courier's own report raised
+         (a refusal, or a parcel that could not be delivered: the courier only ever asks, the team decides).
+         Approving here says the parcel is coming back, so the pickup is recorded on this card as the
+         return's own leg ('direction: Reverse') - and the order itself is only moved to 'Returned', with its
+         units back on the shelf and its money owed back, when the return is closed with the parcel in the
+         shop (see HC.Business.OrderReturnFlow). -->
+    <div class="detail-card" *ngIf="orderReturn">
+      <h3>
+        Return
+        <span [class]="getReturnBadgeClass()">{{ getReturnStatusText() }}</span>
+      </h3>
+
+      <div class="detail-grid">
+        <div class="detail-item">
+          <label>Where it came from</label>
+          <span>{{ orderReturn.originLabel }}</span>
+        </div>
+        <div class="detail-item">
+          <label>Reason</label>
+          <span>{{ orderReturn.reasonLabel }}</span>
+        </div>
+        <div class="detail-item">
+          <label>Asked for on</label>
+          <span>{{ orderReturn.requestedOn | date:'medium' }}</span>
+        </div>
+        <div class="detail-item" *ngIf="orderReturn.requestedBy">
+          <label>Asked by</label>
+          <span>{{ orderReturn.requestedBy }}</span>
+        </div>
+        <div class="detail-item" *ngIf="orderReturn.decisionBy">
+          <label>Answered by</label>
+          <span>{{ orderReturn.decisionBy }} on {{ orderReturn.decisionOn | date:'medium' }}</span>
+        </div>
+        <div class="detail-item" *ngIf="orderReturn.receivedOn">
+          <label>Parcel received</label>
+          <span>{{ orderReturn.receivedOn | date:'medium' }}</span>
+        </div>
+        <div class="detail-item" *ngIf="orderReturn.closedOn">
+          <label>Return closed</label>
+          <span>{{ orderReturn.closedOn | date:'medium' }}</span>
+        </div>
+        <div class="detail-item" *ngIf="orderReturn.inspectionOn">
+          <label>Inspected by</label>
+          <span>{{ orderReturn.inspectionBy }} on {{ orderReturn.inspectionOn | date:'medium' }}</span>
+        </div>
+      </div>
+
+      <p class="hint" *ngIf="orderReturn.reason">
+        {{ orderReturn.origin === 'Courier' ? 'The courier reported' : 'The customer wrote' }}:
+        &quot;{{ orderReturn.reason }}&quot;
+      </p>
+
+      <p class="hint" *ngIf="orderReturn.decisionComment">
+        Our answer, which the customer reads in 'My Orders': &quot;{{ orderReturn.decisionComment }}&quot;
+      </p>
+
+      <p class="hint" *ngIf="orderReturn.inspectionComment">
+        Inspection: {{ orderReturn.inspectionComment }}
+      </p>
+
+      <ng-container *ngIf="canDecideReturn">
+        <div class="form-group">
+          <label>Note the customer will read <span class="req">*</span></label>
+          <textarea class="form-input" rows="3" [(ngModel)]="returnComment"
+            placeholder="e.g. Sorry about that - send it back in its original packaging and we will refund it as soon as it reaches us"></textarea>
+          <p class="hint">
+            Required, and kept on the return and in the order history the customer reads in 'My Orders'.
+            Approving does not refund anything by itself: the order, its units and its money stay exactly
+            where they are until the parcel is back and the return is closed.
+          </p>
+        </div>
+
+        <div class="inline-actions">
+          <button class="btn-secondary" [disabled]="isDecidingReturn" (click)="decideReturn(false)"
+            title="Refuse the return - the order is left exactly as it was">Refuse return</button>
+          <button class="btn-primary" [disabled]="isDecidingReturn" (click)="decideReturn(true)">
+            {{ isDecidingReturn ? 'Saving...' : 'Approve return' }}
+          </button>
+        </div>
+      </ng-container>
+
+      <!-- The parcel coming back - the return's own leg, kept apart from the parcel that went out. -->
+      <div class="detail-grid" *ngIf="returnShipment">
+        <div class="detail-item">
+          <label>{{ returnShipment.reportsTracking === false ? 'Pickup reference' : 'Pickup AWB' }}</label>
+          <span>{{ returnShipment.awbNumber }}</span>
+        </div>
+        <div class="detail-item">
+          <label>Courier</label>
+          <span>{{ returnShipment.courierName || 'not on record' }}</span>
+        </div>
+        <div class="detail-item">
+          <label>Provider</label>
+          <span>{{ returnShipment.provider || 'not on record' }}</span>
+        </div>
+        <div class="detail-item" *ngIf="returnShipment.freightCharge != null">
+          <label>Freight charged</label>
+          <span>{{ returnShipment.freightCharge | currency:'INR' }}</span>
+        </div>
+        <div class="detail-item" *ngIf="returnShipment.status">
+          <label>The courier says</label>
+          <span>{{ returnShipment.status }}</span>
+        </div>
+      </div>
+
+      <!-- The pickup, recorded once the return has been approved: the team books it in the provider's own
+           panel and writes the number down here, so the customer can follow the parcel back. -->
+      <ng-container *ngIf="returnPickupNeeded">
+        <div class="form-group">
+          <label>Provider the pickup is booked with</label>
+          <select class="form-input" [(ngModel)]="returnProvider">
+            <option value="">-- Use the provider this shop defaults to --</option>
+            <option *ngFor="let provider of shipmentProviders" [value]="provider.name">
+              {{ provider.displayName }}{{ provider.isDefault ? ' (default)' : '' }}{{ provider.configured ? '' : ' - not set up' }}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>
+            {{ returnProviderMintsAwb ? 'Reference (left blank, the system mints one)' : 'AWB the courier gave the pickup' }}
+            <span class="req" *ngIf="!returnProviderMintsAwb">*</span>
+          </label>
+          <input class="form-input" type="text" [(ngModel)]="returnAwb" placeholder="e.g. 1234567890" />
+        </div>
+
+        <div class="form-group">
+          <label>Courier (optional)</label>
+          <input class="form-input" type="text" [(ngModel)]="returnCourier" placeholder="e.g. Delhivery" />
+        </div>
+
+        <div class="form-group">
+          <label>Freight charged for the pickup (INR, optional)</label>
+          <input class="form-input" type="number" step="0.01" min="0" [(ngModel)]="returnFreight"
+            placeholder="e.g. 78.50" />
+          <p class="hint">
+            What carrying the parcel back cost the shop. Kept on the return's own parcel for the books and
+            never shown to the customer - leave it blank until it is known.
+          </p>
+        </div>
+
+        <div class="inline-actions">
+          <button class="btn-primary" [disabled]="isSavingReturnPickup" (click)="recordReturnPickup()">
+            {{ isSavingReturnPickup ? 'Saving...' : 'Save pickup' }}
+          </button>
+        </div>
+
+        <p class="hint">
+          Book the pickup in your provider's own panel (or note the consignment it gave you) and record it
+          here: the return then carries its own AWB, courier and freight exactly like the parcel that went
+          out, and the customer follows it in 'My Orders'.
+        </p>
+      </ng-container>
+
+      <ng-container *ngIf="canMarkReceivedReturn">
+        <div class="form-group">
+          <label>Note (optional)</label>
+          <textarea class="form-input" rows="2" [(ngModel)]="returnStepComment"
+            placeholder="e.g. one top came back torn - looking at it now"></textarea>
+          <p class="hint">
+            Goes on the order's history, which the customer reads in 'My Orders'. Booking the parcel back in takes
+            its units off the delivery pools - they are not on sale again until the return is closed.
+          </p>
+        </div>
+
+        <div class="inline-actions">
+          <button class="btn-primary" [disabled]="isMarkingReturnReceived" (click)="markReturnReceived()">
+            {{ isMarkingReturnReceived ? 'Saving...' : 'Parcel received' }}
+          </button>
+        </div>
+      </ng-container>
+
+      <!-- The inspection: which of the units that came back are broken. Every ticked unit is written off for
+           good, so closing the return cannot put it back on sale. Saving with nothing ticked records 'we looked
+           and found nothing', which is deliberately a different thing from nobody having looked at all. -->
+      <ng-container *ngIf="canInspectReturn">
+        <div class="form-group">
+          <label>Returned units</label>
+          <div class="return-units">
+            <label class="return-unit" *ngFor="let item of order.items">
+              <input type="checkbox" [checked]="isDamagedSku(item.sku)" (change)="toggleDamagedSku(item.sku)" />
+              <span>
+                <strong>{{ item.productName }}</strong>
+                <ng-container *ngIf="item.productTitle"> - {{ item.productTitle }}</ng-container>
+                <small>SKU {{ item.sku }}</small>
+              </span>
+            </label>
+          </div>
+          <p class="hint">
+            Tick every unit that came back damaged - one of three identical tops can be torn while the others are
+            fine. Tick none when everything came back in good order.
+          </p>
+        </div>
+
+        <div class="form-group">
+          <label>What the inspection found (optional)</label>
+          <textarea class="form-input" rows="2" [(ngModel)]="returnInspectionComment"
+            placeholder="e.g. two tops have a torn seam"></textarea>
+        </div>
+
+        <div class="inline-actions">
+          <button class="btn-primary" [disabled]="isSavingReturnInspection" (click)="inspectReturn()">
+            {{ isSavingReturnInspection ? 'Saving...' : 'Save inspection' }}
+          </button>
+        </div>
+      </ng-container>
+
+      <!-- The close: the order becomes 'Returned', the units that came back go on sale again (the written-off
+           ones stay written off) and the refund is asked for. Sending that money is the Refund card's own
+           'Approve refund' step, so nothing leaves for the gateway from here. -->
+      <ng-container *ngIf="canCloseReturn">
+        <div class="form-group">
+          <label>Note (optional)</label>
+          <textarea class="form-input" rows="2" [(ngModel)]="returnStepComment"
+            placeholder="e.g. returned in full - please refund"></textarea>
+          <p class="hint">
+            Closing puts the returned units back on sale, makes the order 'Returned' and asks for the refund -
+            approve that on the Refund card when you are ready to send the money.
+          </p>
+        </div>
+
+        <div class="inline-actions">
+          <button class="btn-primary" [disabled]="isClosingReturn" (click)="closeReturn()">
+            {{ isClosingReturn ? 'Saving...' : 'Close return' }}
+          </button>
+        </div>
+      </ng-container>
+
+      <div *ngIf="returnMessage" class="form-message" [class.error]="returnError">{{ returnMessage }}</div>
+    </div>
+
     <!-- Items - OrderItems keeps one row per physical unit, so every SKU is visible -->
     <div class="detail-card">
       <h3>Items ({{ order.items.length }} unit(s))</h3>

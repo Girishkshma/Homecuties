@@ -64,6 +64,8 @@
               <span class="badge" [ngClass]="statusBadgeClass(order)">{{ order.Status }}</span>
               <span class="badge bg-warning text-dark" *ngIf="isRefundPending(order)"
                 title="The refund of this cancelled order is with the shop team">Refund pending</span>
+              <span class="badge bg-info text-dark" *ngIf="returnStatusLabel(order)"
+                title="This order has a return on it">{{ returnStatusLabel(order) }}</span>
             </h5>
             <small class="order-meta">
               Placed on {{ order.OrderDate | date:'dd MMM yyyy' }} &middot;
@@ -105,6 +107,27 @@
             >
               <i class="bi bi-x-circle me-1"></i> Cancel Order
             </button>
+            <!-- Sending an order back is only offered once it has been delivered and while the shop's
+                 return window is open - the server decides both and sends the answer on the order. -->
+            <button
+              *ngIf="canReturn(order)"
+              type="button"
+              class="btn btn-outline-secondary btn-sm"
+              [disabled]="busyOrderId === order.OrderId"
+              (click)="askToReturn(order)"
+            >
+              <i class="bi bi-arrow-return-left me-1"></i> Return
+            </button>
+            <!-- While the shop team has not answered the return request, the customer can take it back. -->
+            <button
+              *ngIf="canWithdrawReturn(order)"
+              type="button"
+              class="btn btn-outline-secondary btn-sm"
+              [disabled]="busyOrderId === order.OrderId"
+              (click)="withdrawReturn(order)"
+            >
+              <i class="bi bi-arrow-counterclockwise me-1"></i> Take request back
+            </button>
           </div>
         </div>
 
@@ -125,6 +148,54 @@
             </button>
             <button type="button" class="btn btn-outline-secondary btn-sm" (click)="dismissCancel()">
               Keep my order
+            </button>
+          </div>
+        </div>
+
+        <!-- Return request: the reason is picked from the shop's list (that is what returns are counted by)
+             and the customer's own words are optional. Nothing is refunded by asking - the shop team answers
+             the request, and the money goes back once the parcel is with them and the return is closed. -->
+        <div *ngIf="isReturnFormOpen(order)" class="order-confirm">
+          <p>
+            <i class="bi bi-arrow-return-left me-2"></i>
+            Send {{ order.OrderNumber }} back? Tell us why - our team will look at your request, and the
+            amount is refunded once the parcel reaches us and the return is closed.
+          </p>
+          <div class="mb-2">
+            <label class="form-label small mb-1" [attr.for]="'return-reason-' + order.OrderId">Reason</label>
+            <select
+              class="form-select form-select-sm"
+              [id]="'return-reason-' + order.OrderId"
+              [(ngModel)]="returnReasonCode"
+            >
+              <option value="">Choose a reason...</option>
+              <option *ngFor="let reason of returnReasons" [value]="reason.Code">{{ reason.Label }}</option>
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small mb-1" [attr.for]="'return-comment-' + order.OrderId">
+              Anything else we should know? (optional)
+            </label>
+            <textarea
+              class="form-control form-control-sm"
+              rows="2"
+              maxlength="500"
+              [id]="'return-comment-' + order.OrderId"
+              [(ngModel)]="returnComment"
+              placeholder="For example: the size is too small, or a seam has come apart"
+            ></textarea>
+          </div>
+          <div class="order-confirm-actions">
+            <button
+              type="button"
+              class="btn btn-primary btn-sm"
+              [disabled]="busyOrderId === order.OrderId"
+              (click)="submitReturn(order)"
+            >
+              Ask to return this order
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" (click)="dismissReturn()">
+              Never mind
             </button>
           </div>
         </div>
@@ -150,6 +221,21 @@
         <div *ngIf="isRefundPending(order)" class="order-payment-note order-refund-note">
           <i class="bi bi-arrow-counterclockwise me-2"></i>
           {{ refundNote(order) }}
+        </div>
+
+        <!-- The return: what was asked for, where it has got to and what happens next. The badge on the
+             order itself says the same thing in two words (see returnStatusLabel). -->
+        <div *ngIf="order.ReturnStatus" class="order-payment-note">
+          <i class="bi bi-arrow-return-left me-2"></i>{{ returnNote(order) }}
+        </div>
+
+        <!-- The return window, said out loud: the customer should never have to guess why the Return
+             button is there today or gone tomorrow. -->
+        <div *ngIf="canReturn(order)" class="order-payment-note">
+          <i class="bi bi-info-circle me-2"></i>
+          You can send this delivered order back<ng-container *ngIf="order.ReturnWindowEndsOn"> until
+          {{ order.ReturnWindowEndsOn | date:'dd MMM yyyy' }}</ng-container> - choose <strong>Return</strong>
+          above.
         </div>
 
         <!-- Why 'Cancel Order' is gone: the status chain ends the customer's own cancellation at 'Shipped' -->
@@ -235,6 +321,85 @@
           <!-- There is nothing left to watch once the parcel is delivered or on its way back, so the
                customer is told rather than left tapping a button that will never bring news. -->
           <p class="order-shipment-closed" *ngIf="isParcelClosed(order)">
+            The courier has nothing more to report for this parcel.
+          </p>
+        </div>
+
+        <!-- The parcel coming back: drawn once a return has been approved and its pickup recorded (or the courier
+             itself reported the parcel on its way back), so what the customer sent back is followed exactly like
+             what was sent to them. The two legs are the two rows the server keeps ('direction'), so one can never
+             stand in for the other. -->
+        <div *ngIf="hasReturnParcel(order)" class="order-shipment order-shipment-return">
+          <div class="order-shipment-head">
+            <span class="order-shipment-icon" aria-hidden="true"><i class="bi bi-arrow-return-left"></i></span>
+
+            <div class="order-shipment-summary">
+              <span class="order-shipment-label">
+                <span class="order-shipment-tag">Parcel coming back</span>
+                <span class="badge" [ngClass]="returnParcelBadgeClass(order)" *ngIf="returnParcelStatusText(order)">
+                  {{ returnParcelStatusText(order) }}
+                </span>
+                <span
+                  class="order-shipment-provider"
+                  *ngIf="returnParcelHasCourier(order) && order.ReturnShipment?.provider"
+                >
+                  {{ order.ReturnShipment?.provider }}<ng-container *ngIf="order.ReturnShipment?.courierName">
+                    &middot; {{ order.ReturnShipment?.courierName }}</ng-container>
+                </span>
+                <span
+                  class="order-shipment-provider"
+                  *ngIf="!returnParcelHasCourier(order) && order.ReturnShipment?.courierName"
+                >
+                  {{ order.ReturnShipment?.courierName }}
+                </span>
+              </span>
+
+              <small class="order-shipment-meta">
+                {{ returnParcelNumberLabel(order) }} <strong>{{ order.ReturnShipment?.awbNumber }}</strong>
+                <ng-container *ngIf="order.ReturnShipment?.deliveredOn">
+                  &middot; back with us on {{ order.ReturnShipment?.deliveredOn | date:'dd MMM yyyy' }}
+                </ng-container>
+                <ng-container *ngIf="order.ReturnShipment?.lastCheckedOn && !order.ReturnShipment?.deliveredOn">
+                  &middot; last checked with the courier
+                  {{ order.ReturnShipment?.lastCheckedOn | date:'dd MMM, h:mm a' }}
+                </ng-container>
+              </small>
+            </div>
+
+            <div class="order-shipment-actions">
+              <a
+                *ngIf="returnParcelTrackingUrl(order)"
+                class="btn btn-outline-primary btn-sm"
+                [href]="returnParcelTrackingUrl(order)"
+                target="_blank"
+                rel="noopener"
+                title="Open the courier's own tracking page for the parcel coming back"
+              >
+                <i class="bi bi-box-arrow-up-right me-1"></i> Track return
+              </a>
+              <button
+                type="button"
+                class="btn btn-outline-secondary btn-sm"
+                *ngIf="returnParcelHasCourier(order)"
+                [disabled]="trackingBusy"
+                (click)="trackParcels()"
+                title="Ask the courier where the parcel coming back is now"
+              >
+                <i class="bi bi-arrow-repeat me-1"></i>{{ trackingBusy ? 'Checking...' : 'Refresh return' }}
+              </button>
+            </div>
+          </div>
+
+          <p class="order-shipment-latest" *ngIf="returnParcelCourierText(order)">
+            <i class="bi bi-info-circle me-1"></i>Courier's latest update: {{ returnParcelCourierText(order) }}
+          </p>
+
+          <p class="order-shipment-latest" *ngIf="!returnParcelHasCourier(order)">
+            <i class="bi bi-info-circle me-1"></i>We are collecting this parcel ourselves, so there is no courier
+            tracking for it - the return note above says what happens next.
+          </p>
+
+          <p class="order-shipment-closed" *ngIf="isReturnParcelClosed(order)">
             The courier has nothing more to report for this parcel.
           </p>
         </div>

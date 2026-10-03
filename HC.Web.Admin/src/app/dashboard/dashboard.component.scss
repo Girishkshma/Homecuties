@@ -97,6 +97,25 @@
   font-size: 16px;
 }
 
+/* The tiles are grouped so the day-to-day order/shipment work is not mixed up with the
+   shapes of the business or the money already in the bank. */
+.stats-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.stats-section {
+  .section-title {
+    font-size: 15px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #888;
+    margin: 0 0 14px;
+  }
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -121,6 +140,11 @@
   &.warning {
     border-left: 4px solid #f39c12;
   }
+
+  /* Something the shop team has to act on: a parcel in trouble or money owed back. */
+  &.alert {
+    border-left: 4px solid #e74c3c;
+  }
 }
 
 .stat-icon {
@@ -140,6 +164,12 @@
   &.pending { background: #fef9e7; }
   &.cancelled { background: #fdecea; }
   &.revenue { background: #e8f8f0; }
+  &.dispatch { background: #fff4e5; }
+  &.transit { background: #e8f0fe; }
+  &.ofd { background: #fef3e2; }
+  &.delivered { background: #e8f8f0; }
+  &.attention { background: #fdecea; }
+  &.refund { background: #ffe8cc; }
 }
 
 .stat-info {

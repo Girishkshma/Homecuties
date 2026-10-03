@@ -10,6 +10,13 @@
         <span>Refunds to approve</span>
         <span class="refund-count" *ngIf="pendingRefundCount > 0">{{ pendingRefundCount }}</span>
       </label>
+      <!-- The returns queue: the asks waiting for an answer and the parcels on their way back. -->
+      <label class="refund-filter" [class.active]="returnsOnly"
+        title="Show only the orders with a return on them">
+        <input type="checkbox" [ngModel]="returnsOnly" (ngModelChange)="returnsOnly = $event; applyFilter()">
+        <span>Returns</span>
+        <span class="refund-count" *ngIf="pendingReturnCount > 0">{{ pendingReturnCount }}</span>
+      </label>
       <select class="filter-select" [ngModel]="statusFilter" (ngModelChange)="statusFilter = $event; applyFilter()">
         <option [value]="0">All statuses</option>
         <option *ngFor="let status of statuses" [value]="status.statusId">{{ status.status }}</option>
@@ -18,7 +25,7 @@
         <input type="text" [(ngModel)]="searchTerm" placeholder="Search by order #, customer, customer ID, email or status..."
           (keyup.enter)="search()" class="search-input">
         <button (click)="search()" class="btn-search">Search</button>
-        <button *ngIf="searchTerm || statusFilter || refundsOnly" (click)="clearSearch()" class="btn-clear">Clear</button>
+        <button *ngIf="searchTerm || statusFilter || refundsOnly || returnsOnly" (click)="clearSearch()" class="btn-clear">Clear</button>
       </div>
     </div>
   </div>
@@ -58,7 +65,13 @@
             <span class="badge badge-refund" *ngIf="order.refundPending"
               title="The customer cancelled this paid order - the refund is waiting to be approved on the order">Refund due</span>
           </td>
-          <td><span [class]="getStatusBadgeClass(order.statusId)">{{ order.status }}</span></td>
+          <td>
+            <span [class]="getStatusBadgeClass(order.statusId)">{{ order.status }}</span>
+            <!-- The return on the order, for the same reason the refund is flagged: the list is where the
+                 work is found, and a return waiting for an answer is work. -->
+            <span class="badge badge-refund" *ngIf="order.returnPending"
+              title="This order has a return on it - open it to answer the request or follow the parcel back">{{ order.returnStatus }}</span>
+          </td>
           <td class="actions">
             <button class="btn-sm btn-view" [routerLink]="['/orders', order.orderId]" title="Open the order, its items and its status">View</button>
             <button class="btn-sm btn-edit" [routerLink]="['/orders', order.orderId]" title="Change the order status">Manage</button>

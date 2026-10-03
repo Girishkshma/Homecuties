@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HC.Business\HC.Business.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The rules of the order lifecycle, the returns flow and the stock pools, pinned where they can be
+         run without a database. Every one of them is a rule two screens depend on - the storefront's
+         buttons and the server's refusals, or the admin screen and the courier pull - so a test here is
+         what keeps them from drifting apart. -->
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.0" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+</Project>

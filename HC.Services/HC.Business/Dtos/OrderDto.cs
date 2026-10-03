@@ -93,10 +93,10 @@ public class OrderListDto
     public bool IsPaid { get; set; }
 
     /// <summary>
-    /// True while the money for this order is owed back to the customer: a paid order that was
-    /// cancelled, so the refund has been asked for and is waiting for the shop team to approve it (see
-    /// HC.Business.RazorpayRefunds). 'My Orders' shows this as 'Refund pending' - the order screen and
-    /// the admin order screen tell the rest of the story.
+    /// True while the money for this order is owed back to the customer: a paid order that was cancelled, or one
+    /// that was returned once its parcel came back, so the refund has been asked for and is waiting for the shop
+    /// team to approve it (see HC.Business.RazorpayRefunds and OrderPaymentStatus.IsRefundOwed). 'My Orders' shows
+    /// this as 'Refund pending' - the order screen and the admin order screen tell the rest of the story.
     /// </summary>
     public bool RefundPending { get; set; }
 
@@ -106,6 +106,46 @@ public class OrderListDto
     /// has already been paid asks for the money back; the shop team approves the refund.
     /// </summary>
     public bool CanCancel { get; set; }
+
+    /// <summary>
+    /// True while the customer may ask for a return from 'My Orders' - the order has been delivered, no
+    /// return is open on it and the window is still open (see OrderReturnFlow.CanCustomerAsk, which is the
+    /// same rule the server applies to the ask itself). 'My Orders' shows the return form on exactly this.
+    /// </summary>
+    public bool CanReturn { get; set; }
+
+    /// <summary>
+    /// True while the customer may take a return request back (nothing has been answered yet, see
+    /// OrderReturnStatus.CanWithdraw) - the 'Take request back' button.
+    /// </summary>
+    public bool CanWithdrawReturn { get; set; }
+
+    /// <summary>
+    /// Where the order's return has got to (OrderReturnStatus.*: Requested / Arranged / Received / Closed /
+    /// Rejected / Withdrawn), or null when the order has never had one. The latest return counts - a refused
+    /// or closed one is still what the customer should read next to the order.
+    /// </summary>
+    public string? ReturnStatus { get; set; }
+
+    /// <summary>Why the return was asked for, in the asker's own words ('wrong size'). Null when none.</summary>
+    public string? ReturnReason { get; set; }
+
+    /// <summary>When the return was asked for. Null when the order has never had one.</summary>
+    public DateTime? ReturnRequestedOn { get; set; }
+
+    /// <summary>
+    /// Who asked for the return (OrderReturnOrigin.Customer / .Courier). 'My Orders' words the two apart, because a
+    /// return the courier reported - a parcel refused at the door, or one that came back undelivered - is not
+    /// something the customer asked for. Null when the order has never had a return.
+    /// </summary>
+    public string? ReturnOrigin { get; set; }
+
+    /// <summary>
+    /// The last day the customer may ask for a return - the day the parcel reached them plus
+    /// <c>Returns:WindowDays</c> (see OrderReturnFlow.WindowEndsOn). Null when the order was never
+    /// delivered, so there is no window at all.
+    /// </summary>
+    public DateTime? ReturnWindowEndsOn { get; set; }
 
     /// <summary>True while the order is Pending - 'My Orders' offers 'Pay now' to retry the payment.</summary>
     public bool CanPay { get; set; }
@@ -130,6 +170,14 @@ public class OrderListDto
     /// so opening the history is never itself a call to the courier.
     /// </summary>
     public OrderShipmentDto? Shipment { get; set; }
+
+    /// <summary>
+    /// The parcel coming back - the return's own leg - or null when there is none. It is recorded once a return
+    /// has been approved (the pickup the shop team booked) or when the courier reports the parcel on its way back,
+    /// and 'My Orders' shows it exactly like <see cref="Shipment"/> so the customer can follow what they sent
+    /// back. The two are always the two different legs, never one parcel shown twice.
+    /// </summary>
+    public OrderShipmentDto? ReturnShipment { get; set; }
 
     public List<OrderItemDto> Items { get; set; } = new();
 
@@ -163,6 +211,23 @@ public class OrderHistoryDto
 public class OrderActionRequest
 {
     public long OrderId { get; set; }
+}
+
+/// <summary>
+/// Body of 'ask for a return' in 'My Orders' (see OrderService.RequestReturnAsync). The reason is a code
+/// from <see cref="HC.Business.OrderReturnReason"/> - what the picker offers - and the customer's own words
+/// are optional: they are what makes a return readable to the shop team, while the code is what returns are
+/// counted by.
+/// </summary>
+public class RequestReturnRequest
+{
+    public long OrderId { get; set; }
+
+    /// <summary>Why they are returning it (OrderReturnReason.*) - checked again on the server.</summary>
+    public string ReasonCode { get; set; } = "";
+
+    /// <summary>What the customer typed, when they typed anything. Optional.</summary>
+    public string Reason { get; set; } = "";
 }
 
 public class OrderItemDto

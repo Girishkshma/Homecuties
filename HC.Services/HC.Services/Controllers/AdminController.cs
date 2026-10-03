@@ -357,6 +357,89 @@ public class AdminController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// The shop team's answer to a return - 'Approve' or 'Refuse' on the order's Return card. The body says
+    /// which answer it is ('approved') and carries the note the customer is told ('comment', required:
+    /// 'refused' with no reason is nothing a customer can act on). Approving means the parcel is coming back,
+    /// so the pickup is booked from the same card; the order itself only becomes 'Returned' - its units back
+    /// on the shelf, its money owed back - when the return is closed with the parcel in the shop. An ask that
+    /// has already been answered is refused here, so one return can never be approved twice.
+    /// </summary>
+    [Authorize(Policy = AdminPolicies.Orders)]
+    [HttpPost("orders/{id}/returns/decision")]
+    public async Task<ActionResult> DecideOrderReturn(long id, [FromBody] AdminOrderReturnDecisionRequest request)
+    {
+        var userId = CurrentAdminUserId;
+        if (userId <= 0)
+            return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
+
+        var result = await _adminDashboardService.DecideOrderReturnAsync(id, request, userId);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// 'Parcel received' on the Return card: the parcel is physically back with the shop, so the return becomes
+    /// 'Received' and its units come off the delivery pools - in the shop, and off sale until the return is closed.
+    /// The order and the money are left exactly as they are: the order only becomes 'Returned' (and the refund only
+    /// asked for) when the return is closed, which is the next step of the same card. The optional note is kept on
+    /// the order's history, which the customer reads in 'My Orders'.
+    /// </summary>
+    [Authorize(Policy = AdminPolicies.Orders)]
+    [HttpPost("orders/{id}/returns/received")]
+    public async Task<ActionResult> MarkOrderReturnReceived(long id, [FromBody] AdminOrderReturnReceivedRequest? request)
+    {
+        var userId = CurrentAdminUserId;
+        if (userId <= 0)
+            return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
+
+        var result = await _adminDashboardService.MarkOrderReturnReceivedAsync(
+            id, request ?? new AdminOrderReturnReceivedRequest(), userId);
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// The inspection of a parcel that came back: every SKU in 'damagedSkus' is a unit the shop team found broken,
+    /// and each one is written off - out of every sellable pool for good, so closing the return cannot put it back
+    /// on sale. The units are the order's own (a SKU belonging to another order is ignored), a request with no
+    /// units is still recorded ("we looked and found nothing"), and 'comment' is what the shop team wrote about the
+    /// parcel.
+    /// </summary>
+    [Authorize(Policy = AdminPolicies.Orders)]
+    [HttpPost("orders/{id}/returns/inspection")]
+    public async Task<ActionResult> MarkOrderReturnUnitsDamaged(long id, [FromBody] AdminOrderReturnInspectionRequest? request)
+    {
+        var userId = CurrentAdminUserId;
+        if (userId <= 0)
+            return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
+
+        var result = await _adminDashboardService.MarkOrderReturnUnitsDamagedAsync(
+            id, request ?? new AdminOrderReturnInspectionRequest(), userId);
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// 'Close return' - the step that settles a return: the order becomes 'Returned', every unit the return brought
+    /// back goes on sale again (the ones the inspection wrote off stay written off) and the refund of what the
+    /// customer paid is asked for. Sending that money is a separate, deliberate step on the Refund card ('Approve
+    /// refund'), so nothing leaves for the gateway from here. Only a return whose parcel is back with the shop can
+    /// be closed, so a refund can never be given for something the customer still has.
+    /// </summary>
+    [Authorize(Policy = AdminPolicies.Orders)]
+    [HttpPost("orders/{id}/returns/close")]
+    public async Task<ActionResult> CloseOrderReturn(long id, [FromBody] AdminOrderReturnCloseRequest? request)
+    {
+        var userId = CurrentAdminUserId;
+        if (userId <= 0)
+            return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
+
+        var result = await _adminDashboardService.CloseOrderReturnAsync(
+            id, request ?? new AdminOrderReturnCloseRequest(), userId);
+
+        return Ok(result);
+    }
+
     #endregion
 
     #region Customers

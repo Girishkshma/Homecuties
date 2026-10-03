@@ -57,6 +57,24 @@ export interface DashboardStats {
   todayRevenue: number;
   monthlyRevenue: number;
   cancelledOrders: number;
+
+  // The operational order/shipment tiles. They follow the same order lifecycle and parcel mapping the
+  // order screens read, so a count here can never disagree with the order it counts.
+  ordersToDispatch: number;
+  shipmentsInProgress: number;
+  outForDelivery: number;
+  deliveredOrders: number;
+  shipmentsNeedingAttention: number;
+  refundsDue: number;
+
+  // The returns side of the same 'what needs doing now' work, in the vocabulary the Return card uses
+  // (OrderReturnStatus): an ask waiting for the team's answer, a parcel on its way back, and one that is back
+  // with the shop waiting to be looked over and closed. 'returnedOrders' is the other end of it - the orders
+  // whose units came back - and is counted on its own tile, exactly like 'cancelledOrders'.
+  returnsAwaitingDecision: number;
+  returnsComingBack: number;
+  returnsReceived: number;
+  returnedOrders: number;
 }
 
 export interface AdminProduct {
@@ -173,6 +191,15 @@ export interface AdminOrder {
    * as 'Refund due'.
    */
   refundPending: boolean;
+
+  /**
+   * Where the order's return has got to ('Requested', 'Arranged', 'Received', 'Closed', 'Rejected',
+   * 'Withdrawn'), or null when the order never had one. The newest return counts.
+   */
+  returnStatus?: string | null;
+
+  /** True while the order's return is live - waiting for an answer, or with its parcel on the way back. */
+  returnPending: boolean;
 }
 
 export interface AdminOrderDetail {
@@ -215,6 +242,13 @@ export interface AdminOrderDetail {
    * also the only thing that moves the order for a parcel.
    */
   shipment?: AdminOrderShipment;
+
+  /**
+   * The return this order carries, or absent while it has never had one. The Return card is built from
+   * it: the ask, the shop team's answer, the pickup once one is booked, and - later - the parcel being
+   * back and the return being closed (see HC.Business.OrderReturnFlow).
+   */
+  return?: AdminOrderReturn;
 }
 
 export interface AdminAddress {
@@ -329,7 +363,7 @@ export interface AdminOrderShipment {
   providerStatusCode?: number | null;
   /** The shop's wording derived from the courier's status (see HC.Business.ShipmentStatusFlow). */
   status: string;
-  /** Booked | InTransit | OutForDelivery | Delivered | Undelivered | Rto | Cancelled | Unknown. */
+  /** Booked | InTransit | OutForDelivery | Delivered | Undelivered | Refused | Rto | Cancelled | Unknown. */
   stage: string;
   delivered: boolean;
   /** True once the parcel is finished - delivered or returned - so nothing more is asked of the courier. */
@@ -341,6 +375,65 @@ export interface AdminOrderShipment {
   /** The order status the courier's report moved the order to, once it has been applied. */
   orderStatusId?: number | null;
   orderStatus?: string | null;
+}
+
+/**
+ * A return of an order as the Return card shows it (see HC.Business.OrderReturnFlow). An ask comes either
+ * from the customer ('My Orders', on a delivered order) or from the courier's own tracking report (a
+ * refusal, or a parcel that could not be delivered) - 'originLabel' says which, in words, because an ask
+ * nobody made in words has to read differently on the screen.
+ *
+ * Nothing here carries money on purpose: the refund belongs to the payment and is on the same order detail
+ * ('refundPending' and the fields beside it), so it can never be described in two places.
+ */
+export interface AdminOrderReturn {
+  returnId: number;
+  /** 'Customer' or 'Courier' (OrderReturnOrigin). */
+  origin: string;
+  /** What the screen says about that: 'Requested by the customer' / 'Reported by the courier'. */
+  originLabel: string;
+  /** OrderReturnStatus.*: Requested / Arranged / Received / Closed / Rejected / Withdrawn. */
+  status: string;
+  /** OrderReturnReason.* - the coded reason returns are counted by. */
+  reasonCode: string;
+  /** The wording for 'reasonCode' - the screen never invents its own name for a reason. */
+  reasonLabel: string;
+  /** Why, in the asker's own words (the courier's wording for a courier-raised ask). */
+  reason: string;
+  requestedOn: Date;
+  /** The customer's e-mail for an ask they made, null for a courier's own report. */
+  requestedBy?: string | null;
+  decisionOn?: Date | null;
+  /** The admin login id that approved or refused the ask. */
+  decisionBy?: string | null;
+  /** The note they gave with their answer - what the customer is told, which is why it is required. */
+  decisionComment?: string | null;
+  /** When the parcel was physically back with the shop. */
+  receivedOn?: Date | null;
+  /** When the return was closed: the order 'Returned', its units on the shelf, its money owed back. */
+  closedOn?: Date | null;
+  inspectionOn?: Date | null;
+  inspectionBy?: string | null;
+  /** What the inspection of the returned parcel found (the damaged units are in the stock trail). */
+  inspectionComment?: string | null;
+  /** True while the shop team can still answer it - exactly when the card offers Approve and Refuse. */
+  canDecide: boolean;
+  /** True while the parcel can be booked back in (the card offers 'Parcel received') - an approved return. */
+  canMarkReceived: boolean;
+  /**
+   * True while the returned parcel can be looked over (the card offers the inspection): it is back with the
+   * shop, so a unit that came back broken can be written off before the return is closed.
+   */
+  canInspect: boolean;
+  /**
+   * True while the return can be closed (the card offers 'Close return'): the order becomes 'Returned', the
+   * returned units go back on sale and the refund is asked for.
+   */
+  canClose: boolean;
+  /** True while the return is live - waiting for an answer, or with its parcel on the way back. */
+  isOpen: boolean;
+  /** The parcel coming back (recorded with 'direction: Reverse'), absent until one is booked. */
+  shipment?: AdminOrderShipment;
 }
 
 /**
@@ -383,6 +476,13 @@ export interface AdminSaveOrderShipmentRequest {
    * can be filled in on one visit and completed on a later one.
    */
   freightCharge?: number | null;
+
+  /**
+   * Which leg of the order this parcel is: sent as 'Reverse' from the Return card (the pickup coming
+   * back), and left out everywhere else - a blank one means the parcel that went out, which is what the
+   * Shipment card and the Shipped move mean.
+   */
+  direction?: string | null;
 }
 
 export interface AdminCustomer {

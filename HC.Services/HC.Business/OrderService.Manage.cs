@@ -132,7 +132,8 @@ public partial class OrderService : IOrderService
                 // shop team refunds it by hand, which is exactly what the order screen is for.
                 await EnsureRefundablePaymentAsync(order);
 
-                var (refundOwed, requestMessage) = await RequestOrderRefundAsync(order, historyComment);
+                var (refundOwed, requestMessage) = await RequestOrderRefundAsync(
+                    order, historyComment, moneyWasTaken: isPaid);
 
                 historyComment += $" {requestMessage}";
 
