@@ -92,6 +92,10 @@ GO
 
 -- 4. One parcel per LEG. An order is always read with both legs at once (forward for the delivery
 --    story, reverse for the return), so one index serves both.
+--
+--    This is the index as it stood when a return got its own leg. An order can now go out in MORE than one
+--    parcel, so an environment running this script must follow it with AllowMultipleOrderShipments.sql, which
+--    drops the uniqueness here and puts the rule where it belongs (one row per AWB per order per leg).
 IF COL_LENGTH('dbo.OrderShipments', 'Direction') IS NOT NULL
 BEGIN
     IF NOT EXISTS (SELECT * FROM sys.indexes

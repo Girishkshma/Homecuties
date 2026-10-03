@@ -8,11 +8,22 @@
 -- Without it nothing about the parcel is remembered: 'My Orders' could not say where the parcel is,
 -- and the admin order screen would have to keep the AWB in somebody's head.
 --
--- One row per LEG of an order (the unique index below is on OrderID + Direction): 'Forward' is the
--- parcel that went out, 'Reverse' the parcel coming back - the pickup the shop books when a delivered
--- order is returned, or the courier's own return-to-origin. A returned order therefore carries a second
--- row, tracked by the same code as the first, so the return's AWB, courier, freight charge and status
--- trail are kept exactly like the parcel that went out.
+-- One row per PARCEL of an order. An order can go out in more than one parcel - the shop team records a parcel
+-- per consignment, each with its own AWB, courier and freight bill - so the index below is on
+-- (OrderID, Direction) NON-unique, and what may not be recorded twice is the same AWB for the same order and leg
+-- (the filtered unique index). A historical environment whose table still holds the old unique index needs
+-- AllowMultipleOrderShipments.sql run as well.
+--
+-- What is IN a parcel is OrderShipmentItems (see CreateOrderShipmentItemsTable.sql): the units the shop team
+-- picked when they recorded it, which is what the parcel's bill is charged to.
+--
+-- 'SET QUOTED_IDENTIFIER ON' is required here, not decoration: SQL Server refuses to create the FILTERED index
+-- below when the session has it OFF, which is what sqlcmd does by default (SSMS and the app both have it on) -
+-- the same rule CreateOrderReturnsTable.sql states for its own filtered index.
+
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
+GO
 
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[OrderShipments]') AND type in (N'U'))
 BEGIN
@@ -20,8 +31,7 @@ BEGIN
         [ShipmentID] [bigint] IDENTITY(1,1) NOT NULL,
         [OrderID] [bigint] NOT NULL,
         -- Which leg this parcel is ('Forward' = going out, 'Reverse' = coming back - see
-        -- OrderShipment.DirectionForward/DirectionReverse). A returned order carries one row of each,
-        -- which is what the unique index below is keyed on.
+        -- OrderShipment.DirectionForward/DirectionReverse). A returned order carries one row of each leg.
         [Direction] [varchar](10) NOT NULL CONSTRAINT [DF_OrderShipments_Direction] DEFAULT ('Forward'),
         -- The courier aggregator this parcel was booked with ('Shiprocket'), i.e. the adapter that can
         -- track it (see HC.Business.Shipping.IShipmentProvider). A column rather than a constant so a
@@ -65,10 +75,19 @@ BEGIN
     ALTER TABLE [dbo].[OrderShipments] ADD CONSTRAINT [CK_OrderShipments_Direction]
         CHECK ([Direction] IN ('Forward', 'Reverse'));
 
-    -- A parcel is always read with its order, and an order has one row per leg: the one that went out
-    -- and - once a return is arranged - the one coming back.
-    CREATE UNIQUE NONCLUSTERED INDEX [IX_OrderShipments_OrderID_Direction]
+    -- A parcel is always read with its order: the order screen reads every parcel of an order at once, and the
+    -- forward legs are what the order's delivery is told from. NON-unique, because an order can go out in more
+    -- than one parcel (see the header).
+    CREATE NONCLUSTERED INDEX [IX_OrderShipments_OrderID_Direction]
         ON [dbo].[OrderShipments] ([OrderID] ASC, [Direction] ASC);
+
+    -- The same AWB is never recorded twice for the same order and leg: recording a parcel again with a number
+    -- already written down CORRECTS that parcel (its courier, its freight charge, the units in it) rather than
+    -- adding a second row for the same consignment. A parcel with no AWB yet is exempt - only possible against a
+    -- provider that gives no numbers of its own, and only for the moment before one is minted.
+    CREATE UNIQUE NONCLUSTERED INDEX [IX_OrderShipments_OrderID_Direction_AwbNumber]
+        ON [dbo].[OrderShipments] ([OrderID] ASC, [Direction] ASC, [AwbNumber] ASC)
+        WHERE [AwbNumber] IS NOT NULL;
 
     -- Support reads the parcel the other way round, from the tracking number the customer quotes.
     CREATE NONCLUSTERED INDEX [IX_OrderShipments_AwbNumber]
@@ -79,8 +98,9 @@ END
 ELSE
 BEGIN
     -- This script only creates the table as it stands now: a table from before the freight column needs
-    -- AddOrderShipmentsFreightCharge.sql run as well, and one from before a return had its own leg
-    -- needs AddOrderShipmentsDirection.sql.
+    -- AddOrderShipmentsFreightCharge.sql run as well, one from before a return had its own leg needs
+    -- AddOrderShipmentsDirection.sql, and one from before an order could go out in more than one parcel needs
+    -- AllowMultipleOrderShipments.sql.
     PRINT 'OrderShipments table already exists.';
 END
 GO
