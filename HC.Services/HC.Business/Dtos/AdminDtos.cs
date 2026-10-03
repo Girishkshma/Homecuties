@@ -526,9 +526,37 @@ public class AdminOrderDetailDto
     /// waits for a courier and never fails because one is unreachable. The fresh look is the Shipment
     /// card's 'Track now' (POST api/admin/orders/{id}/track-shipment), which asks and writes down the
     /// answer - and is also what can move the order on, never this field on its own.
+    ///
+    /// An order can go out in more than one parcel, so this is the FIRST of them - what a screen with room for one
+    /// parcel means by 'the parcel'. <see cref="Shipments"/> below is all of them, which is what the Shipment card
+    /// reads now.
     /// </summary>
     [JsonPropertyName("shipment")]
     public OrderShipmentDto? Shipment { get; set; }
+
+    /// <summary>
+    /// Every parcel of this order, forward legs first and each in the order it was recorded - the Shipment card's
+    /// own list, because an order that went out in three parcels has three AWBs, three couriers and three bills to
+    /// show and to correct. Each carries what it holds (<c>OrderShipmentDto.Items</c>), which is what its bill was
+    /// split across and what the card's picker is filled from.
+    ///
+    /// Empty for an order the shop has not recorded a parcel for; and, like <see cref="Shipment"/>, read from what
+    /// was written down last time rather than from the courier.
+    /// </summary>
+    [JsonPropertyName("shipments")]
+    public List<OrderShipmentDto> Shipments { get; set; } = new();
+
+    /// <summary>
+    /// What each of this order's lines really carried, money-wise: its own part of the gateway's charge for taking
+    /// the order's money and the GST on that, its own part of the couriers' bills, and the output GST inside what
+    /// the customer paid (see <see cref="AdminOrderItemMoneyDto"/> and HC.Business.OrderItemMoneyWriter).
+    ///
+    /// Empty for an order whose per-line figures have not been written yet - one nothing has happened to since the
+    /// table was created - in which case the order screen's card says so rather than showing nothing as zeros. The
+    /// order-level figures above (<see cref="Payment"/>) are read from the payment row and are always there.
+    /// </summary>
+    [JsonPropertyName("lineMoney")]
+    public List<AdminOrderItemMoneyDto> LineMoney { get; set; } = new();
 
     /// <summary>
     /// The return of this order, or null when it has never had one (see <see cref="AdminOrderReturnDto"/>).
@@ -658,6 +686,54 @@ public class AdminOrderItemDto
     public decimal Sgstpercent { get; set; }
     [JsonPropertyName("igstpercent")]
     public decimal Igstpercent { get; set; }
+}
+
+/// <summary>
+/// What one order LINE really carried, money-wise, as the order screen's per-unit card reads it - the split the
+/// shop records rather than guesses (<c>OrderItemMoney</c>, written by HC.Business.OrderItemMoneyWriter).
+///
+/// One entry per SKU of the order, with the number of units that SKU is (an order line is one row per physical
+/// unit, so three of a thing is three rows of the same SKU - see <c>OrderItems</c>). Every figure is what THOSE
+/// units were charged or cost: the tax inside what the customer paid for them, their part of what the gateway kept
+/// for taking the order's money and the GST on that, and their part of what the couriers billed for the parcels
+/// that carried them.
+///
+/// The three gateway/courier figures are null when nothing has reported them - a capture that has not had its fee
+/// worked out yet, a parcel nobody has billed - which is why they are nullable here: 'not known' must not read as
+/// a free charge on a screen somebody makes decisions from.
+/// </summary>
+public class AdminOrderItemMoneyDto
+{
+    [JsonPropertyName("sku")]
+    public string Sku { get; set; } = "";
+
+    /// <summary>How many units of this SKU the order holds - the lines this row's figures are the whole of.</summary>
+    [JsonPropertyName("units")]
+    public int Units { get; set; }
+
+    /// <summary>The output GST inside what the customer paid for those units: tax held for the government.</summary>
+    [JsonPropertyName("outputGst")]
+    public decimal OutputGst { get; set; }
+
+    /// <summary>Their part of what the gateway kept for taking the order's money (the MDR), or null.</summary>
+    [JsonPropertyName("gatewayFee")]
+    public decimal? GatewayFee { get; set; }
+
+    /// <summary>Their part of the GST the gateway charged on its own fee - input credit, or null.</summary>
+    [JsonPropertyName("gatewayTax")]
+    public decimal? GatewayTax { get; set; }
+
+    /// <summary>Their part of what the couriers billed for the parcels that carried them, or null.</summary>
+    [JsonPropertyName("freightShare")]
+    public decimal? FreightShare { get; set; }
+
+    /// <summary>
+    /// Where the gateway figures came from - <c>Payment</c> (a capture's own report) or <c>Recon</c> (the
+    /// settlement line the bank was actually paid on, which is authoritative). Null when the order has no recorded
+    /// gateway charge at all, so the screen can say whose word the figures are rather than showing them bare.
+    /// </summary>
+    [JsonPropertyName("chargesSource")]
+    public string? ChargesSource { get; set; }
 }
 
 public class AdminOrderHistoryDto
@@ -1502,8 +1578,9 @@ public class AdminSettlementSyncRequest
 // Finance
 /// <summary>
 /// The shop's own books for a period: what the customers paid, what was given back, what the gateway kept,
-/// what the couriers were paid, what the shop's declared margin was, and what the bank side of it looked like
-/// (see HC.Business.OrderMoney for the money rules and AdminDashboardService.Finance.cs for how it is read).
+/// what the couriers were paid, what the shop's declared margin was, how much of the customers' money is held for
+/// the government as GST, and what the bank side of it looked like (see HC.Business.OrderMoney for the money rules
+/// and AdminDashboardService.Finance.cs for how it is read).
 ///
 /// Every figure here comes from a row this system already keeps, so nothing is worked out from an assumption:
 /// the money taken and the refunds sent are the payment rows, the charges are what Razorpay reported (and the
@@ -1527,6 +1604,35 @@ public class AdminFinanceSummaryDto
     /// <summary>The last day the report covers (UTC) - today at the most.</summary>
     [JsonPropertyName("to")]
     public DateTime To { get; set; }
+
+    // ---------------------------------------------------------------------------------------------
+    // Whose books these are. The report is read for the signed-in admin and never for whoever the request
+    // names: an admin or a super admin is answered the whole shop's books, and a user the shop has linked to a
+    // partner (PartnersUser) that partner's own sales alone - see AdminDashboardService.Finance.
+    // ---------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// The partner these books are for, or null when they are the whole shop's - which, together with
+    /// <see cref="PartnerName"/>, is how the screen says whose books it is showing.
+    ///
+    /// A partner's sale is the goods their own stock supplied: the order lines whose SKU sits in one of their
+    /// inventories. One order can carry two partners' goods, so the order's own money - what the customer paid, what
+    /// was refunded, the gateway's charge for taking it, the courier's bill - is given to each partner in their own
+    /// lines' share of it, and the counts are of the orders that carry their goods at all.
+    ///
+    /// It is null as well when the acting admin is linked to several partners and so reads them together: the answer
+    /// is then those partners' books and <see cref="PartnerName"/> names every one of them (a single id could only
+    /// name one of them, so claiming it would be a lie about the other).
+    /// </summary>
+    [JsonPropertyName("partnerId")]
+    public int? PartnerId { get; set; }
+
+    /// <summary>
+    /// The name of the partner (or, when the acting admin reads several partners together, all of their names), so
+    /// the screen can say whose books these are; null for the whole shop's.
+    /// </summary>
+    [JsonPropertyName("partnerName")]
+    public string? PartnerName { get; set; }
 
     // ---------------------------------------------------------------------------------------------
     // The customers' money, as the gateway reported it (OrderPayments - see HC.Business.OrderMoney).
@@ -1633,6 +1739,48 @@ public class AdminFinanceSummaryDto
     public decimal DeclaredCost { get; set; }
 
     // ---------------------------------------------------------------------------------------------
+    // The GST: the part of the customers' money that is held for the government rather than earned, and the one
+    // credit that can be set against it. Read from the rates the order lines snapshotted (OrderItems), with the
+    // rules in HC.Business.OrderMoney.
+    //
+    // The sales figures above are what the customers actually paid, so they INCLUDE this tax - which is why it is
+    // shown beside them rather than quietly taken out of them.
+    // ---------------------------------------------------------------------------------------------
+
+    /// <summary>The value the GST was charged on: the period's lines before tax (the price less both discounts).</summary>
+    [JsonPropertyName("taxableValue")]
+    public decimal TaxableValue { get; set; }
+
+    /// <summary>
+    /// The GST charged on those lines, at the rate the checkout charged - which is the CGST rate alone
+    /// (see HC.Business.OrderMoney.ChargedGstRate), because that is the tax the customer really paid.
+    /// </summary>
+    [JsonPropertyName("outputGst")]
+    public decimal OutputGst { get; set; }
+
+    /// <summary>
+    /// The GST given back with the period's refunds: each refund for its own order's share of the tax that order
+    /// held, so a full refund gives the whole of it back.
+    /// </summary>
+    [JsonPropertyName("gstOnRefunds")]
+    public decimal GstOnRefunds { get; set; }
+
+    /// <summary>What is still held for the government on the period's money: OutputGst less GstOnRefunds.</summary>
+    [JsonPropertyName("gstHeld")]
+    public decimal GstHeld { get; set; }
+
+    /// <summary>
+    /// What the period owes the government: GstHeld less the GST on the gateway's fee (<see cref="GatewayTax"/>,
+    /// which is input credit the shop can claim). Negative when the credit is larger than the tax held - that
+    /// difference carries forward rather than being lost.
+    ///
+    /// The GST on the courier bills is deliberately not in here: those bills are recorded without a tax split, so
+    /// there is nothing to count (the screen says so).
+    /// </summary>
+    [JsonPropertyName("netGstPayable")]
+    public decimal NetGstPayable { get; set; }
+
+    // ---------------------------------------------------------------------------------------------
     // The bank's side, from the settlement ledger the pull writes (SettlementItems, by the day each line was
     // settled - see HC.Business.RazorpaySettlements). Empty until the gateway's books have been pulled.
     // ---------------------------------------------------------------------------------------------
@@ -1662,11 +1810,97 @@ public class AdminFinanceSummaryDto
     public int SettledOnHold { get; set; }
 
     /// <summary>
+    /// The period's orders whose lines have no per-unit figures written yet - the ones the breakdown below cannot
+    /// speak for (rows nothing has touched since <c>OrderItemMoney</c> was created; BackfillOrderItemMoney.sql
+    /// fills them in). The summary figures above do not depend on those rows, so they are unaffected - this is the
+    /// one thing the breakdown cannot say by itself, and the screen says it rather than showing a short list.
+    /// </summary>
+    [JsonPropertyName("lineItemsWithoutMoney")]
+    public int LineItemsWithoutMoney { get; set; }
+
+    /// <summary>
+    /// What each SKU of the period's orders really carried, money-wise: the tax inside what the customer paid for
+    /// it, its part of what the gateway kept for taking the order's money and the GST on that, and its part of what
+    /// the couriers billed for the parcels that carried it - the split the shop now RECORDS
+    /// (<c>OrderItemMoney</c>, HC.Business.OrderItemMoneyWriter) rather than works out at read time.
+    ///
+    /// One row per SKU of the books' own goods, summed over the orders the period's money was taken for, and cut
+    /// down to the acting admin's own partner when there is one - exactly the scoping the summary above uses, so a
+    /// partner's breakdown is their own goods and nobody else's.
+    ///
+    /// The figures add up to the order-level ones they were cut from to the paisa (OrderMoney.Apportion), which is
+    /// what makes this table tie to the summary: a per-line total that disagreed with the total it came from would
+    /// be worse than no table at all.
+    /// </summary>
+    [JsonPropertyName("lineItems")]
+    public List<AdminFinanceLineDto> LineItems { get; set; } = new();
+
+    /// <summary>
     /// What the figures cannot say by themselves, in plain words: charges the gateway never reported, parcels
-    /// with no courier bill, a period the settlement pull has no lines for. Empty when there is nothing to add.
+    /// with no courier bill, a period the settlement pull has no lines for, no GST recorded on the order lines, a
+    /// rate the checkout never charged, the money taken and the lines not adding up to one figure. Empty when there
+    /// is nothing to add.
     /// </summary>
     [JsonPropertyName("messages")]
     public string[] Messages { get; set; } = Array.Empty<string>();
+}
+
+/// <summary>
+/// What one SKU of the period's orders carried, money-wise - one row of the Finance screen's per-SKU breakdown.
+///
+/// It is the recorded split, not a read-time share: the shop's own gateway charge, the GST on it and the couriers'
+/// bills are cut across an order's lines by what each line was worth, and the odd paisa is given to the largest
+/// remainders, so these rows always add back up to the order figures they came from (see
+/// <c>OrderItemMoney</c> and HC.Business.OrderItemMoney.Apportion).
+///
+/// The money is the shop's own: it is what was paid for THIS SKU's units, after the same refunds the summary
+/// counts. That is why these rows are worth reading per SKU and not only in total - a thing that was returned, or
+/// one that is mostly carriage, looks very different from the one beside it.
+/// </summary>
+public class AdminFinanceLineDto
+{
+    /// <summary>The order line's SKU - the shop's own identifier for the thing.</summary>
+    [JsonPropertyName("sku")]
+    public string Sku { get; set; } = "";
+
+    /// <summary>How many units of it the period's orders held (an order line is one row per physical unit).</summary>
+    [JsonPropertyName("units")]
+    public int Units { get; set; }
+
+    /// <summary>What those units were worth to the customers: the weight every figure here was split by.</summary>
+    [JsonPropertyName("lineValue")]
+    public decimal LineValue { get; set; }
+
+    /// <summary>The output GST inside that money - the tax held for the government on these units.</summary>
+    [JsonPropertyName("outputGst")]
+    public decimal OutputGst { get; set; }
+
+    /// <summary>
+    /// These units' part of what the gateway kept for taking the orders' money, or null when no order carrying them
+    /// has a reported charge (a capture whose fee Razorpay had not worked out yet, and no settlement pull since).
+    /// </summary>
+    [JsonPropertyName("gatewayFee")]
+    public decimal? GatewayFee { get; set; }
+
+    /// <summary>Their part of the GST on the gateway's fee - input credit - or null, on the same terms.</summary>
+    [JsonPropertyName("gatewayTax")]
+    public decimal? GatewayTax { get; set; }
+
+    /// <summary>
+    /// Their part of what the couriers billed for the parcels that carried them, or null when no such parcel has a
+    /// bill recorded - which reads as 'not known', never as free carriage.
+    /// </summary>
+    [JsonPropertyName("freightShare")]
+    public decimal? FreightShare { get; set; }
+
+    /// <summary>
+    /// Where the gateway charges came from: <c>Payment</c> (the capture's own report, an estimate) or <c>Recon</c>
+    /// (the settlement line the bank was actually paid on, which is authoritative). Null when this SKU's orders
+    /// have no recorded gateway charge. A mixture is reported as the weakest word among them, because a total is
+    /// only as good as its least certain part.
+    /// </summary>
+    [JsonPropertyName("chargesSource")]
+    public string? ChargesSource { get; set; }
 }
 
 // Generic

@@ -219,19 +219,76 @@ public class OrderShipmentDto
 
     [JsonPropertyName("orderStatus")]
     public string? OrderStatus { get; set; }
+
+    /// <summary>
+    /// Which parcel this is (<c>OrderShipments.ShipmentID</c>), so a form can correct THIS one - its items, its
+    /// freight - rather than whichever parcel happens to be found first. An order can go out in more than one
+    /// parcel, and the shop team is looking at a particular one.
+    /// </summary>
+    [JsonPropertyName("shipmentId")]
+    public long ShipmentId { get; set; }
+
+    /// <summary>
+    /// What this parcel carries: the order's units the shop team picked when they recorded it, one entry per SKU
+    /// (<c>OrderShipmentItems</c>). Empty for a parcel written before the shop said what was in it, and for a
+    /// reverse leg - which brings the goods back rather than taking them out. It is what the parcel's own courier
+    /// bill is split across (see HC.Business.OrderItemMoneyWriter), so an empty list is read as 'not recorded
+    /// yet' rather than 'nothing in it'.
+    /// </summary>
+    [JsonPropertyName("items")]
+    public List<OrderShipmentItemDto> Items { get; set; } = new();
+
+    /// <summary>
+    /// How many parcels of this leg this answer counted, so a screen can say "this order went out in three parcels"
+    /// rather than describing the first and leaving the rest to be discovered by asking. 1 for a read that only
+    /// ever looked at one parcel (a single parcel is what a read without a count means), which makes the ordinary
+    /// case read exactly as it always did.
+    /// </summary>
+    [JsonPropertyName("parcelsInLeg")]
+    public int ParcelsInLeg { get; set; } = 1;
 }
 
 /// <summary>
-/// What the shop team types on the admin order screen once the parcel exists: the AWB (and, when they have
-/// it, the courier and the tracking link). The consignment itself is created in the provider's panel by
-/// hand - this is only this side's record of it - except for a provider that has no panel
-/// (<c>IShipmentProvider.AwbGeneratedBySystem</c>), where a blank <c>AwbNumber</c> means 'give this parcel
-/// the shop's own reference' and the server mints it.
+/// What one parcel carries, as the screens show it: a SKU of the order and how many units of it are in this
+/// parcel ('HC-1042 x 2'). The name of the product is deliberately not here - the order screen has the order's
+/// own lines in front of it and reads the name from those, so a parcel never becomes a second, staler copy of
+/// what the goods are called.
+/// </summary>
+public class OrderShipmentItemDto
+{
+    /// <summary>The order line's SKU (<c>OrderItems.SKU</c>).</summary>
+    [JsonPropertyName("sku")]
+    public string Sku { get; set; } = "";
+
+    /// <summary>How many units of <see cref="Sku"/> are in this parcel.</summary>
+    [JsonPropertyName("quantity")]
+    public short Quantity { get; set; }
+}
+
+/// <summary>
+/// What the shop team types on the admin order screen when a parcel exists or is being booked: the AWB (and, when
+/// they have it, the courier, the tracking link and what the courier billed for it), and which of the order's
+/// units are in it. The consignment itself is created in the provider's panel by hand - this is only this side's
+/// record of it - except for a provider that has no panel (<c>IShipmentProvider.AwbGeneratedBySystem</c>), where a
+/// blank <c>AwbNumber</c> means 'give this parcel the shop's own reference' and the server mints it.
+///
+/// One call records ONE parcel. An order can go out in more than one - each a real consignment with its own AWB
+/// and its own bill - so the screen records them one at a time: <c>ShipmentId</c> names the parcel being corrected
+/// when the team already has it in front of them, and a parcel that is neither named nor found by its AWB is a new
+/// one (see ShipmentTrackingService.SaveAsync).
 /// </summary>
 public class SaveOrderShipmentRequest
 {
     /// <summary>
-    /// Which leg this parcel is: blank (the default) is the parcel going out to the customer, and
+    /// The parcel this call is about, when the screen already holds one (<c>OrderShipmentDto.ShipmentId</c>): its
+    /// AWB, courier, freight charge and contents are corrected in place. Null - what every form that is booking a
+    /// parcel sends - means 'find the parcel by its AWB, and if there is none, this is a new one'.
+    /// </summary>
+    [JsonPropertyName("shipmentId")]
+    public long? ShipmentId { get; set; }
+
+    /// <summary>
+    /// Which leg this parcel is: blank (the default) is a parcel going out to the customer, and
     /// 'Reverse' is the one coming back - the pickup the shop books once a return has been approved, or
     /// the courier's own return-to-origin. Anything else is refused, because a parcel is one of those two
     /// things and no third one exists (see OrderShipment.IsValidDirection). The Return card of the admin
@@ -275,6 +332,37 @@ public class SaveOrderShipmentRequest
     /// </summary>
     [JsonPropertyName("freightCharge")]
     public decimal? FreightCharge { get; set; }
+
+    /// <summary>
+    /// Which of the order's units this parcel carries, and how many of each - what the Shipment card's picker
+    /// collects, and what the parcel's own bill is split across for the books
+    /// (HC.Business.OrderItemMoneyWriter).
+    ///
+    /// Left NULL to mean "this form is not about the contents" and keep whatever the parcel already carries - which
+    /// is what the Shipped move sends, so dispatching an order can never wipe the picker's work. An EMPTY list is
+    /// a real answer and a different one: 'this parcel carries none of the order's units', which is refused for a
+    /// forward parcel (a parcel going out with nothing in it is a parcel nobody can bill for) and allowed for a
+    /// reverse leg, where the shop may simply not know what is coming back.
+    ///
+    /// A SKU that is not one of the order's lines is refused, and so is a quantity that would take a SKU past the
+    /// units that order actually has - the parcels of an order never claim more goods than the order holds.
+    /// </summary>
+    [JsonPropertyName("items")]
+    public List<SaveOrderShipmentItemRequest>? Items { get; set; }
+}
+
+/// <summary>
+/// One entry of the Shipment card's picker: a SKU of the order and how many of its units are in this parcel.
+/// </summary>
+public class SaveOrderShipmentItemRequest
+{
+    /// <summary>The order line's SKU (<c>OrderItems.SKU</c>) exactly as the order screen shows it.</summary>
+    [JsonPropertyName("sku")]
+    public string Sku { get; set; } = "";
+
+    /// <summary>How many units of <see cref="Sku"/> are in this parcel - one or more.</summary>
+    [JsonPropertyName("quantity")]
+    public short Quantity { get; set; } = 1;
 }
 
 /// <summary>

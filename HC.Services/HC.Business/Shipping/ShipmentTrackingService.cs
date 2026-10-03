@@ -100,6 +100,10 @@ public class ShipmentTrackingService : IShipmentTrackingService
     /// other one (see <c>OrderShipment.DirectionForward/DirectionReverse</c>), which is what the admin's
     /// Return card does when it shows the pickup coming back.
     ///
+    /// An order can go out in MORE than one parcel, and this answers with the first of them - the one the order's
+    /// delivery is told from, and what every screen with room for a single parcel means by 'the parcel'. The admin
+    /// order screen reads them all with <see cref="GetAllForOrderAsync"/>.
+    ///
     /// A read that fails is answered with null, not with an exception: the parcel is an extra on the
     /// order screen, so a table that cannot be read (an unfinished deployment, say) has to cost that
     /// screen its parcel - never the order the shop team is looking at.
@@ -115,11 +119,28 @@ public class ShipmentTrackingService : IShipmentTrackingService
 
         try
         {
-            var shipment = await _context.OrderShipments
+            // The first parcel recorded of that leg, not whichever row the database happens to hand back first:
+            // an order that went out in three parcels has three rows, and 'the parcel' has to mean the same one
+            // every time it is asked about (see FirstOf).
+            var parcel = await _context.OrderShipments
                 .AsNoTracking()
-                .FirstOrDefaultAsync(s => s.OrderId == orderId && s.Direction == leg, cancellationToken);
+                .Where(s => s.OrderId == orderId && s.Direction == leg)
+                .OrderBy(s => s.ShipmentId)
+                .Include(s => s.Items)
+                .FirstOrDefaultAsync(cancellationToken);
 
-            return shipment == null ? null : ToDto(shipment);
+            if (parcel == null)
+                return null;
+
+            var answer = ToDto(parcel);
+
+            // How many of them there are, so a screen with room for one parcel can still say that there are more
+            // (an order that went out in three consignments is not one parcel described three times).
+            answer.ParcelsInLeg = await _context.OrderShipments
+                .AsNoTracking()
+                .CountAsync(s => s.OrderId == orderId && s.Direction == leg, cancellationToken);
+
+            return answer;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -131,6 +152,62 @@ public class ShipmentTrackingService : IShipmentTrackingService
             _logger.LogWarning(exception, "Reading the parcel of order {OrderId} failed.", orderId);
 
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Every parcel of an order, oldest first - forward legs before the return's pickup, and each of those in the
+    /// order it was recorded. This is what the admin's Shipment card is built from: an order that went out in three
+    /// parcels has three AWBs, three couriers and three bills, and each is corrected through the same
+    /// <see cref="SaveAsync"/> call by naming it (<c>SaveOrderShipmentRequest.ShipmentId</c>).
+    ///
+    /// Empty for an order with no parcel recorded, and - like the single read - a read that fails costs the screen
+    /// its parcels rather than failing the order.
+    /// </summary>
+    public async Task<List<OrderShipmentDto>> GetAllForOrderAsync(
+        long orderId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var order = await _context.Orders
+                .AsNoTracking()
+                .Include(o => o.OrderShipments)
+                    .ThenInclude(s => s.Items)
+                .FirstOrDefaultAsync(o => o.OrderId == orderId, cancellationToken);
+
+            if (order == null)
+                return new List<OrderShipmentDto>();
+
+            // The forward legs first (that is the story of the order arriving), then the return's own leg: a screen
+            // reads them top to bottom as the delivery then the pickup. Each carries how many parcels its own leg
+            // has, so 'Parcel 2 of 3' can be said without counting the list.
+            var byLeg = order.OrderShipments
+                .GroupBy(parcel => parcel.Direction, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.Count(), StringComparer.OrdinalIgnoreCase);
+
+            return order.OrderShipments
+                .OrderBy(s => s.Direction == OrderShipment.DirectionForward ? 0 : 1)
+                .ThenBy(s => s.ShipmentId)
+                .Select(shipment =>
+                {
+                    var parcel = ToDto(shipment, order.OrderStatusId, order.OrderStatus?.Status);
+                    parcel.ParcelsInLeg = byLeg.GetValueOrDefault(shipment.Direction, 1);
+
+                    return parcel;
+                })
+                .ToList();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // The page that asked is gone - not this service's answer to give (see PincodeService).
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(exception, "Reading the parcels of order {OrderId} failed.", orderId);
+
+            return new List<OrderShipmentDto>();
         }
     }
 
@@ -158,9 +235,23 @@ public class ShipmentTrackingService : IShipmentTrackingService
             var shipments = await _context.OrderShipments
                 .AsNoTracking()
                 .Where(s => ids.Contains(s.OrderId) && s.Direction == OrderShipment.DirectionForward)
+                .Include(s => s.Items)
+                .OrderBy(s => s.ShipmentId)
                 .ToListAsync(cancellationToken);
 
-            return shipments.ToDictionary(s => s.OrderId, s => ForCustomer(ToDto(s)));
+            // The first parcel of each order: an order can go out in more than one, and this read is 'My Orders',
+            // which shows the parcel the customer is waiting for. Grouped rather than keyed straight off the rows,
+            // because a second parcel of the same order is not an error and must not throw one - and the count is
+            // kept, so the page can say that the order went out in more than one parcel.
+            return shipments
+                .GroupBy(s => s.OrderId)
+                .ToDictionary(group => group.Key, group =>
+                {
+                    var answer = ForCustomer(ToDto(group.First()));
+                    answer.ParcelsInLeg = group.Count();
+
+                    return answer;
+                });
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -197,9 +288,19 @@ public class ShipmentTrackingService : IShipmentTrackingService
             var shipments = await _context.OrderShipments
                 .AsNoTracking()
                 .Where(s => ids.Contains(s.OrderId) && s.Direction == OrderShipment.DirectionReverse)
+                .Include(s => s.Items)
+                .OrderBy(s => s.ShipmentId)
                 .ToListAsync(cancellationToken);
 
-            return shipments.ToDictionary(s => s.OrderId, s => ForCustomer(ToDto(s)));
+            return shipments
+                .GroupBy(s => s.OrderId)
+                .ToDictionary(group => group.Key, group =>
+                {
+                    var answer = ForCustomer(ToDto(group.First()));
+                    answer.ParcelsInLeg = group.Count();
+
+                    return answer;
+                });
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -300,8 +401,14 @@ public class ShipmentTrackingService : IShipmentTrackingService
         if (awb.Length > AwbMaxLength)
             return Failed(orderId, $"That AWB number is longer than {AwbMaxLength} characters - please check it.");
 
+        // The order is read with everything this write needs to judge it: its own lines (a parcel may only carry
+        // goods the order was for, and never more units of them than the order holds) and its parcels with their
+        // contents (so a second parcel is told apart from a correction of the first).
         var order = await _context.Orders
             .Include(o => o.OrderStatus)
+            .Include(o => o.OrderItems)
+            .Include(o => o.OrderShipments)
+                .ThenInclude(s => s.Items)
             .FirstOrDefaultAsync(o => o.OrderId == orderId, cancellationToken);
 
         if (order == null)
@@ -311,8 +418,25 @@ public class ShipmentTrackingService : IShipmentTrackingService
         // asked for the one coming back.
         var direction = OrderShipment.NormaliseDirection(request.Direction);
 
-        var shipment = await _context.OrderShipments
-            .FirstOrDefaultAsync(s => s.OrderId == orderId && s.Direction == direction, cancellationToken);
+        var shipment = ResolveParcel(order, request.ShipmentId, direction, awb, provider.Name, out var why);
+
+        if (shipment == null && why != null)
+            return Failed(orderId, why);
+
+        // What the parcel carries, judged before anything is written: a parcel of an order may only hold that
+        // order's own lines, and the parcels of one order together may never claim more units than the order has.
+        var elsewhere = order.OrderShipments
+            .Where(other => other.Direction == OrderShipment.DirectionForward &&
+                            other.ShipmentId != (shipment?.ShipmentId ?? 0))
+            .SelectMany(other => other.Items)
+            .ToList();
+
+        var (contentsProblem, contents) = request.Items == null
+            ? ((string?)null, (List<SaveOrderShipmentItemRequest>?)null)
+            : ResolveContents(order, request.Items, elsewhere, direction == OrderShipment.DirectionForward);
+
+        if (contentsProblem != null)
+            return Failed(orderId, contentsProblem);
 
         if (shipment == null)
         {
@@ -349,6 +473,13 @@ public class ShipmentTrackingService : IShipmentTrackingService
 
         shipment.UpdatedOn = now;
 
+        // What is in the parcel, replaced with what this call carries - and left exactly as it is by a call that
+        // does not carry a list at all (the Shipped move), so dispatching an order can never wipe the picker's
+        // work. The rows are written through the parcel's own collection, so the parcel, its contents and the
+        // answer below can never disagree about what it holds.
+        if (contents != null)
+            ReplaceContents(shipment, contents, orderId, direction, now);
+
         // A parcel the shop carries itself takes its starting point from the order it belongs to, because the
         // order is the only thing that knows where such a parcel has got to (see
         // IShipmentProvider.ReportsTracking). Recording one against an order that has already been dispatched
@@ -363,6 +494,9 @@ public class ShipmentTrackingService : IShipmentTrackingService
         var loginId = await AdminLoginIdAsync(currentUserId, cancellationToken);
         var recorded = $"Parcel booked with {provider.Describe().DisplayName}: AWB {awb}" +
                        (courier.Length > 0 ? $" ({courier})" : string.Empty) + "." +
+                       (contents is { Count: > 0 }
+                           ? $" Carrying {ContentsText(contents)}."
+                           : string.Empty) +
                        (ownDeliveryStage is { } ownDeliveryWhere
                            ? $" Recorded as '{ShipmentStatusFlow.Describe(ownDeliveryWhere)}', which is where " +
                              "the order already is."
@@ -378,8 +512,196 @@ public class ShipmentTrackingService : IShipmentTrackingService
 
         await _context.SaveChangesAsync(cancellationToken);
 
+        // What a parcel's bill is charged to is what is in it, so this write changes the order's per-line money:
+        // the per-unit rows are recomputed from what was just written (see OrderItemMoneyWriter). It runs after the
+        // save because the writer reads the contents back from the database - the one place they really are - which
+        // is what keeps a recomputation from ever having to guess at what the page happened to be holding.
+        await OrderItemMoneyWriter.RefreshAsync(_context, orderId, cancellationToken);
+
         return ToDto(shipment, order.OrderStatusId, order.OrderStatus?.Status, result: 1, new[] { recorded });
     }
+
+    /// <summary>
+    /// Which parcel this call writes: the one it names (<c>ShipmentId</c> - the admin card correcting a parcel it
+    /// has in front of it), else the one already recorded for this order and leg with that AWB, else null to mean
+    /// 'a new parcel'. That is what makes a second consignment of the same order a second parcel rather than an
+    /// overwrite of the first.
+    ///
+    /// A named parcel that is not this order's, or that is the other leg, is refused with the reason in
+    /// <paramref name="why"/> - quietly writing it would put a return's pickup on the parcel that went out.
+    ///
+    /// A parcel is never found by its AWB alone: two providers can mint the same number, and the reply would then
+    /// be written down against the wrong consignment.
+    /// </summary>
+    private static OrderShipment? ResolveParcel(
+        Order order,
+        long? shipmentId,
+        string direction,
+        string awb,
+        string providerName,
+        out string? why)
+    {
+        why = null;
+
+        if (shipmentId is { } named)
+        {
+            var namedParcel = order.OrderShipments.FirstOrDefault(parcel => parcel.ShipmentId == named);
+
+            if (namedParcel == null)
+            {
+                why = "That parcel is not one of this order's - open the order again and pick the parcel from its card.";
+
+                return null;
+            }
+
+            if (!string.Equals(namedParcel.Direction, direction, StringComparison.OrdinalIgnoreCase))
+            {
+                why = $"AWB {namedParcel.AwbNumber} is the order's '{namedParcel.Direction}' parcel, so it is not " +
+                      $"the '{direction}' leg this form is recording. Record it from the card it belongs to.";
+
+                return null;
+            }
+
+            return namedParcel;
+        }
+
+        return order.OrderShipments.FirstOrDefault(parcel =>
+            string.Equals(parcel.Direction, direction, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(parcel.AwbNumber ?? string.Empty, awb, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(parcel.Provider, providerName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// What a parcel of this order may carry, in words, or the contents as they will be written - one entry per
+    /// SKU, spelled the way the order's own line spells it.
+    ///
+    /// Three things are checked, and each of them is a mistake a screen cannot see:
+    ///
+    ///   * a SKU must be one of the order's lines. A parcel carries what the order was for, and a delivery of
+    ///     something nobody ordered is not a typo worth writing into the books;
+    ///   * the count is at least one, and a SKU is named once: two rows of the same SKU in one parcel would be one
+    ///     row with a count, and leaving both would charge the courier's bill in two halves of one thing;
+    ///   * the order's parcels TOGETHER never claim more units than the order holds. Four units of a thing cannot
+    ///     go out in parcels of two, two and two - and the mistake is invisible on the card the team is holding,
+    ///     because they only ever see one parcel at a time.
+    ///
+    /// The spelling is normalised because the SKU is the key that ties these rows back to the order's lines
+    /// (<c>OrderShipmentItems.SKU</c> to <c>OrderItems.SKU</c>): an 'hc-1042' typed into a form would otherwise be
+    /// a row no per-unit figure could ever be charged to.
+    ///
+    /// A forward parcel must carry something - a parcel going out with nothing in it is one nobody can bill for -
+    /// while a reverse leg may be recorded empty, because the shop does not always know what is coming back until
+    /// it arrives. A request that carries no list at all is not this method's business: it keeps what the parcel
+    /// already holds.
+    /// </summary>
+    private static (string? Problem, List<SaveOrderShipmentItemRequest>? Contents) ResolveContents(
+        Order order,
+        List<SaveOrderShipmentItemRequest> requested,
+        IReadOnlyCollection<OrderShipmentItem> elsewhere,
+        bool isForward)
+    {
+        // One row per physical unit in OrderItems, so how many rows a SKU has is how many units of it the order
+        // holds - the only truth about how much of a thing was bought.
+        var skuOnOrder = order.OrderItems
+            .GroupBy(item => item.Sku, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First().Sku, StringComparer.OrdinalIgnoreCase);
+
+        var unitsOnOrder = order.OrderItems
+            .GroupBy(item => item.Sku, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.Count(), StringComparer.OrdinalIgnoreCase);
+
+        var contents = new List<SaveOrderShipmentItemRequest>();
+
+        foreach (var item in requested)
+        {
+            var sku = (item.Sku ?? string.Empty).Trim();
+
+            if (sku.Length == 0)
+                return ("Pick the units this parcel carries, and how many of each.", null);
+
+            if (!skuOnOrder.TryGetValue(sku, out var spelled))
+                return ($"'{sku}' is not one of this order's lines, so it cannot be in a parcel of it.", null);
+
+            if (contents.Any(chosen => string.Equals(chosen.Sku, spelled, StringComparison.OrdinalIgnoreCase)))
+                return ($"'{spelled}' is listed twice - one line per SKU, with the number of units in it.", null);
+
+            if (item.Quantity < 1)
+                return ($"How many '{spelled}' are in this parcel? The count has to be at least one.", null);
+
+            var carriedElsewhere = elsewhere
+                .Where(row => string.Equals(row.Sku, spelled, StringComparison.OrdinalIgnoreCase))
+                .Sum(row => (int)row.Quantity);
+
+            if (carriedElsewhere + item.Quantity > unitsOnOrder[sku])
+            {
+                var alreadyOut = carriedElsewhere == 0
+                    ? string.Empty
+                    : $" {carriedElsewhere} of them are already in another parcel of this order.";
+
+                return ($"This order only has {unitsOnOrder[sku]} of '{spelled}', and this parcel cannot carry " +
+                        $"{item.Quantity}.{alreadyOut}", null);
+            }
+
+            contents.Add(new SaveOrderShipmentItemRequest { Sku = spelled, Quantity = item.Quantity });
+        }
+
+        if (isForward && contents.Count == 0)
+        {
+            return ("Pick the units this parcel carries: a parcel going out with nothing in it is one nobody " +
+                    "can bill for.", null);
+        }
+
+        return (null, contents);
+    }
+
+    /// <summary>
+    /// Writes the contents onto a parcel, replacing whatever it held - the parcel's rows ARE its contents, so this
+    /// is 'what it carries is what the form said', never a merging of the two. A SKU the parcel no longer carries
+    /// is taken off (its share of the parcel's bill must not go on being charged to a line that is not in it any
+    /// more) and a new one is added; a row that is already there keeps its identity and simply has its count put
+    /// right.
+    /// </summary>
+    private static void ReplaceContents(
+        OrderShipment shipment,
+        List<SaveOrderShipmentItemRequest> contents,
+        long orderId,
+        string direction,
+        DateTime now)
+    {
+        var stale = shipment.Items
+            .Where(row => !contents.Any(item => string.Equals(item.Sku, row.Sku, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        foreach (var row in stale)
+            shipment.Items.Remove(row);
+
+        foreach (var item in contents)
+        {
+            var row = shipment.Items.FirstOrDefault(existing =>
+                string.Equals(existing.Sku, item.Sku, StringComparison.OrdinalIgnoreCase));
+
+            if (row == null)
+            {
+                shipment.Items.Add(new OrderShipmentItem
+                {
+                    OrderId = orderId,
+                    Direction = direction,
+                    Sku = item.Sku,
+                    Quantity = item.Quantity,
+                    CreatedOn = now
+                });
+            }
+            else
+            {
+                row.Quantity = item.Quantity;
+                row.UpdatedOn = now;
+            }
+        }
+    }
+
+    /// <summary>What a parcel carries, as the order history and the card's answer say it ('2 x HC-1042').</summary>
+    private static string ContentsText(IEnumerable<SaveOrderShipmentItemRequest> contents) =>
+        string.Join(", ", contents.Select(item => $"{item.Quantity} x {item.Sku}"));
 
     /// <summary>
     /// True when this request really records a parcel. It is the provider's own answer, not a rule the
@@ -422,20 +744,36 @@ public class ShipmentTrackingService : IShipmentTrackingService
         // Only the parcel that went out: the order follows its own delivery, so it is that leg which is
         // mirrored - a return's own leg is reported on by the courier carrying it (or by the shop team
         // recording the pickup), never by the order's status.
-        var shipment = await _context.OrderShipments
-            .FirstOrDefaultAsync(s => s.OrderId == orderId && s.Direction == OrderShipment.DirectionForward, cancellationToken);
+        // Every parcel that went out, because an order can go out in more than one and the shop's own delivery
+        // service carries all of them: the move the team just made is what moved them (see the doc above).
+        var shipments = await _context.OrderShipments
+            .Where(s => s.OrderId == orderId && s.Direction == OrderShipment.DirectionForward)
+            .OrderBy(s => s.ShipmentId)
+            .ToListAsync(cancellationToken);
 
-        // Nothing was ever recorded for this order, or a courier carries it and reports on it itself: either
-        // way there is nothing here to bring level.
-        if (shipment == null || ReportsTrackingFor(shipment.Provider))
-            return string.Empty;
+        var mirrored = new List<string>();
 
-        if (StampOwnDelivery(shipment, orderStatusId, now, deliveredOn: now) is not { } stage)
+        foreach (var shipment in shipments)
+        {
+            // A courier carries this one and reports on it itself: its provider is asked, never assumed, so the
+            // last thing a real lookup wrote is not this move's to overwrite.
+            if (ReportsTrackingFor(shipment.Provider))
+                continue;
+
+            // A move that says nothing about a parcel (Confirmed, Cancelled) stamps nothing, on any parcel.
+            if (StampOwnDelivery(shipment, orderStatusId, now, deliveredOn: now) is not { } stage)
+                continue;
+
+            mirrored.Add(
+                $"The parcel {shipment.AwbNumber} is recorded as '{ShipmentStatusFlow.Describe(stage)}' with it.");
+        }
+
+        if (mirrored.Count == 0)
             return string.Empty;
 
         await _context.SaveChangesAsync(cancellationToken);
 
-        return $"The parcel {shipment.AwbNumber} is recorded as '{ShipmentStatusFlow.Describe(stage)}' with it.";
+        return string.Join(" ", mirrored);
     }
 
     /// <summary>
@@ -449,20 +787,52 @@ public class ShipmentTrackingService : IShipmentTrackingService
             .Include(o => o.OrderStatus)
             .Include(o => o.OrderItems)
             .Include(o => o.OrderShipments)
+                .ThenInclude(s => s.Items)
             .FirstOrDefaultAsync(o => o.OrderId == orderId, cancellationToken);
 
         if (order == null)
             return Failed(orderId, "Order not found.");
 
-        var shipment = ForwardLeg(order.OrderShipments);
+        // Every parcel that went out and has an AWB on it: an order can go out in more than one, and 'track now'
+        // is the shop team asking about the delivery, not about one consignment of it.
+        var parcels = order.OrderShipments
+            .Where(s => s.Direction == OrderShipment.DirectionForward &&
+                        !string.IsNullOrWhiteSpace(s.AwbNumber))
+            .OrderBy(s => s.ShipmentId)
+            .ToList();
 
-        if (shipment == null || string.IsNullOrWhiteSpace(shipment.AwbNumber))
+        if (parcels.Count == 0)
         {
             return Failed(orderId,
                 "No AWB is recorded for this order yet, so there is nothing to track. Record the parcel first.");
         }
 
-        return await RefreshOneAsync(order, shipment, DateTime.UtcNow, currentUserId, cancellationToken);
+        var now = DateTime.UtcNow;
+        var messages = new List<string>();
+        OrderShipmentDto? answer = null;
+        var anythingWorked = false;
+
+        foreach (var parcel in parcels)
+        {
+            var pulled = await RefreshOneAsync(order, parcel, now, currentUserId, cancellationToken);
+
+            answer ??= pulled;
+            anythingWorked |= pulled.Result == 1;
+            messages.AddRange(pulled.Messages.Where(message => message.Length > 0));
+        }
+
+        answer!.Result = anythingWorked ? 1 : 0;
+        answer.Messages = messages.ToArray();
+
+        // An order of several parcels is one delivery made of several consignments, and the screen has to say so:
+        // otherwise a customer asking about 'the parcel' is answered about whichever one happened to be first.
+        if (parcels.Count > 1)
+        {
+            answer.Messages = new[] { $"This order went out in {parcels.Count} parcels - every one of them was " +
+                                      "asked about." }.Concat(answer.Messages).ToArray();
+        }
+
+        return answer;
     }
 
     /// <summary>
@@ -488,6 +858,7 @@ public class ShipmentTrackingService : IShipmentTrackingService
             .Include(o => o.OrderStatus)
             .Include(o => o.OrderItems)
             .Include(o => o.OrderShipments)
+                .ThenInclude(s => s.Items)
             .Include(o => o.OrderReturns)
             .Where(o => o.CustomerId == customerId &&
                         (o.OrderStatusId == OrderStatusFlow.Confirmed ||
@@ -537,18 +908,25 @@ public class ShipmentTrackingService : IShipmentTrackingService
 
         foreach (var order in orders)
         {
-            // The parcel the customer is waiting for, if the order can still follow it. The query above is only a
+            // The parcels the customer is waiting for, if the order can still follow them. The query above is only a
             // prefilter written out for EF (it translates members, not method calls); the lifecycle still decides,
-            // so an order that has already arrived is not moved again by a courier scan.
-            var forward = ForwardLeg(order.OrderShipments);
+            // so an order that has already arrived is not moved again by a courier scan. Whether the order can
+            // still be followed is asked ONCE, because the first parcel's answer may move it on - and the second
+            // parcel of the same delivery is no less real for having been pulled after the first arrived.
+            var canFollow = ShipmentStatusFlow.CanOrderFollow(order.OrderStatusId);
 
-            if (forward != null && ShipmentStatusFlow.CanOrderFollow(order.OrderStatusId) &&
-                IsDue(forward, now) && ReportsTrackingFor(forward.Provider))
-            {
+            var forwards = order.OrderShipments
+                .Where(parcel => parcel.Direction == OrderShipment.DirectionForward &&
+                                 canFollow &&
+                                 IsDue(parcel, now) &&
+                                 ReportsTrackingFor(parcel.Provider))
+                .OrderBy(parcel => parcel.ShipmentId)
+                .ToList();
+
+            foreach (var forward in forwards)
                 await PullAsync(order, forward);
-            }
 
-            // The parcel coming back, once a return has been approved: the pickup the shop team booked (or the
+            // The parcels coming back, once a return has been approved: the pickup the shop team booked (or the
             // courier's own return-to-origin) is followed too, so 'My Orders' says where what the customer sent
             // back has got to. Only an approved return has a parcel to follow - an ask still waiting for the shop
             // team's answer has none - and a parcel with no courier behind it is never looked up at all (see
@@ -557,12 +935,17 @@ public class ShipmentTrackingService : IShipmentTrackingService
                 .OrderByDescending(r => r.ReturnId)
                 .FirstOrDefault();
 
-            var reverse = ReverseLeg(order.OrderShipments);
-
-            if (openReturn != null && OrderReturnStatus.WasApproved(openReturn.Status) &&
-                reverse != null && IsDue(reverse, now) && ReportsTrackingFor(reverse.Provider))
+            if (openReturn != null && OrderReturnStatus.WasApproved(openReturn.Status))
             {
-                await PullAsync(order, reverse);
+                var returns = order.OrderShipments
+                    .Where(parcel => parcel.Direction == OrderShipment.DirectionReverse &&
+                                     IsDue(parcel, now) &&
+                                     ReportsTrackingFor(parcel.Provider))
+                    .OrderBy(parcel => parcel.ShipmentId)
+                    .ToList();
+
+                foreach (var reverse in returns)
+                    await PullAsync(order, reverse);
             }
         }
 
@@ -938,6 +1321,7 @@ public class ShipmentTrackingService : IShipmentTrackingService
             Result = result,
             Messages = messages ?? Array.Empty<string>(),
             OrderId = shipment.OrderId,
+            ShipmentId = shipment.ShipmentId,
             Direction = shipment.Direction,
             IsReverse = shipment.Direction == OrderShipment.DirectionReverse,
             HasShipment = !string.IsNullOrWhiteSpace(shipment.AwbNumber),
@@ -957,7 +1341,16 @@ public class ShipmentTrackingService : IShipmentTrackingService
             LastStatusText = shipment.LastStatusText ?? string.Empty,
             LastCheckedOn = shipment.LastCheckedOn,
             OrderStatusId = orderStatusId,
-            OrderStatus = orderStatus
+            OrderStatus = orderStatus,
+
+            // What it carries, in one fixed order (by SKU) so the card reads the same way every time it is opened.
+            // Read from the parcel's own collection, which is loaded with it wherever this is mapped - an empty
+            // list therefore means the shop has not said what is in this parcel, which is a different thing from
+            // a parcel that carries nothing (and is what the per-unit money read treats it as).
+            Items = shipment.Items
+                .OrderBy(item => item.Sku, StringComparer.Ordinal)
+                .Select(item => new OrderShipmentItemDto { Sku = item.Sku, Quantity = item.Quantity })
+                .ToList()
         };
     }
 
@@ -974,22 +1367,6 @@ public class ShipmentTrackingService : IShipmentTrackingService
 
         return parcel;
     }
-
-    /// <summary>
-    /// The parcel that went out, out of the legs one order may carry (see
-    /// <c>OrderShipment.DirectionForward/DirectionReverse</c>): until a return is arranged an order has
-    /// only this one, and afterwards 'the parcel' still means this one unless a caller asks for the other
-    /// by name.
-    /// </summary>
-    private static OrderShipment? ForwardLeg(IEnumerable<OrderShipment> legs) =>
-        legs.FirstOrDefault(s => s.Direction == OrderShipment.DirectionForward);
-
-    /// <summary>
-    /// The parcel coming back, out of the legs one order may carry: a return's own leg. Null for every order that
-    /// has never had a return arranged - which is most of them - so callers can simply skip it.
-    /// </summary>
-    private static OrderShipment? ReverseLeg(IEnumerable<OrderShipment> legs) =>
-        legs.FirstOrDefault(s => s.Direction == OrderShipment.DirectionReverse);
 
     /// <summary>Nothing could be done, and here is why - in words for the person who asked.</summary>
     private static OrderShipmentDto Failed(long orderId, string message) => new()

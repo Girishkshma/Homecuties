@@ -318,6 +318,14 @@
             please contact us with the reference above if you would like an update in between.
           </p>
 
+          <!-- An order that went out in more than one parcel: the strip above describes the first of them, so the
+               customer is told the rest are on their way rather than left thinking that is all there is. -->
+          <p class="order-shipment-latest" *ngIf="parcelCount(order) > 1">
+            <i class="bi bi-box-seam me-1"></i>This order went out in {{ parcelCount(order) }} parcels - they may
+            arrive at different times. Please contact us with the order number if you need the reference for any of
+            the others.
+          </p>
+
           <!-- There is nothing left to watch once the parcel is delivered or on its way back, so the
                customer is told rather than left tapping a button that will never bring news. -->
           <p class="order-shipment-closed" *ngIf="isParcelClosed(order)">

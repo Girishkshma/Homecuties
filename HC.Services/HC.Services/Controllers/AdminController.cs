@@ -333,6 +333,12 @@ public class AdminController : ControllerBase
     /// rule in it). Leaving both days out reports the month to date - the same stretch the dashboard's monthly
     /// tile reads - and the answer says back the days it actually covered.
     ///
+    /// Whose books are answered from is decided by the signed-in admin and never by the request: an admin or a
+    /// super admin is given the whole shop's, and a user the shop has linked to a partner that partner's own sales
+    /// alone (the goods their own stock supplied, each order's money cut to their own lines' share of it). The
+    /// answer names the partner it is for, so the screen can say whose books these are. The id comes off the
+    /// validated token for that reason - a caller that could name the user could name any partner.
+    ///
     /// Read-only to the last line: it writes nothing, moves no money and asks no gateway. The settlement ledger
     /// it reports on is written by the pull alone, and days that were never pulled are named in the answer's
     /// messages rather than shown as a row of zeros.
@@ -343,7 +349,11 @@ public class AdminController : ControllerBase
     [HttpGet("finance/summary")]
     public async Task<ActionResult> GetFinanceSummary([FromQuery] DateTime? from, [FromQuery] DateTime? to)
     {
-        var summary = await _adminDashboardService.GetFinanceSummaryAsync(from, to);
+        var userId = CurrentAdminUserId;
+        if (userId <= 0)
+            return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
+
+        var summary = await _adminDashboardService.GetFinanceSummaryAsync(from, to, userId);
         return Ok(summary);
     }
 

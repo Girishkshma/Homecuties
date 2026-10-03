@@ -499,6 +499,73 @@
       </p>
     </div>
 
+    <!-- What each unit really carried, money-wise: the per-unit figures the shop now RECORDS rather than guesses
+         (OrderItemMoney, written by HC.Business.OrderItemMoneyWriter). Every order-level figure above is cut across
+         the order's lines by what each line was worth, so these rows add back up to them - which is what makes a
+         thing that was mostly carriage, or one that was returned, visible on its own. An order nothing has touched
+         since that table was created has none, and this card says so rather than showing zeros. -->
+    <div class="detail-card">
+      <h3>What each line carried</h3>
+
+      <p class="hint" *ngIf="lineMoney.length === 0">
+        No per-unit figures have been written for this order yet - nothing has touched it since the shop began
+        recording them, and the backfill (HC.Services/HC.Data/Scripts/BackfillOrderItemMoney.sql) fills in the orders
+        that predate it. The order-level figures above are read from the payment row and are unaffected.
+      </p>
+
+      <table class="modal-table" *ngIf="lineMoney.length > 0">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Units</th>
+            <th>Output GST</th>
+            <th>Gateway fee</th>
+            <th>GST on that fee</th>
+            <th>Freight</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let money of lineMoney">
+            <td><strong>{{ money.sku }}</strong></td>
+            <td>{{ money.units }}</td>
+            <td>{{ money.outputGst | currency:'INR' }}</td>
+            <td>
+              <span *ngIf="money.gatewayFee != null">{{ money.gatewayFee | currency:'INR' }}</span>
+              <span class="unknown" *ngIf="money.gatewayFee == null"
+                title="The gateway has not reported its charge for this order yet">not known</span>
+            </td>
+            <td>
+              <span *ngIf="money.gatewayTax != null">{{ money.gatewayTax | currency:'INR' }}</span>
+              <span class="unknown" *ngIf="money.gatewayTax == null">not known</span>
+            </td>
+            <td>
+              <span *ngIf="money.freightShare != null">{{ money.freightShare | currency:'INR' }}</span>
+              <span class="unknown" *ngIf="money.freightShare == null"
+                title="No parcel carrying this line has a courier bill recorded yet">not known</span>
+            </td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr class="total-row">
+            <td>Total</td>
+            <td>{{ lineMoneyUnits }}</td>
+            <td>{{ lineMoneyGst | currency:'INR' }}</td>
+            <td>{{ lineMoneyFee | currency:'INR' }}</td>
+            <td>{{ lineMoneyTax | currency:'INR' }}</td>
+            <td>{{ lineMoneyFreight | currency:'INR' }}</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <p class="hint" *ngIf="lineMoney.length > 0">
+        What each line's units were charged in output GST, their part of what the gateway kept for taking the order's
+        money and the GST on that, and their part of what the couriers billed for the parcels that carried them. A
+        line's freight is the bill of the parcels THAT line was in - say what is in a parcel from the Shipment card,
+        and the split follows. 'Not known' is a figure nothing has reported yet, which is not the same as free; the
+        margin card above says whose word the gateway figures are.
+      </p>
+    </div>
+
     <!-- Addresses -->
     <div class="detail-card">
       <div class="address-grid">
@@ -544,11 +611,56 @@
     <div class="detail-card shipment-card" [class.shipment-closed]="shipmentClosed">
       <h3>Shipment</h3>
 
-      <p class="hint" *ngIf="!hasShipment">
+      <!-- An order can go out in MORE than one parcel: each consignment is its own row with its own AWB, courier,
+           bill and contents, and each is corrected on its own. This list is what says so, and picking a row below
+           is what the form at the bottom of the card then works on. One parcel is the ordinary case, and the list
+           then simply describes it. -->
+      <div class="parcel-list" *ngIf="parcels.length > 0">
+        <div class="parcel-row" *ngFor="let parcel of parcels; let number = index"
+          [class.parcel-active]="parcel.shipmentId === shipment?.shipmentId">
+          <div class="parcel-head">
+            <strong>Parcel {{ number + 1 }}</strong>
+            <span class="parcel-leg">{{ parcel.isReverse ? 'coming back' : 'going out' }}</span>
+            <span [class]="getShipmentStageBadgeClass(parcel.stage)">
+              {{ parcel.status || parcel.providerStatus || 'not asked the courier yet' }}
+            </span>
+            <button class="btn-sm btn-view" *ngIf="parcel.shipmentId !== shipment?.shipmentId"
+              (click)="selectParcel(parcel)" title="Work on this parcel in the form below">
+              Correct this one
+            </button>
+            <span class="parcel-current" *ngIf="parcel.shipmentId === shipment?.shipmentId">in the form below</span>
+          </div>
+          <div class="parcel-facts">
+            <span>{{ parcel.awbNumber || 'no number recorded' }}</span>
+            <span>{{ parcel.courierName || 'courier not on record' }}</span>
+            <span *ngIf="parcel.freightCharge != null">freight {{ parcel.freightCharge | currency:'INR' }}</span>
+          </div>
+          <div class="parcel-contents">
+            <ng-container *ngIf="parcel.items && parcel.items.length > 0">
+              Carrying
+              <span *ngFor="let item of parcel.items; let last = last">
+                {{ item.quantity }} x {{ item.sku }}{{ last ? '' : ', ' }}
+              </span>
+            </ng-container>
+            <span class="hint" *ngIf="!parcel.items || parcel.items.length === 0">
+              Nobody has said what is in this parcel, so its freight is charged to the whole order's lines for the
+              books. Say what it carries with the form below.
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <p class="hint" *ngIf="!hasShipment && parcels.length === 0">
         No parcel has been recorded for this order yet. Dispatching the order records it in the same step
         when the team has the consignment number (AWB) that provider gave (see Update status below) - an
         order that went out without a courier has none, and is simply dispatched. Book the consignment in
         your provider's own panel and record the AWB it gave you here when there is one.
+      </p>
+
+      <p class="hint" *ngIf="!hasShipment && parcels.length > 0">
+        The parcel in the form below has no AWB on it yet. Dispatch the order with the consignment number its
+        provider gave (see Update status below) when there is one - the rest of the order's parcels are already
+        recorded.
       </p>
 
       <div class="detail-grid" *ngIf="hasShipment">
@@ -665,24 +777,90 @@
         </p>
       </div>
 
+      <!-- What is in this parcel: the order's units, one row per SKU. It is what the parcel's own courier bill is
+           charged to for the books, so the card asks for it - and it is what makes a second parcel of the same
+           order possible at all, because the units not ticked here are the ones still to go out. -->
+      <div class="form-group">
+        <label>
+          What this parcel carries <span class="req">*</span>
+        </label>
+
+        <table class="picker-table">
+          <thead>
+            <tr>
+              <th>In parcel</th>
+              <th>Item</th>
+              <th>How many here</th>
+              <th>On the order</th>
+              <th>Left for this parcel</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let unit of orderUnits">
+              <td>
+                <input type="checkbox" [checked]="isCarried(unit.sku)"
+                  (change)="toggleCarried(unit.sku, $any($event.target).checked)" />
+              </td>
+              <td>
+                <strong>{{ unit.sku }}</strong>
+                <span class="hint" *ngIf="unit.productTitle"> - {{ unit.productTitle }}</span>
+              </td>
+              <td>
+                <input class="form-input qty-input" type="number" min="0" [max]="unitsLeftFor(unit.sku)"
+                  [disabled]="!isCarried(unit.sku) || unitsLeftFor(unit.sku) === 0"
+                  [ngModel]="carriedQuantity(unit.sku)" (ngModelChange)="setCarried(unit.sku, $event)" />
+              </td>
+              <td>{{ unit.units }}</td>
+              <td>
+                <span [class.unknown]="unitsLeftFor(unit.sku) === 0">{{ unitsLeftFor(unit.sku) }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p class="hint" *ngIf="shipmentItems.length === 0">
+          Tick the goods that are really in this parcel and set how many of each. A parcel that has gone out has to
+          say what is in it: its courier bill is charged to exactly those units, and a parcel nobody can say what it
+          carried is a cost the shop cannot put anywhere.
+        </p>
+        <p class="hint" *ngIf="shipmentItems.length > 0">
+          This parcel carries {{ shipmentItemsText }} - its courier bill is split across exactly those units.
+        </p>
+        <p class="hint" *ngIf="unitsStillToShip.length > 0">
+          Still to go out:
+          <span *ngFor="let left of unitsStillToShip">{{ left.units }} x {{ left.sku }}&nbsp;</span>
+          - record another parcel for them with 'Record another parcel' below.
+        </p>
+      </div>
+
       <div class="inline-actions">
         <button class="btn-secondary" *ngIf="shipmentHasCourier"
           [disabled]="isTrackingShipment || !hasShipment" (click)="trackShipment()"
           title="Ask the courier about this parcel now">
           {{ isTrackingShipment ? 'Asking the courier...' : 'Track now' }}
         </button>
+        <button class="btn-sm btn-edit" *ngIf="parcels.length > 0"
+          (click)="bookAnotherParcel()"
+          title="Book the next consignment of this order - an order can go out in more than one parcel">
+          Record another parcel
+        </button>
         <button class="btn-primary" [disabled]="isSavingShipment" (click)="recordShipment()">
-          {{ isSavingShipment ? 'Saving...' : (hasShipment ? 'Update parcel' : 'Save parcel') }}
+          {{ isSavingShipment ? 'Saving...' : (bookingNewParcel ? 'Save new parcel' : (hasShipment ? 'Update parcel' : 'Save parcel')) }}
         </button>
       </div>
 
       <p class="hint">
         Dispatching the order (Update status below) already records the parcel with its provider and AWB,
         when the team has that number; this card is for recording or correcting one afterwards, including
-        what the courier billed for it. Saving here only records the parcel - the order is not moved by it
-        - and it is written to the order history. 'Track now' is what asks the courier: when it reports
-        the parcel is on its way (or delivered, or coming back), the order and its units follow, as far as
-        the order's own lifecycle allows.
+        what the courier billed for it and which of the order's units it carries. Saving here only records the
+        parcel - the order is not moved by it - and it is written to the order history. 'Track now' is what asks
+        the courier: when it reports the parcel is on its way (or delivered, or coming back), the order and its
+        units follow, as far as the order's own lifecycle allows.
+      </p>
+
+      <p class="hint" *ngIf="bookingNewParcel">
+        This is a NEW parcel of this order, not a correction: saving it adds it, and the units already in the
+        order's other parcels are not on offer above.
       </p>
 
       <div *ngIf="shipmentMessage" class="form-message" [class.error]="shipmentError">{{ shipmentMessage }}</div>

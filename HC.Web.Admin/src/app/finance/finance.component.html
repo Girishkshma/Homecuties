@@ -45,6 +45,19 @@
       <span *ngIf="isLoading"> &middot; reading the new period, the figures below are the last ones read</span>
     </p>
 
+    <!-- Whose books these are, when they are not the whole shop's. The server decides it from the signed-in admin (an
+         admin reads the shop's, a partner their own goods' sales alone - see AdminDashboardService.Finance), and this
+         banner is how the screen says so: without it a partner's share of each order would read as if it were the
+         whole of it. -->
+    <div class="scope-banner" *ngIf="isPartnerView">
+      <strong>{{ books.partnerName }}&rsquo;s own books</strong>
+      <span>
+        Only the goods their own stock supplied. Each shared order's money - what was paid, what was given back, the
+        gateway's charge for taking it and the courier's bill - is cut to their own lines' share of that order, and
+        the rest of it belongs to the other partner and is not shown here.
+      </span>
+    </div>
+
     <!-- The customer's money at a glance: the three figures the dashboard's revenue tiles come from. -->
     <section class="stats-section">
       <h2 class="section-title">The customers' money</h2>
@@ -131,15 +144,148 @@
       </div>
 
       <p class="hint">
-        The gateway's charge and the GST on it are the figures Razorpay reports and deducts at settlement; a
-        registered shop claims the GST back as input credit, which is its accountant's line and not this screen's.
-        The goods line is the margin the shop itself declared on each product ('Profit margin %' on the product
-        form, read as the profit's share of what the customer paid) - nothing here records what the goods cost to
-        buy, so that line is a declaration while every line above it is a recorded one.
+        The gateway's charge and the GST on it are the figures Razorpay reports and deducts at settlement, and the GST
+        on that charge is input credit the shop can set against the tax it owes - which the GST section below counts.
+        Every line here is money that moved, and what the customers paid includes the GST the shop holds for the
+        government, so it is not all the shop's money either. The goods line is the margin the shop itself declared on
+        each product ('Profit margin %' on the product form, read as the profit's share of what the customer paid) -
+        nothing here records what the goods cost to buy, so that line is a declaration while every line above it is a
+        recorded one.
       </p>
 
       <div class="notes" *ngIf="books.messages.length > 0">
         <p class="note" *ngFor="let message of books.messages">{{ message }}</p>
+      </div>
+    </section>
+
+    <!-- The GST: part of the customers' money that is not the shop's. Shown beside the sales above rather than taken
+         out of them, because what the customers paid is what the customers paid - the tax inside it is only ever
+         held, and passed on. -->
+    <section class="stats-section">
+      <h2 class="section-title">GST (held for the government, not the shop's money)</h2>
+
+      <div class="ledger-card">
+        <div class="ledger-line">
+          <span>The value the GST was charged on (the sales before tax)</span>
+          <strong>{{ books.taxableValue | currency:'INR' }}</strong>
+        </div>
+        <div class="ledger-line">
+          <span>GST charged on those sales ({{ outputGstPercent | number:'1.1-1' }}% of the gross sales)</span>
+          <strong>{{ books.outputGst | currency:'INR' }}</strong>
+        </div>
+        <div class="ledger-line">
+          <span>Less the GST given back with the refunds ({{ books.refundCount }})</span>
+          <strong>-{{ books.gstOnRefunds | currency:'INR' }}</strong>
+        </div>
+        <div class="ledger-line subtotal">
+          <span>Held for the government on this period's money</span>
+          <strong>{{ books.gstHeld | currency:'INR' }}</strong>
+        </div>
+
+        <div class="ledger-line">
+          <span>Less the GST paid on the gateway's fee (the one input credit recorded)</span>
+          <strong>-{{ books.gatewayTax | currency:'INR' }}</strong>
+        </div>
+        <div class="ledger-line grand">
+          <span>Owes the government for this period</span>
+          <strong>{{ books.netGstPayable | currency:'INR' }}</strong>
+        </div>
+      </div>
+
+      <p class="hint">
+        The sales above are what the customers actually paid, so they include this tax: set aside what the period owes
+        and {{ leftAfterTax | currency:'INR' }} of the 'left after the goods' line is what the period was really worth
+        to the shop. The tax is worked out from the rates the order lines recorded, at the rate the checkout charged
+        (the CGST rate, which is the tax the customer really paid), and each refund gives back its own order's share
+        of it. A negative 'owes' figure is not an error - a period carrying more input credit than tax offsets the
+        difference against a later one.
+      </p>
+    </section>
+
+    <!-- What each line carried: the same money as the waterfall above, cut across the lines it was really made on.
+         Read from the split the shop records (OrderItemMoney) rather than worked out here, so this table and the
+         totals above are the same figures - a thing that is mostly carriage, or one that came back, is visible on
+         its own. -->
+    <section class="stats-section">
+      <h2 class="section-title">What each item carried</h2>
+
+      <p class="hint" *ngIf="lineItems.length === 0">
+        No per-unit figures are recorded for this period's orders - the orders were sold before the shop began
+        recording them, and the backfill (HC.Data/Scripts/BackfillOrderItemMoney.sql) fills in the ones that predate
+        it. The figures above are read from the payment rows and are unaffected by this table being empty.
+      </p>
+
+      <div class="ledger-card" *ngIf="lineItems.length > 0">
+        <table class="modal-table">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Units</th>
+              <th>Worth to the customers</th>
+              <th>Output GST</th>
+              <th>Gateway fee</th>
+              <th>GST on that fee</th>
+              <th>Freight</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let line of lineItems">
+              <td><strong>{{ line.sku }}</strong></td>
+              <td>{{ line.units }}</td>
+              <td>{{ line.lineValue | currency:'INR' }}</td>
+              <td>{{ line.outputGst | currency:'INR' }}</td>
+              <td>
+                <span *ngIf="line.gatewayFee != null">{{ line.gatewayFee | currency:'INR' }}</span>
+                <span class="unknown" *ngIf="line.gatewayFee == null"
+                  title="The gateway has not reported its charge for those orders yet">not known</span>
+              </td>
+              <td>
+                <span *ngIf="line.gatewayTax != null">{{ line.gatewayTax | currency:'INR' }}</span>
+                <span class="unknown" *ngIf="line.gatewayTax == null"
+                  title="The gateway has not reported its charge for those orders yet">not known</span>
+              </td>
+              <td>
+                <span *ngIf="line.freightShare != null">{{ line.freightShare | currency:'INR' }}</span>
+                <span class="unknown" *ngIf="line.freightShare == null"
+                  title="No parcel carrying this line has a courier bill recorded yet">not known</span>
+              </td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr class="total-row">
+              <td>Total</td>
+              <td>{{ lineItemsUnits }}</td>
+              <td>{{ lineItemsValue | currency:'INR' }}</td>
+              <td>{{ lineItemsGst | currency:'INR' }}</td>
+              <td>{{ lineItemsFee | currency:'INR' }}</td>
+              <td>{{ lineItemsTax | currency:'INR' }}</td>
+              <td>{{ lineItemsFreight | currency:'INR' }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <p class="hint" *ngIf="lineItems.length > 0">
+        Each order's own charge - the gateway's fee for taking its money, the GST on that fee and the couriers' bills
+        for the parcels that carried those goods - is cut across the order's lines by what each line was worth, with
+        the last paisa given to the largest remainders, so these rows add back up to the totals above. The word behind
+        the gateway figures here is {{ lineItemsChargeSourceText }}. 'Not known' is a figure nothing has reported
+        yet, which is not the same as nothing:
+        <ng-container *ngIf="lineItemsWithoutCharge > 0">
+          {{ lineItemsWithoutCharge }} of {{ lineItems.length }} line(s) have no gateway charge recorded at all, so
+          the fee columns are short by their part of it.
+        </ng-container>
+        <ng-container *ngIf="lineItemsWithoutCharge === 0">
+          every line here has a charge behind it.
+        </ng-container>
+      </p>
+
+      <div class="notes" *ngIf="books.lineItemsWithoutMoney > 0">
+        <p class="note">
+          {{ books.lineItemsWithoutMoney }} order(s) in this period have no per-unit figures written yet, so this
+          table is short by their lines. The backfill (HC.Services/HC.Data/Scripts/BackfillOrderItemMoney.sql) writes
+          them once, and they appear here on the next read.
+        </p>
       </div>
     </section>
 

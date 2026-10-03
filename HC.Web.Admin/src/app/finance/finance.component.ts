@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { AdminService } from '../services/admin.service';
-import { AdminFinanceSummary } from '../models/admin.model';
+import { AdminFinanceSummary, AdminFinanceLine } from '../models/admin.model';
 
 /**
  * The shop's own books for a period (see HC.Business.AdminDashboardService.Finance and HC.Business.OrderMoney):
@@ -12,6 +12,11 @@ import { AdminFinanceSummary } from '../models/admin.model';
  * the days it actually covered (the server resolves those) and the findings the figures cannot say by themselves
  * ('messages'). Pulling the gateway's settlement books - the only thing that fills the bank side - stays on the
  * Dashboard, where that action is offered.
+ *
+ * WHOSE books it shows follows the signed-in admin and not this screen: an admin or a super admin sees the shop's,
+ * and a partner sees their own goods' sales alone (see HC.Business.AdminDashboardService.Finance). The answer says
+ * whose it is ('partnerName'), which is what the banner at the top of the page reads from - the screen itself asks
+ * for no scope, because one it could ask for is one it could get wrong.
  */
 @Component({
   selector: 'app-finance',
@@ -69,6 +74,15 @@ export class FinanceComponent implements OnInit {
   }
 
   /**
+   * Whether these are one partner's books rather than the whole shop's. The server decides it from the signed-in
+   * admin, so all this does is report it: a partner's figures are their own goods' share of each order, and without
+   * the banner saying so they would read as if they were every order's.
+   */
+  get isPartnerView(): boolean {
+    return !!this.summary?.partnerName;
+  }
+
+  /**
    * The share of the period's sales that the shop declared as its margin ('Profit margin %' on each product
    * line). Shown beside the margin amount so the figure can be read as a rate as well as a rupee total.
    */
@@ -93,5 +107,100 @@ export class FinanceComponent implements OnInit {
     }
 
     return books.afterCourier - books.declaredCost;
+  }
+
+  /**
+   * The GST as a share of the gross sales, so the tax inside what the customers paid can be read as a rate as well
+   * as a rupee total. Taken against the gross sales because that is what the tax was charged on - the refunds shown
+   * beside it are a separate line, and the tax they give back is its own.
+   */
+  get outputGstPercent(): number {
+    const books = this.summary;
+    if (!books || books.grossSales <= 0) {
+      return 0;
+    }
+
+    return (books.outputGst / books.grossSales) * 100;
+  }
+
+  /**
+   * What the period was really worth to the shop: the waterfall's last line ('left after the goods, as declared')
+   * with the tax the period owes the government set aside. The GST was only ever held, never earned, so this is the
+   * figure the shop keeps - not the one above it.
+   */
+  get leftAfterTax(): number {
+    const books = this.summary;
+    if (!books) {
+      return 0;
+    }
+
+    return this.afterGoods - books.netGstPayable;
+  }
+
+  /**
+   * What each SKU of the period's sales carried, money-wise - the recorded per-unit split (see the API's
+   * AdminFinanceLine), most valuable first. It is the same money the waterfall above is made of, cut to the lines
+   * it was really made on, which is what lets a shop keeper see a thing that is mostly carriage - or one that came
+   * back - next to the things beside it.
+   */
+  get lineItems(): AdminFinanceLine[] {
+    return this.summary?.lineItems || [];
+  }
+
+  /** The units the breakdown covers - the period's own units, one row per physical unit on the order lines. */
+  get lineItemsUnits(): number {
+    return this.lineItems.reduce((sum, line) => sum + line.units, 0);
+  }
+
+  /** What those units were worth to the customers: the weight every per-line figure was split by. */
+  get lineItemsValue(): number {
+    return this.lineItems.reduce((sum, line) => sum + line.lineValue, 0);
+  }
+
+  /** The output GST of those units - the tax held for the government on them. */
+  get lineItemsGst(): number {
+    return this.lineItems.reduce((sum, line) => sum + line.outputGst, 0);
+  }
+
+  /**
+   * The lines' parts of the gateway's charge and the GST on it. A line whose charge nothing has reported counts as
+   * nothing, so the total is what IS known - the table marks those rows one by one rather than hiding them in a
+   * total.
+   */
+  get lineItemsFee(): number {
+    return this.lineItems.reduce((sum, line) => sum + (line.gatewayFee ?? 0), 0);
+  }
+
+  get lineItemsTax(): number {
+    return this.lineItems.reduce((sum, line) => sum + (line.gatewayTax ?? 0), 0);
+  }
+
+  /** The lines' parts of the couriers' bills - what the parcels that carried them cost. */
+  get lineItemsFreight(): number {
+    return this.lineItems.reduce((sum, line) => sum + (line.freightShare ?? 0), 0);
+  }
+
+  /** How many of those lines have no gateway charge recorded at all, so their part of the fee is 'not known'. */
+  get lineItemsWithoutCharge(): number {
+    return this.lineItems.filter(line => line.gatewayFee == null && line.gatewayTax == null).length;
+  }
+
+  /**
+   * Whose word the gateway figures in the breakdown rest on. A single line still carrying the capture's own estimate
+   * makes the total an estimate, so the weakest word among the rows is the one said - which is the same rule the
+   * server applies per row.
+   */
+  get lineItemsChargeSourceText(): string {
+    const words = this.lineItems.map(line => (line.chargesSource || '').toLowerCase());
+
+    if (words.length === 0 || words.every(word => !word)) {
+      return 'nothing recorded yet';
+    }
+
+    if (words.some(word => word === 'payment')) {
+      return 'the captures themselves (estimates the settlement pull can still correct)';
+    }
+
+    return 'the settlement pull - what the bank was actually settled on';
   }
 }

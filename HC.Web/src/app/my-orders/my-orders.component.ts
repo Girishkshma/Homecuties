@@ -647,6 +647,15 @@ export class MyOrdersComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * How many parcels of an order went out, as the read counted them: the strip above describes the first of them,
+   * and an order that went out in three consignments has to say so rather than read as one parcel that is somehow
+   * still moving. 1 when the answer did not count them (a single parcel, which is the ordinary case).
+   */
+  parcelCount(order: MyOrder): number {
+    return order.Shipment?.parcelsInLeg ?? 1;
+  }
+
+  /**
    * The badge colour one stage is drawn in, for either leg: a refusal at the door reads like a delivery that did
    * not happen, and one returning to the shop is dark rather than green - it is the end of the parcel's journey,
    * but not the end the customer hoped for.

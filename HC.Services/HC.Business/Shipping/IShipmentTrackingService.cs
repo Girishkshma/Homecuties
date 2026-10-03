@@ -26,12 +26,31 @@ public interface IShipmentTrackingService
     /// A parcel is read by leg: blank <paramref name="direction"/> is the one that went out (what every
     /// screen but one means), and <c>OrderShipment.DirectionReverse</c> is the one coming back - the pickup
     /// the Return card of the admin order screen shows.
+    ///
+    /// An order can go out in more than one parcel, and this answers with the FIRST of them - the one the order's
+    /// delivery is told from, and what every screen that has room for a single parcel means by 'the parcel'. The
+    /// admin order screen reads them all with <see cref="GetAllForOrderAsync"/>.
     /// </summary>
     Task<OrderShipmentDto?> GetForOrderAsync(long orderId, string? direction = null, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Every parcel of an order, in the order they were recorded - the forward ones first, then the return's
+    /// pickup. What the admin order screen's Shipment card is built from, because an order that went out in three
+    /// parcels has three AWBs, three couriers and three bills to show (and to correct, one at a time).
+    ///
+    /// Empty for an order with no parcel recorded. Like the single read above, it never calls the courier and never
+    /// throws: a table that cannot be read costs the screen its parcels, not the order.
+    /// </summary>
+    Task<List<OrderShipmentDto>> GetAllForOrderAsync(long orderId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// The parcels of several orders at once, keyed by order id - one query for a whole page. What the
     /// courier billed for a parcel is left out of the answer: this read is the customer's own page.
+    ///
+    /// An order that went out in more than one parcel answers with the FIRST of them - the parcel the customer is
+    /// waiting for, and the same one <see cref="GetForOrderAsync"/> means by 'the parcel'. The throttle
+    /// <see cref="RefreshForCustomerAsync"/> looks up is kept for every parcel of every live order, so a second
+    /// parcel is still followed even though this read shows only the first.
     /// </summary>
     Task<Dictionary<long, OrderShipmentDto>> GetForOrdersAsync(IEnumerable<long> orderIds, CancellationToken cancellationToken = default);
 
@@ -45,10 +64,13 @@ public interface IShipmentTrackingService
     Task<Dictionary<long, OrderShipmentDto>> GetReverseForOrdersAsync(IEnumerable<long> orderIds, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Records the parcel the shop team booked in the provider's panel: the AWB, the courier and the
-    /// tracking link when they have them, and what the courier billed for it (the shop's own figure,
-    /// never shown to the customer). This never moves the order - a parcel booked is not a parcel
-    /// dispatched, and the order follows the courier's own reports (see <see cref="RefreshAsync"/>).
+    /// Records ONE parcel of an order: the AWB, the courier and the tracking link when the shop team has them,
+    /// what the courier billed for it (the shop's own figure, never shown to the customer), and which of the
+    /// order's units are in it - which is what that bill is charged to for the books. An order can go out in more
+    /// than one parcel, so this is called once per parcel: the request's <c>ShipmentId</c> names the parcel being
+    /// corrected, one with that AWB is found and corrected, and anything else is a new parcel. This never moves the
+    /// order - a parcel booked is not a parcel dispatched, and the order follows the courier's own reports (see
+    /// <see cref="RefreshAsync"/>).
     ///
     /// A blank AWB is accepted for a provider that gives no consignment numbers of its own, and one is
     /// minted for the parcel (see <see cref="IShipmentProvider.CreateAwb"/>); for every other provider a

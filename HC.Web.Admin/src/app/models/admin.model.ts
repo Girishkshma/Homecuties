@@ -104,8 +104,8 @@ export interface AdminSettlementSyncRequest {
 /**
  * The shop's own books over a period ('GET finance/summary' - see HC.Business.OrderMoney and
  * HC.Business.AdminDashboardService.Finance): what the customers paid, what was given back, what the gateway
- * kept for taking it, what the couriers were paid, what the shop's own declared margin on the goods was, and
- * what the bank side of it looked like.
+ * kept for taking it, what the couriers were paid, what the shop's own declared margin on the goods was, how
+ * much of that money is held for the government as GST, and what the bank side of it looked like.
  *
  * Every figure comes from a row the shop already keeps, and 'messages' says what the figures cannot say by
  * themselves - a charge the gateway never reported, a parcel with no courier bill, days the settlement pull has
@@ -117,6 +117,20 @@ export interface AdminFinanceSummary {
   from: Date;
   /** The last day the report covers - today at the most. */
   to: Date;
+
+  /**
+   * The partner these books are for, or null when they are the whole shop's. Whose books come back follows the
+   * signed-in admin and never the request: an admin or a super admin reads the shop's, and a user the shop has linked
+   * to a partner reads their own goods' sales alone - each shared order's money cut to their own lines' share of it.
+   * Null as well when the acting admin is linked to several partners and so reads them together, in which case
+   * partnerName names every one of them.
+   */
+  partnerId?: number | null;
+  /**
+   * The name of that partner (all of their names when the admin reads several together), so the screen can say whose
+   * books these are; null for the whole shop's.
+   */
+  partnerName?: string | null;
 
   // The customers' money, as the gateway reported it (the payment rows).
   capturedCount: number;
@@ -153,6 +167,23 @@ export interface AdminFinanceSummary {
   declaredMargin: number;
   declaredCost: number;
 
+  // The GST: the part of the customers' money that is held for the government rather than earned. The sales
+  // figures above are what the customers actually paid, so they include this tax - it is shown beside them rather
+  // than taken out of them. Read from the rates the order lines recorded, at the rate the checkout charged.
+  /** The value the GST was charged on: the period's lines before tax (the price less both discounts). */
+  taxableValue: number;
+  /** The GST charged on those lines (the CGST the checkout charged, which is what the customer really paid). */
+  outputGst: number;
+  /** The GST given back with the period's refunds, each for its own order's share of the tax. */
+  gstOnRefunds: number;
+  /** outputGst less gstOnRefunds - what is still held for the government. */
+  gstHeld: number;
+  /**
+   * gstHeld less the GST on the gateway's fee (gatewayTax, which is input credit). Negative when the credit is
+   * larger than the tax held - that difference carries forward rather than being lost.
+   */
+  netGstPayable: number;
+
   // The bank's side, from the settlement ledger the pull writes; empty until the pull has run for those days.
   settledLines: number;
   settledCredit: number;
@@ -161,8 +192,45 @@ export interface AdminFinanceSummary {
   settledTax: number;
   settledOnHold: number;
 
+  // The per-unit breakdown, read from the split the shop records (OrderItemMoney) rather than worked out at read
+  // time. It is cut to the same orders the figures above are about, and to the same goods when these are a
+  // partner's books.
+  /**
+   * The period's orders whose lines have no per-unit figures written yet - the ones the breakdown below cannot
+   * speak for (they predate the table; the backfill fills them in). The figures above do not depend on them.
+   */
+  lineItemsWithoutMoney: number;
+  /** What each SKU of this period's sales carried, money-wise (most valuable first). */
+  lineItems: AdminFinanceLine[];
+
   /** What the figures cannot say by themselves, in plain words (empty when there is nothing to add). */
   messages: string[];
+}
+
+/**
+ * What one SKU of the period's orders carried, money-wise - one row of the Finance screen's per-SKU breakdown.
+ *
+ * It is the split the shop records (OrderItemMoney), not a read-time share: an order's gateway charge, the GST on
+ * it and the couriers' bills are cut across that order's lines by what each line was worth, so these rows add back
+ * up to the order-level figures they came from.
+ *
+ * The gateway and courier figures are null when nothing has reported them - 'not known', never a zero that reads as
+ * free - and 'chargesSource' says which word the total rests on: 'Recon' (the settlement line the bank was actually
+ * paid on, which is authoritative) or 'Payment' (the capture's own report, which the settlement pull can still
+ * correct). A mixture is reported as the weaker of the two.
+ */
+export interface AdminFinanceLine {
+  sku: string;
+  /** How many units of it the period's orders held. */
+  units: number;
+  /** What those units were worth to the customers - the weight every figure here was split by. */
+  lineValue: number;
+  /** The output GST inside that money: tax held for the government on these units. */
+  outputGst: number;
+  gatewayFee?: number | null;
+  gatewayTax?: number | null;
+  freightShare?: number | null;
+  chargesSource?: string | null;
 }
 
 export interface AdminProduct {
@@ -328,8 +396,25 @@ export interface AdminOrderDetail {
    * The parcel of this order as it was last written down, or absent while the shop has not recorded one.
    * The Shipment card records it ('Save parcel') and asks the courier about it ('Track now'), which is
    * also the only thing that moves the order for a parcel.
+   *
+   * An order can go out in MORE than one parcel, and this is the first of them - what a screen with room for one
+   * parcel means by 'the parcel'. 'shipments' below is all of them, which is what the Shipment card lists.
    */
   shipment?: AdminOrderShipment;
+
+  /**
+   * Every parcel of this order, forward legs first and each in the order it was recorded: an order that went out in
+   * three parcels has three AWBs, three couriers and three bills, and each is corrected on its own (the card sends
+   * that parcel's 'shipmentId' with the save).
+   */
+  shipments?: AdminOrderShipment[];
+
+  /**
+   * What each of this order's lines really carried, money-wise - the recorded split (see AdminOrderItemMoney).
+   * Absent or empty for an order whose per-unit figures have not been written yet, in which case the card says so
+   * rather than showing zeros.
+   */
+  lineMoney?: AdminOrderItemMoney[];
 
   /**
    * The return this order carries, or absent while it has never had one. The Return card is built from
@@ -466,6 +551,16 @@ export interface AdminOrderShipment {
   messages: string[];
 
   orderId: number;
+
+  /**
+   * This parcel's own id ('OrderShipments.ShipmentID'). An order can go out in MORE than one parcel, and a
+   * correction has to say WHICH one it is correcting - sending none means 'the parcel with this AWB', or a new
+   * one when there is no such parcel (see AdminSaveOrderShipmentRequest).
+   */
+  shipmentId: number;
+  /** 'Forward' (a parcel going out) or 'Reverse' (a return's pickup). */
+  direction?: string;
+  isReverse?: boolean;
   /** False while no parcel has been recorded, in which case the rest is empty. */
   hasShipment: boolean;
   /** Registry name of the provider, e.g. 'Shiprocket' or 'Custom' (the shop's own service). */
@@ -503,6 +598,40 @@ export interface AdminOrderShipment {
   /** The order status the courier's report moved the order to, once it has been applied. */
   orderStatusId?: number | null;
   orderStatus?: string | null;
+
+  /**
+   * What this parcel carries: the order's units the shop team picked when they recorded it, one entry per SKU
+   * ('2 x HC-1042'). It is what the parcel's own courier bill is charged to for the books
+   * (OrderItemMoney.FreightShare), which is why the card asks for it. Empty means the shop has not said what is
+   * in the parcel - not that it is empty - and such a parcel's bill is spread over the whole order instead.
+   */
+  items?: AdminOrderShipmentItem[];
+}
+
+/** One SKU of a parcel and how many of its units are in it ('HC-1042 x 2'). */
+export interface AdminOrderShipmentItem {
+  sku: string;
+  quantity: number;
+}
+
+/**
+ * What one order LINE really carried, money-wise, as the order screen's per-unit table reads it - the split the
+ * shop records rather than guesses (OrderItemMoney). One row per SKU of the order, with the number of units that
+ * SKU is: an order line is one row per physical unit, so three of a thing is three units here.
+ *
+ * 'not known' is null and never 0 - a gateway that has not reported its fee yet, a parcel nobody has billed. A 0
+ * therefore means the share really was nothing.
+ */
+export interface AdminOrderItemMoney {
+  sku: string;
+  units: number;
+  /** The output GST inside what the customer paid for those units. */
+  outputGst: number;
+  gatewayFee?: number | null;
+  gatewayTax?: number | null;
+  freightShare?: number | null;
+  /** 'Payment' (the capture's own report) or 'Recon' (the settlement the bank was paid on, which is final). */
+  chargesSource?: string | null;
 }
 
 /**
@@ -593,6 +722,12 @@ export interface AdminShipmentProvider {
  * filled in by the first 'Track now').
  */
 export interface AdminSaveOrderShipmentRequest {
+  /**
+   * The parcel this call is about, when the card is correcting one it has in front of it
+   * ('AdminOrderShipment.shipmentId'). Null - what booking another parcel sends - means 'the parcel with this
+   * AWB, or a new one when there is none', which is how an order goes out in more than one parcel.
+   */
+  shipmentId?: number | null;
   provider?: string | null;
   awbNumber: string;
   courierName?: string | null;
@@ -611,6 +746,17 @@ export interface AdminSaveOrderShipmentRequest {
    * Shipment card and the Shipped move mean.
    */
   direction?: string | null;
+
+  /**
+   * Which of the order's units this parcel carries, one entry per SKU - what the Shipment card's picker
+   * collects, and what the parcel's own bill is charged to for the books (OrderItemMoneyWriter).
+   *
+   * Left out to mean 'this form is not about the contents', which keeps what the parcel already holds (the
+   * Shipped move does that, so dispatching an order never wipes the picker's work). An EMPTY list is a real
+   * answer and a different one: 'this parcel carries none of the order's units', which the server refuses
+   * for a forward parcel - a parcel going out with nothing in it is one nobody can bill for.
+   */
+  items?: AdminOrderShipmentItem[] | null;
 }
 
 export interface AdminCustomer {

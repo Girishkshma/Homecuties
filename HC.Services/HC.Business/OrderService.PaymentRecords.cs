@@ -160,6 +160,14 @@ public partial class OrderService : IOrderService
 
         await _context.SaveChangesAsync();
 
+        // What the gateway took for this order is now recorded on its payment row, and the order's own lines can be
+        // given their parts of it: the per-unit figures are recomputed from the rows just written (see
+        // OrderItemMoneyWriter). Only for money the gateway actually took - a failed attempt or an authorised one is
+        // not a charge - and NEVER as an increment: the rows are a view of what is recorded, so a webhook replayed,
+        // or a capture whose fee Razorpay works out a moment later, both land the shop in the same place.
+        if (OrderMoney.TookMoney(status))
+            await OrderItemMoneyWriter.RefreshAsync(_context, order.OrderId);
+
         _logger.LogInformation(
             "Payment of order {OrderId} is now '{Status}' (razorpay order {RazorpayOrderId}, payment {RazorpayPaymentId}){Failure}.",
             order.OrderId,

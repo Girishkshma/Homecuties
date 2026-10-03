@@ -3,7 +3,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Observable } from 'rxjs';
 import { AdminService } from '../services/admin.service';
 import { AuthService } from '../services/auth.service';
-import { AdminOrderDetail, AdminResult, AdminSaveOrderShipmentRequest, AdminOrderShipment, AdminShipmentProvider, AdminOrderReturn } from '../models/admin.model';
+import { AdminOrderDetail, AdminResult, AdminSaveOrderShipmentRequest, AdminOrderShipment, AdminOrderShipmentItem, AdminOrderItemMoney, AdminShipmentProvider, AdminOrderReturn } from '../models/admin.model';
 
 /**
  * Everything the shop team needs for one order: what was bought (one row per physical unit, with its
@@ -72,6 +72,28 @@ export class OrderDetailComponent implements OnInit {
   isTrackingShipment = false;
   shipmentMessage = '';
   shipmentError = false;
+
+  /**
+   * Which of the order's parcels the card is working on ('OrderShipments.ShipmentID'): the one whose details the
+   * card describes and whose form is filled in. Null means the order's first parcel - what the card has always
+   * meant by 'the parcel' - and the team picks another from the parcel list when an order went out in more than
+   * one.
+   */
+  selectedShipmentId: number | null = null;
+
+  /**
+   * True while the team is booking a parcel that is NOT on the order yet: the form is empty and saving it ADDS a
+   * parcel instead of correcting one. This is how an order goes out in more than one parcel - book the first, then
+   * 'Record another parcel' for the next consignment.
+   */
+  bookingNewParcel = false;
+
+  /**
+   * What the parcel in the form carries, one entry per SKU of the order - the card's picker. Filled from the parcel
+   * being corrected and sent with every save, because a parcel's own courier bill is charged to these units for the
+   * books (see HC.Business.OrderItemMoneyWriter).
+   */
+  shipmentItems: AdminOrderShipmentItem[] = [];
 
   // Return: a delivered order's return (asked for by the customer), or one the courier's own report raised
   // (a refusal, or a parcel that could not be delivered). The shop team answers it here - approving means
@@ -345,12 +367,13 @@ export class OrderDetailComponent implements OnInit {
 
   /** Puts the parcel recorded on the order back into the form (an empty form while there is none). */
   private prefillShipmentForm(): void {
-    const shipment = this.order?.shipment;
+    const shipment = this.shipment;
 
     this.shipmentAwb = shipment?.awbNumber || '';
     this.shipmentCourier = shipment?.courierName || '';
     this.shipmentTrackingUrl = shipment?.trackingUrl || '';
     this.shipmentFreight = shipment?.freightCharge ?? null;
+    this.shipmentItems = (shipment?.items || []).map(item => ({ sku: item.sku, quantity: item.quantity }));
 
     // The dispatch form is for the same parcel, so it starts from what is already on the order: an
     // order shipped before this form existed (or one whose AWB was corrected on the card) is not asked
@@ -365,12 +388,72 @@ export class OrderDetailComponent implements OnInit {
     }
   }
 
-  /** The parcel of this order as it was last written down - absent while none has been recorded. */
-  get shipment(): AdminOrderShipment | null {
-    return this.order?.shipment ?? null;
+  /**
+   * Every parcel of this order, forward legs first - what the Shipment card lists. Falls back to the single parcel
+   * the API has always carried, so a card read from an older server still shows its parcel.
+   */
+  get parcels(): AdminOrderShipment[] {
+    const all = this.order?.shipments || [];
+
+    if (all.length) {
+      return all;
+    }
+
+    return this.order?.shipment ? [this.order.shipment] : [];
   }
 
-  /** True once an AWB is on the order; only then does the card say anything about shipping. */
+  /**
+   * The parcel the card is describing and editing: the one the team picked, else the order's first - and null while
+   * the team is booking a NEW one, which is what keeps a fresh form empty instead of filling itself back in from the
+   * first parcel.
+   */
+  get shipment(): AdminOrderShipment | null {
+    if (this.bookingNewParcel) {
+      return null;
+    }
+
+    if (this.selectedShipmentId) {
+      const chosen = this.parcels.find(parcel => parcel.shipmentId === this.selectedShipmentId);
+
+      if (chosen) {
+        return chosen;
+      }
+    }
+
+    return this.order?.shipment ?? this.parcels[0] ?? null;
+  }
+
+  /** True while the parcel being described is the order's return pickup rather than a parcel that went out. */
+  get shipmentIsReverse(): boolean {
+    return this.shipment?.isReverse === true || this.shipment?.direction === 'Reverse';
+  }
+
+  /** Shows another parcel's details in the card (and fills the form from it). */
+  selectParcel(parcel: AdminOrderShipment): void {
+    this.selectedShipmentId = parcel.shipmentId;
+    this.bookingNewParcel = false;
+    this.shipmentMessage = '';
+    this.shipmentError = false;
+    this.prefillShipmentForm();
+  }
+
+  /**
+   * Empties the form for a parcel that is not on the order yet: the next consignment of the same order. The provider
+   * is kept, because a shop that booked one parcel with one provider books the next with the same one.
+   */
+  bookAnotherParcel(): void {
+    this.selectedShipmentId = null;
+    this.bookingNewParcel = true;
+    this.shipmentMessage = '';
+    this.shipmentError = false;
+    this.shipmentAwb = '';
+    this.shipmentCourier = '';
+    this.shipmentTrackingUrl = '';
+    this.shipmentFreight = null;
+    this.shipmentItems = [];
+  }
+
+  /** True once an AWB is on the parcel being described; only then does the card say anything about shipping. */
   get hasShipment(): boolean {
     return !!this.shipment && this.shipment.hasShipment;
   }
@@ -393,6 +476,95 @@ export class OrderDetailComponent implements OnInit {
    */
   get shipmentHasCourier(): boolean {
     return this.shipment?.reportsTracking !== false;
+  }
+
+  /**
+   * The order's own units, one entry per SKU with how many of it the order holds: an order line is one row per
+   * physical unit, so the rows ARE the count - the same truth the server checks a parcel's contents against.
+   */
+  get orderUnits(): { sku: string; productTitle: string; units: number }[] {
+    const grouped = new Map<string, { sku: string; productTitle: string; units: number }>();
+
+    for (const line of this.order?.items || []) {
+      const known = grouped.get(line.sku);
+
+      if (known) {
+        known.units += 1;
+      } else {
+        grouped.set(line.sku, { sku: line.sku, productTitle: line.productTitle || line.productName, units: 1 });
+      }
+    }
+
+    return Array.from(grouped.values());
+  }
+
+  /**
+   * How many units of a SKU the order's OTHER parcels already carry. The parcel being edited is left out, because
+   * its own units are the ones the form is holding: what is left to give it is the order's units less everything
+   * that is already in a different parcel.
+   */
+  unitsCarriedElsewhere(sku: string): number {
+    const editing = this.bookingNewParcel ? null : this.shipment?.shipmentId ?? null;
+
+    return this.parcels
+      .filter(parcel => parcel.shipmentId !== editing && !parcel.isReverse)
+      .reduce((sum, parcel) => sum + (parcel.items || [])
+        .filter(item => item.sku === sku)
+        .reduce((carried, item) => carried + item.quantity, 0), 0);
+  }
+
+  /** How many units of a SKU this parcel may still carry - none once the order's other parcels have taken them. */
+  unitsLeftFor(sku: string): number {
+    const onOrder = this.orderUnits.find(unit => unit.sku === sku);
+
+    return Math.max(0, (onOrder?.units ?? 0) - this.unitsCarriedElsewhere(sku));
+  }
+
+  /** How many units of a SKU the parcel in the form says it carries (0 while it says nothing about it). */
+  carriedQuantity(sku: string): number {
+    return this.shipmentItems.find(item => item.sku === sku)?.quantity ?? 0;
+  }
+
+  /** True when the parcel in the form says it carries this SKU. */
+  isCarried(sku: string): boolean {
+    return this.carriedQuantity(sku) > 0;
+  }
+
+  /**
+   * Ticks or unticks a SKU of the parcel in the form: unticking takes it out of the parcel, ticking gives it one
+   * unit - which the count beside it can then be raised from.
+   */
+  toggleCarried(sku: string, carried: boolean): void {
+    if (carried) {
+      this.setCarried(sku, 1);
+    } else {
+      this.shipmentItems = this.shipmentItems.filter(item => item.sku !== sku);
+    }
+  }
+
+  /**
+   * Puts the number of units of a SKU in this parcel, kept inside what the order really has left - the server refuses
+   * more, and a wrong number here would be a delivery nobody can account for. Zero takes the SKU out of the parcel.
+   */
+  setCarried(sku: string, quantity: number): void {
+    const wanted = Math.min(Math.max(0, Math.floor(Number(quantity) || 0)), this.unitsLeftFor(sku));
+    const rest = this.shipmentItems.filter(item => item.sku !== sku);
+
+    this.shipmentItems = wanted > 0
+      ? [...rest, { sku, quantity: wanted }].sort((left, right) => left.sku.localeCompare(right.sku))
+      : rest;
+  }
+
+  /** What the parcel in the form carries, as one sentence ('2 x HC-1042, 1 x HC-7'). */
+  get shipmentItemsText(): string {
+    return this.shipmentItems.map(item => `${item.quantity} x ${item.sku}`).join(', ');
+  }
+
+  /** What is left to dispatch: the order's units less what its parcels already carry, per SKU. */
+  get unitsStillToShip(): { sku: string; units: number }[] {
+    return this.orderUnits
+      .map(unit => ({ sku: unit.sku, units: unit.units - this.unitsCarriedElsewhere(unit.sku) }))
+      .filter(unit => unit.units > 0);
   }
 
   /**
@@ -816,6 +988,26 @@ export class OrderDetailComponent implements OnInit {
       return;
     }
 
+    // A parcel going out has to say what is in it: its own courier bill is charged to those units for the books, and
+    // a parcel nobody can say what it carried is a cost the shop cannot put anywhere. (The server refuses it in the
+    // same words - this only saves a round trip.) The order's units are picked from the Items list above.
+    if (this.shipmentItems.length === 0) {
+      this.shipmentMessage =
+        'Pick the units this parcel carries. A parcel going out with nothing in it is one nobody can bill for - ' +
+        'tick the goods above and set how many of each are in it.';
+      this.shipmentError = true;
+      return;
+    }
+
+    const overrun = this.shipmentItems.find(item => item.quantity > this.unitsLeftFor(item.sku));
+    if (overrun) {
+      this.shipmentMessage =
+        `This order only has ${this.unitsLeftFor(overrun.sku)} of '${overrun.sku}' left for this parcel - ` +
+        'some of them are already in another parcel.';
+      this.shipmentError = true;
+      return;
+    }
+
     const userId = this.authService.getUser()?.userId ?? 0;
     if (!userId) {
       this.shipmentMessage = 'Your admin session has no user id - please sign in again.';
@@ -824,6 +1016,11 @@ export class OrderDetailComponent implements OnInit {
     }
 
     const request: AdminSaveOrderShipmentRequest = {
+      // Which parcel this is: the one the card is showing, so correcting a second parcel of the same order corrects
+      // THAT one. Null while booking a new one, which is what makes the server treat a number it has not seen as a
+      // new consignment rather than as a correction of the first parcel (see IShipmentTrackingService.SaveAsync).
+      shipmentId: this.bookingNewParcel ? null : this.shipment?.shipmentId ?? null,
+
       // Blank means 'the provider the shop defaults to', which is what a one-aggregator shop leaves it as.
       provider: this.shipmentProvider || null,
       awbNumber: this.shipmentAwb.trim(),
@@ -832,7 +1029,11 @@ export class OrderDetailComponent implements OnInit {
 
       // What the courier billed for this parcel, for the books. A blank box sends nothing, which leaves
       // whatever is recorded alone - so the figure can be added on a later visit.
-      freightCharge: this.shipmentFreight
+      freightCharge: this.shipmentFreight,
+
+      // What is in the parcel, which is what that bill is charged to (see OrderItemMoneyWriter). Sent always, because
+      // the picker is filled from the parcel: an unticked SKU is the team saying this parcel does not carry it.
+      items: this.shipmentItems.map(item => ({ sku: item.sku, quantity: item.quantity }))
     };
 
     this.isSavingShipment = true;
@@ -846,6 +1047,12 @@ export class OrderDetailComponent implements OnInit {
         this.shipmentMessage = (result.messages || []).join(' ');
 
         if (result.result === 1) {
+          // The parcel the server wrote is the one the card keeps showing - a second parcel must not leave the form
+          // looking as if nothing happened, and the order is re-read so the list, the history and the per-unit
+          // figures are all the ones on record.
+          this.selectedShipmentId = result.shipmentId || null;
+          this.bookingNewParcel = false;
+
           this.loadOrder(this.order!.orderId);
         }
       },
@@ -974,9 +1181,45 @@ export class OrderDetailComponent implements OnInit {
     }
   }
 
-  /** What the courier billed for this order's parcel, when the team recorded it (0 otherwise). */
+  /** What the couriers billed for every parcel of this order, when the team recorded it (0 otherwise). */
   get courierCost(): number {
-    return this.shipment?.freightCharge ?? 0;
+    return this.parcels.reduce((sum, parcel) => sum + (parcel.freightCharge ?? 0), 0);
+  }
+
+  /**
+   * What each of this order's lines really carried, money-wise - the recorded split (see the API's
+   * AdminOrderItemMoney). Empty for an order whose per-unit figures have not been written yet, which the card says
+   * rather than showing zeros.
+   */
+  get lineMoney(): AdminOrderItemMoney[] {
+    return this.order?.lineMoney || [];
+  }
+
+  /** How many units the per-unit table covers: the order's own units, one row per physical unit. */
+  get lineMoneyUnits(): number {
+    return this.lineMoney.reduce((sum, money) => sum + money.units, 0);
+  }
+
+  /** The output GST of those lines - the tax held for the government on them. */
+  get lineMoneyGst(): number {
+    return this.lineMoney.reduce((sum, money) => sum + money.outputGst, 0);
+  }
+
+  /**
+   * The lines' parts of the gateway's charge and the GST on it. A line whose charge is not known counts as nothing
+   * rather than as zero, so the total is what IS known - the table marks the rows that are short, one by one.
+   */
+  get lineMoneyFee(): number {
+    return this.lineMoney.reduce((sum, money) => sum + (money.gatewayFee ?? 0), 0);
+  }
+
+  get lineMoneyTax(): number {
+    return this.lineMoney.reduce((sum, money) => sum + (money.gatewayTax ?? 0), 0);
+  }
+
+  /** The lines' parts of the couriers' bills - what the parcels that carried them cost. */
+  get lineMoneyFreight(): number {
+    return this.lineMoney.reduce((sum, money) => sum + (money.freightShare ?? 0), 0);
   }
 
   /**

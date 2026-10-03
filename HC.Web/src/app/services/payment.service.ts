@@ -157,6 +157,13 @@ export interface OrderShipment {
   /** The order's status after the pull, when the caller is an order screen. */
   orderStatusId: number | null;
   orderStatus: string | null;
+
+  /**
+   * How many parcels of this leg the order has, as the read counted them. An order can go out in more than one
+   * parcel - a heavy thing in one, the rest in another - and the strip below shows the first of them, so this is
+   * what says there are more. 1 for the ordinary single-parcel order.
+   */
+  parcelsInLeg?: number;
 }
 
 /**

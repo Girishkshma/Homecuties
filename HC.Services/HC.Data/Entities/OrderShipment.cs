@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace HC.Data.Entities;
 
@@ -15,10 +16,17 @@ namespace HC.Data.Entities;
 /// Either way this row is where the AWB, the courier, the tracking link and the courier's latest status are
 /// kept, so both the storefront and the admin order screen can answer that question.
 ///
-/// One row per LEG of an order (unique index on OrderID + Direction, see CreateOrderShipmentsTable.sql
-/// and AddOrderShipmentsDirection.sql): the parcel that went out is 'Forward', and a delivered order
-/// whose return is arranged gets a second 'Reverse' row for the pickup coming back. Both legs are
-/// tracked the same way, so "where is the parcel?" is answered the same whichever way it is travelling.
+/// One row per PARCEL of an order: an order can go out in more than one parcel - a heavy thing in one, the rest in
+/// another - and each is a real consignment with its own AWB, courier and bill (see
+/// CreateOrderShipmentsTable.sql and AllowMultipleOrderShipments.sql; the same AWB is never recorded twice for the
+/// same order and leg). 'Forward' is a parcel that went out, and a delivered order whose return is arranged gets a
+/// reverse row for the pickup coming back. Both legs are tracked the same way, so "where is the parcel?" is
+/// answered the same whichever way it is travelling.
+///
+/// What is IN a parcel is <see cref="OrderShipmentItem"/>: the units the shop team picked when they recorded it,
+/// which is what its bill is charged to (<c>OrderItemMoney.FreightShare</c>). The order's own progress is told
+/// from its parcels together: the first parcel out is what 'the parcel' still means everywhere a single one is
+/// read (<c>ShipmentTrackingService.ForwardLeg</c>), and the order is delivered once every forward parcel is.
 /// </summary>
 public partial class OrderShipment
 {
@@ -146,6 +154,14 @@ public partial class OrderShipment
     public DateTime CreatedOn { get; set; }
 
     public DateTime? UpdatedOn { get; set; }
+
+    /// <summary>
+    /// The goods this parcel carries, one row per SKU (see <see cref="OrderShipmentItem"/>). Empty for a parcel
+    /// recorded before the shop said what was in it, and for a reverse leg - which brings the goods back rather
+    /// than taking them out - so the per-unit money read falls back to splitting that parcel's bill across the
+    /// order's units rather than losing the figure.
+    /// </summary>
+    public virtual ICollection<OrderShipmentItem> Items { get; set; } = new List<OrderShipmentItem>();
 
     public virtual Order Order { get; set; } = null!;
 }

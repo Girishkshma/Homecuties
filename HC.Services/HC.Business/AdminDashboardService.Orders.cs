@@ -167,6 +167,35 @@ public partial class AdminDashboardService : IAdminDashboardService
         if (order == null)
             return null;
 
+        // What each of the order's lines really carried, money-wise - the split the shop records
+        // (OrderItemMoney, see OrderItemMoneyWriter). Its own table, so it is read on its own: nothing about the
+        // order's own rows changes because the split exists, and an order nothing has touched since that table was
+        // created simply has none yet (the screen says so rather than showing zeros).
+        var lineMoney = await _context.OrderItemMoney
+            .AsNoTracking()
+            .Where(money => money.OrderId == orderId)
+            .ToListAsync();
+
+        // How many units of each SKU the order holds: an order line is one row per physical unit, so the rows are
+        // the count - which is what the per-line figures above are the whole of.
+        var unitsBySku = order.Items
+            .GroupBy(item => item.Sku, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.Count(), StringComparer.OrdinalIgnoreCase);
+
+        order.LineMoney = lineMoney
+            .OrderBy(money => money.Sku, StringComparer.Ordinal)
+            .Select(money => new AdminOrderItemMoneyDto
+            {
+                Sku = money.Sku,
+                Units = unitsBySku.GetValueOrDefault(money.Sku, 0),
+                OutputGst = money.OutputGst,
+                GatewayFee = money.GatewayFee,
+                GatewayTax = money.GatewayTax,
+                FreightShare = money.FreightShare,
+                ChargesSource = money.ChargesSource
+            })
+            .ToList();
+
         // The money side of the order: its newest payment row carries the refund state, and the row
         // itself is what a refund is sent against. Read on its own because no other screen needs the
         // whole list of attempts.
@@ -227,7 +256,13 @@ public partial class AdminDashboardService : IAdminDashboardService
         // The parcel, if the shop has recorded one. Read on its own because it lives in its own table and
         // comes through the provider-neutral tracking service - which is also what keeps opening an order
         // off the courier's critical path: this only reads what was written down last time.
-        order.Shipment = await _shipmentTracking.GetForOrderAsync(orderId);
+        //
+        // Every parcel, because an order can go out in more than one: the Shipment card shows them all, each with
+        // what it carries and each correctable on its own (see SaveOrderShipmentRequest.ShipmentId). 'The parcel' -
+        // the single field the rest of this answer has always carried - is the first forward one, taken from this
+        // list rather than read a second time, so the status line and the card can never describe two parcels.
+        order.Shipments = await _shipmentTracking.GetAllForOrderAsync(orderId);
+        order.Shipment = order.Shipments.FirstOrDefault(parcel => !parcel.IsReverse);
 
         // The return of this order, if it has one: the order-level record of it (see OrderReturnFlow), with
         // the parcel coming back beside it - which is what the Return card needs to show the ask, offer the

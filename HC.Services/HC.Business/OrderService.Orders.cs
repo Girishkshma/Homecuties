@@ -345,6 +345,14 @@ public partial class OrderService : IOrderService
         }
         await _context.SaveChangesAsync();
 
+        // The units are written, so each line's own books can be opened straight away: the output GST inside what
+        // the customer paid for them is already known - the checkout charged it - while the gateway's charge and the
+        // couriers' bills are not yet, which is exactly why those stay NULL here until something reports them (see
+        // OrderItemMoneyWriter). It is written at placement rather than only at capture so that a sale whose payment
+        // is still to come, or one that never is (a retried attempt, cash on delivery), still has its per-line books
+        // from the moment the order exists.
+        await OrderItemMoneyWriter.RefreshAsync(_context, order.OrderId);
+
         if (stockChangedItems.Any())
         {
             messages.Add($"Stock changed while placing your order - adjusted for: {string.Join(", ", stockChangedItems)}");

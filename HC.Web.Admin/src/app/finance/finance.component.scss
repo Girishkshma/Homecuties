@@ -228,6 +228,26 @@ section.stats-section {
   color: #6b4a1f;
 }
 
+/* Whose books the screen is showing, when they are a partner's rather than the whole shop's. Not styled as a .note:
+   it is not a finding about the figures, it is what the figures are of - so it reads as a heading band, and in a
+   colour nothing else on the screen uses. */
+.scope-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 24px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: #eef4ff;
+  border-left: 4px solid #2b5cb8;
+  font-size: 13px;
+  color: #1e3a6e;
+
+  strong {
+    font-size: 15px;
+  }
+}
+
 .detail-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

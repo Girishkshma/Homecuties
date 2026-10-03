@@ -76,11 +76,21 @@ public partial class HomecutiesDbContext : DbContext
 
     public virtual DbSet<OrderItem> OrderItems { get; set; }
 
+    /// <summary>
+    /// What each order line carried, money-wise - derived, see <see cref="HC.Data.Entities.OrderItemMoney"/>.
+    /// </summary>
+    public virtual DbSet<OrderItemMoney> OrderItemMoney { get; set; }
+
     public virtual DbSet<OrderPayment> OrderPayments { get; set; }
 
     public virtual DbSet<OrderReturn> OrderReturns { get; set; }
 
     public virtual DbSet<OrderShipment> OrderShipments { get; set; }
+
+    /// <summary>
+    /// What went in each parcel, one row per SKU - see <see cref="HC.Data.Entities.OrderShipmentItem"/>.
+    /// </summary>
+    public virtual DbSet<OrderShipmentItem> OrderShipmentItems { get; set; }
 
     public virtual DbSet<OrderStatus> OrderStatuses { get; set; }
 
@@ -837,6 +847,46 @@ public partial class HomecutiesDbContext : DbContext
                 .HasConstraintName("FK_OrderItems_SKUs");
         });
 
+        // What one order line carried, money-wise: the per-unit figures the Finance screen's breakdown and the
+        // order screen's per-unit card read (see HC.Data.Entities.OrderItemMoney and
+        // HC.Business.OrderItemMoneyWriter, which is the only thing that writes them).
+        modelBuilder.Entity<OrderItemMoney>(entity =>
+        {
+            // One row per order line, which IS the row's whole key.
+            entity.HasKey(e => new { e.OrderId, e.Sku });
+
+            entity.ToTable("OrderItemMoney");
+
+            entity.Property(e => e.OrderId).HasColumnName("OrderID");
+            entity.Property(e => e.Sku)
+                .HasMaxLength(20)
+                .IsUnicode(false)
+                .HasColumnName("SKU");
+
+            // Money is decimal(18, 2) - an order-level figure split across its lines, so the same width the
+            // order-level columns use (see OrderPayment.Amount). The nullable three are decimal(18, 2) as well:
+            // null is "the gateway/courier has not said", which must not read as a free charge.
+            entity.Property(e => e.OutputGst).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.GatewayFee).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.GatewayTax).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.FreightShare).HasColumnType("decimal(18, 2)");
+
+            // Where those charges came from - OrderPaymentCharges.FromPayment/FromRecon, the same vocabulary the
+            // payment row carries, so a per-line fee and the payment it was cut from can never disagree about
+            // whether the figure is the bank's own.
+            entity.Property(e => e.ChargesSource)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+
+            entity.Property(e => e.CreatedOn).HasColumnType("datetime");
+            entity.Property(e => e.UpdatedOn).HasColumnType("datetime");
+
+            entity.HasOne(d => d.Order).WithMany(p => p.OrderItemMoney)
+                .HasForeignKey(d => d.OrderId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_OrderItemMoney_Orders");
+        });
+
         modelBuilder.Entity<OrderPayment>(entity =>
         {
             entity.HasKey(e => e.PaymentId);
@@ -1027,6 +1077,46 @@ public partial class HomecutiesDbContext : DbContext
                 .HasForeignKey(d => d.OrderId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_OrderShipments_Orders");
+        });
+
+        // What went in each parcel: the units the shop team picked when they recorded it, one row per SKU
+        // (see HC.Data.Entities.OrderShipmentItem). The parcel's own courier bill is split across exactly these
+        // rows (HC.Business.OrderItemMoneyWriter), which is the whole reason they are recorded.
+        modelBuilder.Entity<OrderShipmentItem>(entity =>
+        {
+            entity.HasKey(e => e.ShipmentItemId);
+
+            entity.ToTable("OrderShipmentItems");
+
+            entity.Property(e => e.ShipmentItemId).HasColumnName("ShipmentItemID");
+            entity.Property(e => e.ShipmentId).HasColumnName("ShipmentID");
+            entity.Property(e => e.OrderId).HasColumnName("OrderID");
+
+            // The parcel's own leg, copied onto the row so a reader can tell which units went out and which came
+            // back without reading the parcels (the code that writes it always copies the parcel's direction).
+            entity.Property(e => e.Direction)
+                .HasMaxLength(10)
+                .IsUnicode(false);
+            entity.Property(e => e.Sku)
+                .HasMaxLength(20)
+                .IsUnicode(false)
+                .HasColumnName("SKU");
+
+            entity.Property(e => e.CreatedOn).HasColumnType("datetime");
+            entity.Property(e => e.UpdatedOn).HasColumnType("datetime");
+
+            // The goods belong to the parcel: deleting a parcel takes its contents with it (the constraint is a
+            // cascade, see CreateOrderShipmentItemsTable.sql), because a row naming no parcel describes goods
+            // that are nowhere.
+            entity.HasOne(d => d.Shipment).WithMany(p => p.Items)
+                .HasForeignKey(d => d.ShipmentId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_OrderShipmentItems_OrderShipments");
+
+            entity.HasOne(d => d.Order).WithMany(p => p.OrderShipmentItems)
+                .HasForeignKey(d => d.OrderId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_OrderShipmentItems_Orders");
         });
 
         modelBuilder.Entity<OrderStatus>(entity =>

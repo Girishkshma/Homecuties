@@ -123,8 +123,12 @@ public interface IAdminDashboardService
     /// alone (<see cref="SyncSettlementsAsync"/> and the server's own pass), and this only reports what has
     /// already been written down - including, in its messages, the days the pull has not been run for.
     ///
-    /// No acting admin is taken for the same reason: the only thing a person can get wrong about it is asking for
-    /// the wrong period, which the answer says back.
+    /// The acting admin IS taken, and it is what decides whose books come back: an admin or a super admin is given
+    /// the whole shop's, and a user the shop has linked to a partner (<c>PartnersUser</c>) that partner's own sales
+    /// alone - the goods their own stock supplied, with the answer saying whose books these are. The id must be the
+    /// signed-in admin's own, read from the validated token and never from the request (see
+    /// AdminController.GetFinanceSummary): a caller that could name the user could name any partner and read their
+    /// books.
     /// </summary>
-    Task<AdminFinanceSummaryDto> GetFinanceSummaryAsync(DateTime? from, DateTime? to);
+    Task<AdminFinanceSummaryDto> GetFinanceSummaryAsync(DateTime? from, DateTime? to, long adminUserId);
 }

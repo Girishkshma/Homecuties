@@ -837,6 +837,13 @@ public static class RazorpaySettlements
         var creditMismatches = 0;
         var failedDays = 0;
 
+        // The orders whose payment charges this pull corrected. Their per-unit figures were cut from the charges
+        // the capture had reported, so a correction to what the bank was actually settled on has to be pushed down
+        // to the lines as well - which is what the writer does, once, at the end of the pull rather than once per
+        // line (see OrderItemMoneyWriter). The set is what keeps a payment corrected twice from being written
+        // twice.
+        var ordersToRecut = new HashSet<long>();
+
         // 1. The settlements of the window, written down first: a recon line names the settlement it came in
         //    with, and a line cannot point at one this pull has not stored yet.
         var settlements = new List<Settlement>();
@@ -986,6 +993,10 @@ public static class RazorpaySettlements
                         {
                             payment.UpdatedOn = now;
                             paymentsCorrected++;
+
+                            // The order's own lines carry parts of this charge: they are recut from it below, once
+                            // the whole pull has been written.
+                            ordersToRecut.Add(payment.OrderId);
                         }
                     }
                 }
@@ -1021,6 +1032,23 @@ public static class RazorpaySettlements
         // 3. Everything the window wrote, in one save: the lines, the payment rows the recon corrected and the
         //    days the settlements went through.
         await context.SaveChangesAsync();
+
+        // 3b. And what those corrections mean for the shop's own lines: a per-unit figure is a part of the charge
+        //     on its order's payment row, so correcting the charge means recutting the lines - the recon's figure
+        //     is the one that goes into the books, not the capture's estimate it replaced (see
+        //     OrderPaymentCharges.IsAuthoritative). One pass over the orders this pull touched, after the save
+        //     that wrote them, because the writer reads the payment rows back from the database.
+        var recut = ordersToRecut.Count == 0
+            ? default(OrderItemMoneyWriter.Result)
+            : await OrderItemMoneyWriter.RefreshAsync(context, ordersToRecut, CancellationToken.None);
+
+        if (recut.ParcelsWithoutItems > 0)
+        {
+            messages.Add(
+                $"{recut.ParcelsWithoutItems} of the period's parcels have no goods recorded against them, so their " +
+                "courier bill was charged to the whole order's lines rather than to what was really in them - say " +
+                "what is in a parcel from its Shipment card on the order screen.");
+        }
 
         // 4. The other half of the same question - the money the gateway is still holding on the shop's behalf
         //    (see RazorpayRefunds). A refund travels for a day or two, so a daily pull is exactly when it is
