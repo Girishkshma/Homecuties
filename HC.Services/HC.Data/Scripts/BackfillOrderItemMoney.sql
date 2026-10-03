@@ -345,7 +345,11 @@ BEGIN TRY
 
     COMMIT TRANSACTION;
 
-    PRINT CONCAT('Backfilled ', @Written, ' per-unit row(s) for ', (SELECT COUNT(*) FROM #Orders), ' order(s).');
+    -- The count is taken into a variable first: CONCAT does not accept a subquery in its arguments
+    -- ('Subqueries are not allowed in this context').
+    DECLARE @Orders int = (SELECT COUNT(*) FROM #Orders);
+
+    PRINT CONCAT('Backfilled ', @Written, ' per-unit row(s) for ', @Orders, ' order(s).');
 
     -- The check, in plain terms: any order whose per-line gateway fee does not add back up to the charge on its
     -- payment rows is a disagreement between this script and the app, and is printed here rather than left to be
