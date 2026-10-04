@@ -185,10 +185,10 @@
   border-radius: var(--radius-round);
 }
 
-/* What one unit costs, read one discount at a time: the actual (marked) price, what the first discount leaves of it
-   where a second is still to come, and then the price itself under its own name, tax status and all - so the figure
+/* What one unit costs, read one discount at a time: the actual (marked) price, a step for each discount the product
+   carries in the order they come off, and then the price itself under its own name, tax status and all - so the figure
    the cart charges is named by the walk rather than pointed at from under it. Each step is said the same way, so the
-   two or three can be read one after the other, and only the first is struck through. */
+   two to four can be read one after the other, and only the first is struck through. */
 .price-steps {
   margin: 0.75rem 0 0;
   display: flex;
@@ -226,14 +226,17 @@
     color: var(--gray-700);
   }
 
-  /* The marked price, struck through: the cue a shopper reads as "this is what it was". */
+  /* The marked price, struck through: the cue a shopper reads as "this is what it was". It is only ever the first step,
+     and never matches when the walk is the one price said once with no discount to strike it against. */
   &:first-child:not(:last-child) dd {
     font-weight: 400;
     color: var(--text-muted);
     text-decoration: line-through;
   }
 
-  /* The price the walk ends on: the figure the customer pays, and the one the cart charges. */
+  /* The price the walk ends on: the figure the customer pays, and the one the cart charges. It is held whatever the
+     discounts are, so where the last discount row above already holds that figure the walk repeats it under a label
+     that names it. */
   &:last-child dd {
     font-size: 1.75rem;
     font-weight: 700;

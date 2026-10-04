@@ -76,23 +76,29 @@
             </span>
           </div>
 
-          <!-- What one costs, read one discount at a time: the actual (marked) price, the price the first discount leaves
-               of it where a second discount is still to come, and then the price itself - the step named 'Selling Price',
-               so the figure the cart charges and the customer pays is the one the walk calls out rather than a line under
-               the figures pointing at a position. That last step answers the tax question in brackets beside its own
-               name, a size down, where the shopper is already reading. A step is shown only where it holds a figure the
-               step below does not, so a product with no discount is the one price said once, and the actual price is
-               struck through only when there is a discount to strike it against. What the price is made of - the shop's
-               own margin, its packaging / storage / delivery costs and the tax taken apart - is internal to the shop: it
-               belongs on the bill the shop generates, never on the product page. -->
+          <!-- What one costs, read one discount at a time - every step the product's own figures support, in the order the
+               discounts come off: the actual (marked) price wherever a discount is set, a row for each discount that is
+               set ('After X% discount', then 'After a further Y% discount', the second coming off what the first left),
+               and then, always and last, the price itself under its own name - 'Selling Price' - so the figure the cart
+               charges and the customer pays is the one the walk calls out rather than a line under the figures pointing
+               at a position. That last row answers the tax question in brackets beside its own name, a size down, where
+               the shopper is already reading. A discount row can hold the same figure as the selling price under it -
+               the discount is the last thing that changed it - and the two labels are what tell them apart; the marked
+               price is struck through only where there is a discount to strike it against. What the price is made of -
+               the shop's own margin, its packaging / storage / delivery costs and the tax taken apart - is internal to
+               the shop: it belongs on the bill the shop generates, never on the product page. -->
           <dl class="price-steps">
             <div class="price-step" *ngIf="product.DiscountPercent > 0 || product.AdditionalDiscountPercent > 0">
               <dt>Actual Price</dt>
               <dd>{{ UtilityService.currencyFormat(product.PreDiscountListingPrice) }}</dd>
             </div>
-            <div class="price-step" *ngIf="product.DiscountPercent > 0 && product.AdditionalDiscountPercent > 0">
+            <div class="price-step" *ngIf="product.DiscountPercent > 0">
               <dt>After {{ product.DiscountPercent }}% discount</dt>
               <dd>{{ UtilityService.currencyFormat(product.PostDiscountListingPrice) }}</dd>
+            </div>
+            <div class="price-step" *ngIf="product.AdditionalDiscountPercent > 0">
+              <dt>After a further {{ product.AdditionalDiscountPercent }}% discount</dt>
+              <dd>{{ UtilityService.currencyFormat(product.ListingPrice) }}</dd>
             </div>
             <div class="price-step">
               <dt>Selling Price <span class="price-tax-note">(GST Included)</span></dt>
