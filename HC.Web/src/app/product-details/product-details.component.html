@@ -4,6 +4,12 @@
     <ol class="breadcrumb">
       <li class="breadcrumb-item"><a routerLink="/">Home</a></li>
       <li class="breadcrumb-item"><a routerLink="/shop">Shop</a></li>
+      <!-- The category the shopper came from, when they opened the product out of a category listing - it goes back to
+           that listing. A product reached from anywhere else (home, favorites, a direct link) carries no category, so
+           this step is simply absent. -->
+      <li class="breadcrumb-item" *ngIf="breadcrumbCategory">
+        <a [routerLink]="['/shop', breadcrumbCategory.CategoryID]">{{ breadcrumbCategory.CategoryName }}</a>
+      </li>
       <li class="breadcrumb-item active" *ngIf="product">{{ product.ProductTitle }}</li>
     </ol>
   </nav>
@@ -70,30 +76,33 @@
             </span>
           </div>
 
-          <!-- What one costs, read one discount at a time: the sell price the shop marks it at, the price the discount
-               leaves of that, and the price the additional discount leaves - the last of them the figure the cart
-               charges and the customer pays. A step is shown only where that discount is set, so a product with none
-               is the one figure said once. -->
+          <!-- What one costs, read one discount at a time: the actual (marked) price, the price the first discount leaves
+               of it where a second discount is still to come, and then the price itself - the step named 'Selling Price',
+               so the figure the cart charges and the customer pays is the one the walk calls out rather than a line under
+               the figures pointing at a position. A step is shown only where it holds a figure the step below does not,
+               so a product with no discount is the one price said once, and the actual price is struck through only when
+               there is a discount to strike it against. -->
           <dl class="price-steps">
-            <div class="price-step">
-              <dt>Sell price</dt>
+            <div class="price-step" *ngIf="product.DiscountPercent > 0 || product.AdditionalDiscountPercent > 0">
+              <dt>Actual Price</dt>
               <dd>{{ UtilityService.currencyFormat(product.PreDiscountListingPrice) }}</dd>
             </div>
-            <div class="price-step" *ngIf="product.DiscountPercent > 0">
+            <div class="price-step" *ngIf="product.DiscountPercent > 0 && product.AdditionalDiscountPercent > 0">
               <dt>After {{ product.DiscountPercent }}% discount</dt>
               <dd>{{ UtilityService.currencyFormat(product.PostDiscountListingPrice) }}</dd>
             </div>
-            <div class="price-step" *ngIf="product.AdditionalDiscountPercent > 0">
-              <dt>After a further {{ product.AdditionalDiscountPercent }}% discount</dt>
+            <div class="price-step">
+              <dt>Selling Price</dt>
               <dd>{{ UtilityService.currencyFormat(product.ListingPrice) }}</dd>
             </div>
           </dl>
 
+          <!-- What a shopper needs to read the figures above and nothing more: that the price is tax-inclusive. It names
+               no figure of its own - the walk above names the one the customer pays. What the price is made of - the
+               shop's own margin, its packaging / storage / delivery costs and the tax taken apart - is internal to the
+               shop: it belongs on the bill the shop generates, never on the product page. -->
           <p class="price-note">
-            Every figure above is one unit priced the same way - the unit price, the shop's margin on it, its
-            packaging, storage and delivery charges, and the GST at {{ product.GstRatePercent }}% on what is left -
-            read with the discounts taken one after the other. The last figure is the one you pay
-            ({{ UtilityService.currencyFormat(product.GstAmount) }} of it is GST).
+            GST included.
           </p>
         </div>
 

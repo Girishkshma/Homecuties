@@ -125,6 +125,15 @@ export class ShopComponent implements OnInit, OnDestroy {
     this.loadProducts();
   }
 
+  /**
+   * The query parameters a product link carries: the category the shopper is browsing, so the product page can put it
+   * into its breadcrumb and walk the shopper back to the listing they came from. Empty on 'All Products', where no
+   * single category is being browsed and so none belongs in the trail.
+   */
+  get productLinkQueryParams(): { categoryId?: number } {
+    return this.selectedCategoryId ? { categoryId: this.selectedCategoryId } : {};
+  }
+
   private loadFavoriteStatus(): void {
     if (this.products.length === 0) return;
 

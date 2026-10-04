@@ -4,7 +4,7 @@ import { ProductService } from '../services/product.service';
 import { FavoritesService } from '../services/favorites.service';
 import { AuthService } from '../services/auth.service';
 import { CartService } from '../services/cart.service';
-import { Product } from '../models/product.model';
+import { Product, Category } from '../models/product.model';
 import { UtilityService } from '../services/utility.service';
 
 @Component({
@@ -22,6 +22,14 @@ export class ProductDetailsComponent implements OnInit, OnDestroy {
   addedToCart = false;
   isFavorite = false;
   UtilityService = UtilityService;
+
+  /**
+   * The category the shopper opened this product from, when they came out of a category listing ('shop/:categoryId').
+   * The shop's product links carry it as a query parameter and the breadcrumb uses it to put the category the shopper
+   * was browsing back into the trail. Null for a product reached from anywhere else (home, favorites, a direct link),
+   * so no category is invented for a walk that never had one.
+   */
+  fromCategoryId: number | null = null;
 
   // Image carousel
   currentIndex = 0;
@@ -44,6 +52,12 @@ export class ProductDetailsComponent implements OnInit, OnDestroy {
         this.loadProduct(productId);
       }
     });
+    // Read after every navigation: the category the shopper came from rides on the URL as a query parameter, so it
+    // survives a refresh and a shared link, and a walk in from anywhere else simply carries none.
+    this.route.queryParams.subscribe(params => {
+      const categoryId = params['categoryId'];
+      this.fromCategoryId = categoryId ? Number(categoryId) : null;
+    });
   }
 
   ngOnDestroy(): void {
@@ -62,6 +76,16 @@ export class ProductDetailsComponent implements OnInit, OnDestroy {
 
   get hasMultipleImages(): boolean {
     return this.images.length > 1;
+  }
+
+  /**
+   * The category step of the breadcrumb: the category the shopper came from, resolved to its name through the
+   * product's own categories (the list the page already holds). Null when nothing was carried, or the product is not
+   * filed under that category - in which case the trail has no category step at all.
+   */
+  get breadcrumbCategory(): Category | null {
+    if (!this.fromCategoryId || !this.product) return null;
+    return (this.product.Categories || []).find(c => c.CategoryID === this.fromCategoryId) ?? null;
   }
 
   private loadProduct(productId: string): void {

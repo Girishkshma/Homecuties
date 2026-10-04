@@ -50,7 +50,7 @@
             {{ product.Categories[0].CategoryName }}
           </div>
           <h3 class="product-name">
-            <a [routerLink]="['/product', product.ProductID]">{{ product.ProductTitle }}</a>
+            <a [routerLink]="['/product', product.ProductID]" [queryParams]="productLinkQueryParams">{{ product.ProductTitle }}</a>
           </h3>
           <p class="product-description">{{ product.ProductDescription | slice:0:120 }}{{ product.ProductDescription.length > 120 ? '...' : '' }}</p>
           <div class="stock-info" [class.out-of-stock]="!product.IsInStock"

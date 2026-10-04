@@ -185,9 +185,10 @@
   border-radius: var(--radius-round);
 }
 
-/* What one unit costs, read one discount at a time: the price the shop marks it at, what the discount leaves of it,
-   and what the additional discount leaves - the last of them the figure the cart charges. Each step is said the same
-   way (with the tax on what is left in it), so the three can be read one after the other. */
+/* What one unit costs, read one discount at a time: the actual (marked) price, what the first discount leaves of it
+   where a second is still to come, and then the price itself under its own name - so the figure the cart charges is
+   named by the walk rather than pointed at from under it. Each step is said the same way, so the two or three can be
+   read one after the other, and only the first is struck through. */
 .price-steps {
   margin: 0.75rem 0 0;
   display: flex;
@@ -233,8 +234,9 @@
   }
 }
 
-/* What the figures above are made of - the shop's own charges and the tax inside them - so the price a customer pays
-   is not a number they have to take on trust. */
+/* The one line under the figures: that the price is tax-inclusive. It names no figure - the walk above names the one
+   the customer pays. What the price is made of - the shop's margin, its own charges and the tax taken apart - is
+   internal to the shop and is not shown on the product page. */
 .price-note {
   margin: 0.75rem 0 0;
   font-size: 0.8125rem;
