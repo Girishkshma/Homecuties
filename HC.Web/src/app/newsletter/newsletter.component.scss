@@ -1,4 +1,6 @@
-/* ===== Newsletter Form ===== */
+/* ===== Newsletter Form =====
+   The form always sits on a dark band (the home CTA is black, and so is the footer), so it is
+   drawn as the reference draws a form on a dark band: a white field carrying an ink button. */
 .newsletter-form {
   width: 100%;
 }
@@ -6,21 +8,20 @@
 .newsletter-input-wrapper {
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: var(--radius-md);
+  background: var(--white);
+  border: 1px solid var(--white);
+  border-radius: var(--radius-input);
   overflow: hidden;
-  transition: border-color 0.2s ease, background 0.2s ease;
+  transition: border-color 0.2s ease;
 
   &:focus-within {
-    border-color: var(--accent);
-    background: rgba(255, 255, 255, 0.15);
+    border-color: var(--gray-400);
   }
 }
 
 .newsletter-icon {
   padding: 0 0 0 0.75rem;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--gray-500);
   font-size: 0.9rem;
   flex-shrink: 0;
 }
@@ -29,36 +30,38 @@
   flex: 1;
   border: none;
   background: transparent;
-  color: var(--white);
+  color: var(--heading-color);
+  font-family: var(--font-family);
   font-size: 0.875rem;
   padding: 0.7rem 0.5rem;
   outline: none;
   min-width: 0;
 
   &::placeholder {
-    color: rgba(255, 255, 255, 0.45);
+    color: var(--gray-500);
   }
 }
 
 .newsletter-btn {
   flex-shrink: 0;
   border: none;
-  background: var(--accent);
+  background: var(--primary);
   color: var(--white);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  padding: 0.7rem 1.125rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: var(--letter-label);
+  text-transform: uppercase;
+  padding: 0.85rem 1.25rem;
   cursor: pointer;
   transition: background 0.2s ease;
   white-space: nowrap;
-  letter-spacing: 0.3px;
 
   &:hover {
-    background: var(--accent-dark);
+    background: var(--primary-light);
   }
 
   &:disabled {
-    opacity: 0.7;
+    opacity: 0.5;
     cursor: not-allowed;
   }
 }
@@ -75,11 +78,12 @@
     font-size: 0.85rem;
   }
 
+  /* Both states are read against a dark band. */
   &.success {
-    color: #4ade80;
+    color: var(--white);
   }
 
   &.error {
-    color: #f87171;
+    color: #fca5a5;
   }
 }

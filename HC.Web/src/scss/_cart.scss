@@ -393,7 +393,7 @@
 
     &:focus {
       border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.1);
+      box-shadow: none;
     }
 
     &::placeholder {
@@ -419,7 +419,7 @@
 
   &.selected {
     border-color: var(--primary);
-    background: rgba(74, 108, 247, 0.03);
+    background: var(--surface);
   }
 
   .payment-radio {

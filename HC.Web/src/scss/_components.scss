@@ -89,18 +89,19 @@
 /* ===== Product Card ===== */
 .product-card {
   background: var(--white);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-card);
   overflow: hidden;
   transition: var(--transition-base);
   display: flex;
   flex-direction: column;
   height: 100%;
 
+  /* No lift and no shadow: on the reference a card answers with its image and its copy only. */
   &:hover {
-    box-shadow: var(--shadow-md);
-    border-color: var(--gray-300);
-    transform: translateY(-2px);
+    .product-name a {
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
   }
 
   .product-image {
@@ -121,21 +122,24 @@
       transform: scale(1.05);
     }
 
+    /* A flag on the reference is a black block with white tracked type. */
     .product-badge {
       position: absolute;
-      top: 10px;
-      left: 10px;
-      padding: 3px 10px;
-      border-radius: var(--radius-round);
-      font-size: 0.7rem;
-      font-weight: 600;
+      top: 12px;
+      left: 12px;
+      padding: 4px 9px;
+      border-radius: var(--radius-badge);
+      font-size: 0.625rem;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
-      background: var(--accent);
+      letter-spacing: 0.12em;
+      background: var(--primary);
       color: var(--white);
 
       &.badge-new {
-        background: var(--success);
+        background: var(--white);
+        color: var(--heading-color);
+        border: 1px solid var(--gray-300);
       }
     }
 
@@ -149,17 +153,16 @@
       transition: var(--transition-base);
 
       .btn-action {
-        width: 34px;
-        height: 34px;
-        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        border-radius: var(--radius-sm);
         border: none;
         background: var(--white);
-        color: var(--gray-600);
+        color: var(--heading-color);
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        box-shadow: var(--shadow-sm);
         transition: var(--transition-fast);
 
         &:hover {
@@ -168,7 +171,7 @@
         }
 
         &.active {
-          background: var(--accent);
+          background: var(--primary);
           color: var(--white);
         }
 
@@ -180,23 +183,24 @@
   }
 
   .product-body {
-    padding: 1rem;
+    padding: 1.1rem 1.2rem 1.25rem;
     display: flex;
     flex-direction: column;
     flex: 1;
 
     .product-category {
-      font-size: 0.7rem;
-      font-weight: 600;
+      font-size: 0.625rem;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: var(--primary);
-      margin-bottom: 0.35rem;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+      margin-bottom: 0.4rem;
     }
 
     .product-name {
       font-size: 0.9375rem;
       font-weight: 600;
+      letter-spacing: 0;
       margin-bottom: 0.35rem;
       line-height: 1.3;
 
@@ -204,8 +208,9 @@
         color: var(--heading-color);
 
         &:hover {
-          color: var(--primary);
-          text-decoration: none;
+          color: var(--heading-color);
+          text-decoration: underline;
+          text-underline-offset: 3px;
         }
       }
     }
@@ -247,20 +252,22 @@
         }
 
         .discount-badge {
-          font-size: 0.65rem;
-          font-weight: 600;
-          color: var(--accent);
-          background: rgba(231, 76, 60, 0.1);
-          padding: 1px 6px;
-          border-radius: var(--radius-sm);
+          font-size: 0.625rem;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: var(--white);
+          background: var(--primary);
+          padding: 2px 6px;
+          border-radius: var(--radius-badge);
           display: inline-block;
           width: fit-content;
         }
       }
 
       .btn-add-cart {
-        font-size: 0.75rem;
-        padding: 0.35rem 0.75rem;
+        font-size: 0.68rem;
+        padding: 0.5rem 0.9rem;
         white-space: nowrap;
       }
 
@@ -271,8 +278,8 @@
         pointer-events: auto;
 
         &:hover {
-          background: #16a34a;
-          border-color: #16a34a;
+          background: var(--success);
+          border-color: var(--success);
         }
       }
     }
@@ -287,19 +294,21 @@
   margin-bottom: 2rem;
 
   .filter-btn {
-    padding: 0.4rem 1rem;
-    border-radius: var(--radius-round);
+    padding: 0.5rem 1.1rem;
+    border-radius: var(--radius-button);
     border: 1px solid var(--gray-300);
     background: var(--white);
-    color: var(--gray-700);
-    font-size: 0.8125rem;
-    font-weight: 500;
+    color: var(--gray-800);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
     cursor: pointer;
     transition: var(--transition-fast);
 
     &:hover {
-      border-color: var(--primary);
-      color: var(--primary);
+      border-color: var(--heading-color);
+      color: var(--heading-color);
     }
 
     &.active {
@@ -344,9 +353,9 @@
 
   .product-gallery {
     .main-image {
-      border-radius: var(--radius-lg);
+      border-radius: var(--radius-media);
       overflow: hidden;
-      border: 1px solid var(--gray-200);
+      border: 1px solid var(--border-color);
       margin-bottom: 1rem;
 
       img {
@@ -364,9 +373,9 @@
       .thumbnail {
         width: 72px;
         height: 72px;
-        border-radius: var(--radius-md);
+        border-radius: var(--radius-media);
         overflow: hidden;
-        border: 2px solid var(--gray-200);
+        border: 1px solid var(--gray-300);
         cursor: pointer;
         transition: var(--transition-fast);
 
@@ -377,11 +386,11 @@
         }
 
         &.active {
-          border-color: var(--primary);
+          border-color: var(--heading-color);
         }
 
         &:hover {
-          border-color: var(--primary);
+          border-color: var(--heading-color);
         }
       }
     }
@@ -418,12 +427,14 @@
 
       .price-discount {
         display: inline-block;
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: var(--accent);
-        background: rgba(231, 76, 60, 0.1);
-        padding: 2px 8px;
-        border-radius: var(--radius-sm);
+        font-size: 0.625rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--white);
+        background: var(--primary);
+        padding: 3px 8px;
+        border-radius: var(--radius-badge);
         margin-left: 0.5rem;
       }
     }
@@ -454,7 +465,7 @@
           color: var(--gray-700);
 
           i {
-            color: var(--success);
+            color: var(--heading-color);
             margin-right: 0.5rem;
           }
         }
@@ -466,11 +477,14 @@
 
       .category-tag {
         display: inline-block;
-        padding: 0.25rem 0.75rem;
-        border-radius: var(--radius-round);
-        background: var(--gray-100);
-        color: var(--gray-700);
-        font-size: 0.8125rem;
+        padding: 0.3rem 0.7rem;
+        border-radius: var(--radius-badge);
+        background: var(--surface);
+        color: var(--gray-800);
+        font-size: 0.6875rem;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
         margin-right: 0.5rem;
         margin-bottom: 0.5rem;
       }
@@ -485,7 +499,7 @@
         display: flex;
         align-items: center;
         border: 1px solid var(--gray-300);
-        border-radius: var(--radius-md);
+        border-radius: var(--radius-input);
         overflow: hidden;
 
         button {
@@ -525,20 +539,21 @@
 
       .btn-add-to-cart {
         flex: 1;
-        padding: 0.6rem 1.5rem;
-        border: none;
-        border-radius: var(--radius-md);
+        padding: 0.8rem 1.6rem;
+        border: 1px solid var(--primary);
+        border-radius: var(--radius-button);
         background: var(--primary);
         color: var(--white);
-        font-weight: 600;
-        font-size: 0.9375rem;
+        font-weight: 700;
+        font-size: 0.78rem;
+        letter-spacing: var(--letter-label);
+        text-transform: uppercase;
         cursor: pointer;
         transition: var(--transition-base);
 
         &:hover:not(:disabled) {
           background: var(--primary-dark);
-          transform: translateY(-1px);
-          box-shadow: var(--shadow-md);
+          border-color: var(--primary-dark);
         }
 
         &:disabled {
@@ -548,13 +563,15 @@
       }
 
       .btn-favorite {
-        padding: 0.6rem 1.25rem;
-        border: 2px solid var(--gray-300);
-        border-radius: var(--radius-md);
+        padding: 0.8rem 1.35rem;
+        border: 1px solid var(--gray-300);
+        border-radius: var(--radius-button);
         background: var(--white);
-        color: var(--gray-700);
-        font-weight: 600;
-        font-size: 0.875rem;
+        color: var(--heading-color);
+        font-weight: 700;
+        font-size: 0.78rem;
+        letter-spacing: var(--letter-label);
+        text-transform: uppercase;
         cursor: pointer;
         transition: var(--transition-base);
         display: flex;
@@ -563,14 +580,14 @@
         white-space: nowrap;
 
         &:hover {
-          border-color: var(--accent);
-          color: var(--accent);
+          border-color: var(--heading-color);
+          color: var(--heading-color);
         }
 
         &.active {
-          border-color: var(--accent);
-          background: rgba(231, 76, 60, 0.05);
-          color: var(--accent);
+          border-color: var(--heading-color);
+          background: var(--surface);
+          color: var(--heading-color);
         }
 
         i {
@@ -636,7 +653,7 @@
 
   &.selected {
     border-color: var(--primary);
-    background: rgba(74, 108, 247, 0.03);
+    background: var(--surface);
   }
 
   input[type='radio'] {

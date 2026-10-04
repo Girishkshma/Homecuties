@@ -1,40 +1,87 @@
 /* ===== Custom Variables ===== */
+/* The values below are taken from the stylesheet of the storefront this theme follows
+   (insiderstore.com.br), so the shop reads as the same house: a monochrome, editorial
+   retail look - near black ink on white, one very light grey surface, hairline borders
+   instead of shadows, and Manrope for everything.
+
+   Reference tokens we mirror:
+     --font-body-family / --font-heading-family : "Manrope", sans-serif
+     --color-base-text                          : 61, 61, 61       (#3d3d3d)
+     --color-base-background-1 / -2             : #ffffff / #f3f3f3
+     --color-base-accent-1 / -2                 : #000000 / #121212
+     --buttons-radius                           : 6px
+     --inputs-radius / --media-radius            : 0px
+     --product-card-corner-radius               : 0.8rem
+     --page-width                               : 130rem (a wide page; we cap at 1400px) */
 :root {
-  --primary: #4a6cf7;
-  --primary-dark: #3b5de7;
-  --primary-light: #6b8aff;
-  --accent: #e74c3c;
-  --accent-dark: #c0392b;
-  --accent-light: #ff6b6b;
-  --success: #27ae60;
-  --warning: #f39c12;
-  --danger: #e74c3c;
-  --info: #3498db;
-  --dark: #2c3e50;
-  --gray-100: #f8f9fa;
-  --gray-200: #e9ecef;
-  --gray-300: #dee2e6;
-  --gray-400: #ced4da;
-  --gray-500: #adb5bd;
-  --gray-600: #6c757d;
-  --gray-700: #495057;
-  --gray-800: #343a40;
-  --gray-900: #212529;
+  /* ===== Ink ===== */
+  --primary: #121212;
+  --primary-dark: #000000;
+  --primary-light: #2e2e2e;
+  /* Used by rgba(var(--primary-rgb), a) rings in the product page. */
+  --primary-rgb: 18, 18, 18;
+  --accent: #121212;
+  --accent-dark: #000000;
+  --accent-light: #2e2e2e;
+  --dark: #121212;
+
+  /* ===== Status ===== */
+  --success: #1b7a43;
+  --warning: #b45309;
+  --danger: #b42318;
+  --info: #121212;
+
+  /* ===== Neutrals ===== */
+  --gray-100: #f7f7f7;
+  --gray-200: #ececec;
+  --gray-300: #dcdcdc;
+  --gray-400: #bdbdbd;
+  --gray-500: #949494;
+  --gray-600: #767676;
+  --gray-700: #595959;
+  --gray-800: #3d3d3d;
+  --gray-900: #121212;
   --white: #ffffff;
+  --surface: #f3f3f3;
+  --border-color: #ececec;
+
+  /* ===== Type ===== */
   --body-bg: #ffffff;
-  --body-color: #495057;
-  --heading-color: #212529;
-  --text-muted: #6c757d;
-  --font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  --navbar-height: 64px;
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-round: 50px;
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
-  --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
-  --transition-fast: all 0.15s ease;
-  --transition-base: all 0.25s ease;
+  --body-color: #3d3d3d;
+  --heading-color: #121212;
+  --text-muted: #767676;
+  --font-family: 'Manrope', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  --font-heading: 'Manrope', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  --letter-tight: -0.02em;
+  --letter-label: 0.08em;
+
+  /* ===== Page ===== */
+  --container-max: 1400px;
+  --container-pad: clamp(1rem, 3vw, 2rem);
+
+  /* ===== Header. The strip and the bar are two fixed pieces stacked, and the total is what the
+     page is pushed down by (body padding) and what the mobile drawer starts below. ===== */
+  --promo-height: 34px;
+  --navbar-bar: 72px;
+  --navbar-height: calc(var(--navbar-bar) + var(--promo-height));
+
+  /* ===== Shape. Buttons follow the reference's 6px, inputs and imagery are square. ===== */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-round: 6px;
+  --radius-button: 6px;
+  --radius-input: 2px;
+  --radius-media: 0px;
+  --radius-badge: 2px;
+  --radius-card: 8px;
+
+  /* ===== Depth. The reference shows no shadows; these are for true overlays only. ===== */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.12);
+
+  --transition-fast: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }

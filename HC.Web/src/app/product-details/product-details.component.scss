@@ -322,13 +322,15 @@
 .btn-add-to-cart {
   flex: 1;
   min-width: 160px;
-  height: 44px;
-  border: none;
+  height: 46px;
+  border: 1px solid var(--primary);
   background: var(--primary);
   color: var(--white);
-  font-size: 0.9375rem;
-  font-weight: 600;
-  border-radius: var(--radius-md);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: var(--letter-label);
+  text-transform: uppercase;
+  border-radius: var(--radius-button);
   cursor: pointer;
   transition: var(--transition-fast);
   display: inline-flex;
@@ -338,8 +340,7 @@
 
   &:hover:not(:disabled) {
     background: var(--primary-dark);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.3);
+    border-color: var(--primary-dark);
   }
 
   &:disabled {

@@ -13,11 +13,10 @@
   }
 
   .hero-banner {
-    padding: 4rem 0 3.5rem;
-    min-height: auto;
+    padding: 3.5rem 0 3rem;
 
     h1 {
-      font-size: 2.25rem;
+      font-size: 2.5rem;
     }
 
     .hero-stats {
@@ -87,23 +86,23 @@
 }
 
 @media (max-width: 768px) {
-  body {
-    padding-top: 56px;
-  }
-
+  /* The bar loses 14px and the strip 4px on a phone, and the page offset follows the same total
+     because body padding reads --navbar-height. */
   :root {
-    --navbar-height: 56px;
+    --promo-height: 30px;
+    --navbar-bar: 58px;
+    --navbar-height: calc(var(--navbar-bar) + var(--promo-height));
   }
 
   .header-logo img {
-    max-height: 28px;
+    max-height: 26px;
   }
 
   .hero-banner {
     padding: 2.5rem 0;
 
     h1 {
-      font-size: 1.5rem;
+      font-size: 2rem;
     }
 
     p {
@@ -183,8 +182,14 @@
     padding: 2rem 0;
 
     h1 {
-      font-size: 1.25rem;
+      font-size: 1.75rem;
     }
+  }
+
+  /* One promise fits a phone; three would wrap and push the bar taller. */
+  .header-promo .promo-sep,
+  .header-promo .promo-item:not(:first-child) {
+    display: none;
   }
 
   .product-card .product-image {
