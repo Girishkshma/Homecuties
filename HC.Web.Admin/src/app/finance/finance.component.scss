@@ -210,6 +210,36 @@ section.stats-section {
   }
 }
 
+/* What each item carried: .data-table carries the table itself (full width, collapsed borders, the padded header
+   band and the row rules - see scss/_tables.scss), and this is the same modifier the other screens' tables wear, so
+   the columns line up under their headings. The total is a real table row: the flex rules of the screens'
+   div-based .total-row summaries would break a row's columns, so the footer cells are its emphasis instead. */
+.modal-table {
+  border: 1px solid #eee;
+  border-radius: 8px;
+  overflow: hidden;
+
+  thead th {
+    font-size: 12px;
+  }
+
+  td {
+    font-size: 13px;
+  }
+
+  tfoot td {
+    font-weight: 600;
+    color: #1a1a2e;
+    border-top: 2px solid #e9ecef;
+  }
+}
+
+/* A figure nothing has reported yet: said in words rather than shown as a zero, which would read as money. */
+.unknown {
+  font-style: italic;
+  color: #999;
+}
+
 /* The findings the figures cannot say by themselves, in the API's own words (a charge the gateway never
    reported, a parcel with no courier bill, days the pull has no lines for). */
 .notes {

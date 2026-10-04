@@ -513,7 +513,7 @@
         that predate it. The order-level figures above are read from the payment row and are unaffected.
       </p>
 
-      <table class="modal-table" *ngIf="lineMoney.length > 0">
+      <table class="data-table modal-table" *ngIf="lineMoney.length > 0">
         <thead>
           <tr>
             <th>Item</th>
@@ -546,7 +546,10 @@
           </tr>
         </tbody>
         <tfoot>
-          <tr class="total-row">
+          <!-- A real table row: the .total-row style above is for the div summaries (it is a flex column), and on
+               a <tr> it would break the row's columns away from the table's own. The footer cells are the total's
+               emphasis here. -->
+          <tr>
             <td>Total</td>
             <td>{{ lineMoneyUnits }}</td>
             <td>{{ lineMoneyGst | currency:'INR' }}</td>

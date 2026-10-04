@@ -216,7 +216,7 @@
       </p>
 
       <div class="ledger-card" *ngIf="lineItems.length > 0">
-        <table class="modal-table">
+        <table class="data-table modal-table">
           <thead>
             <tr>
               <th>Item</th>
@@ -252,7 +252,10 @@
             </tr>
           </tbody>
           <tfoot>
-            <tr class="total-row">
+            <!-- A real table row: the screens' .total-row style is for the div summaries (it is a flex column),
+                 and on a <tr> it would break the row's columns away from the table's own. The footer cells are
+                 the total's emphasis here. -->
+            <tr>
               <td>Total</td>
               <td>{{ lineItemsUnits }}</td>
               <td>{{ lineItemsValue | currency:'INR' }}</td>

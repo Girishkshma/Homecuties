@@ -54,9 +54,18 @@
   td {
     font-size: 13px;
   }
+
+  /* The total of a table like 'What each line carried' is a real table row. (The .total-row below is the div
+     summaries' - a flex column - and on a <tr> it would take the row's columns out of the table.) */
+  tfoot td {
+    font-weight: 600;
+    color: #1a1a2e;
+    border-top: 2px solid #e9ecef;
+  }
 }
 
-.total-row {
+/* The div summaries' own total block, stacked and right-aligned - never a table row (see tfoot above). */
+div.total-row {
   margin-top: 16px;
   padding-top: 12px;
   border-top: 1px solid #eee;
