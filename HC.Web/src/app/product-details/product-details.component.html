@@ -79,9 +79,12 @@
           <!-- What one costs, read one discount at a time: the actual (marked) price, the price the first discount leaves
                of it where a second discount is still to come, and then the price itself - the step named 'Selling Price',
                so the figure the cart charges and the customer pays is the one the walk calls out rather than a line under
-               the figures pointing at a position. A step is shown only where it holds a figure the step below does not,
-               so a product with no discount is the one price said once, and the actual price is struck through only when
-               there is a discount to strike it against. -->
+               the figures pointing at a position. That last step answers the tax question in brackets beside its own
+               name, a size down, where the shopper is already reading. A step is shown only where it holds a figure the
+               step below does not, so a product with no discount is the one price said once, and the actual price is
+               struck through only when there is a discount to strike it against. What the price is made of - the shop's
+               own margin, its packaging / storage / delivery costs and the tax taken apart - is internal to the shop: it
+               belongs on the bill the shop generates, never on the product page. -->
           <dl class="price-steps">
             <div class="price-step" *ngIf="product.DiscountPercent > 0 || product.AdditionalDiscountPercent > 0">
               <dt>Actual Price</dt>
@@ -92,18 +95,11 @@
               <dd>{{ UtilityService.currencyFormat(product.PostDiscountListingPrice) }}</dd>
             </div>
             <div class="price-step">
-              <dt>Selling Price</dt>
+              <dt>Selling Price <span class="price-tax-note">(GST Included)</span></dt>
               <dd>{{ UtilityService.currencyFormat(product.ListingPrice) }}</dd>
             </div>
           </dl>
 
-          <!-- What a shopper needs to read the figures above and nothing more: that the price is tax-inclusive. It names
-               no figure of its own - the walk above names the one the customer pays. What the price is made of - the
-               shop's own margin, its packaging / storage / delivery costs and the tax taken apart - is internal to the
-               shop: it belongs on the bill the shop generates, never on the product page. -->
-          <p class="price-note">
-            GST included.
-          </p>
         </div>
 
         <p class="product-description">{{ product.ProductDescription }}</p>

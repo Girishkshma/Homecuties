@@ -186,9 +186,9 @@
 }
 
 /* What one unit costs, read one discount at a time: the actual (marked) price, what the first discount leaves of it
-   where a second is still to come, and then the price itself under its own name - so the figure the cart charges is
-   named by the walk rather than pointed at from under it. Each step is said the same way, so the two or three can be
-   read one after the other, and only the first is struck through. */
+   where a second is still to come, and then the price itself under its own name, tax status and all - so the figure
+   the cart charges is named by the walk rather than pointed at from under it. Each step is said the same way, so the
+   two or three can be read one after the other, and only the first is struck through. */
 .price-steps {
   margin: 0.75rem 0 0;
   display: flex;
@@ -207,6 +207,13 @@
     font-weight: 400;
     color: var(--text-muted);
     margin: 0;
+  }
+
+  /* The tax status of the price the walk ends on, said on the label itself - 'Selling Price (GST Included)' - and set
+     back a size, so the label still reads as the name of the figure rather than as a sentence. The same statement used
+     to stand on a line of its own under the figures, where it named nothing the shopper's eye was already on. */
+  dt .price-tax-note {
+    font-size: 0.75rem;
   }
 
   dd {
@@ -232,15 +239,6 @@
     font-weight: 700;
     color: var(--heading-color);
   }
-}
-
-/* The one line under the figures: that the price is tax-inclusive. It names no figure - the walk above names the one
-   the customer pays. What the price is made of - the shop's margin, its own charges and the tax taken apart - is
-   internal to the shop and is not shown on the product page. */
-.price-note {
-  margin: 0.75rem 0 0;
-  font-size: 0.8125rem;
-  color: var(--text-muted);
 }
 
 .product-description {
