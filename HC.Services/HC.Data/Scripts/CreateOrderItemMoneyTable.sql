@@ -34,8 +34,10 @@ BEGIN
         [OrderID] [bigint] NOT NULL,
         [SKU] [varchar](20) NOT NULL,
         -- The output GST inside what the customer paid for this line - the tax the shop is holding for the
-        -- government on it, worked out from the line's own price, discounts and rate (OrderMoney.LineValue, less
-        -- its taxable value: the same arithmetic the Finance screen's OutputGst total is the sum of).
+        -- government on it, worked out from the line's own price, discounts and rate: the line's own rate on its
+        -- taxable value, taken to the rupee like the price it is part of (ProductPricing.GstAmount, which is the
+        -- figure the writer and the backfill both read it with - the same arithmetic the Finance screen's OutputGst
+        -- total is the sum of).
         [OutputGst] [decimal](18, 2) NOT NULL CONSTRAINT [DF_OrderItemMoney_OutputGst] DEFAULT (0),
         -- This line's part of what the gateway kept for taking the order's money (the MDR). NULL when no payment
         -- of this order has a charge recorded - unknown, and not a free payment.

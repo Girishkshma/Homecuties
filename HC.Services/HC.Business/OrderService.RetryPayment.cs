@@ -59,7 +59,7 @@ public partial class OrderService : IOrderService
         }
 
         var receipt = OrderNumber(order.OrderId);
-        var amountInPaise = (int)(order.OrderItems.Sum(oi => oi.UnitPrice) * 100);
+        var amountInPaise = (int)(ProductPricing.ChargedTotal(order.OrderItems) * 100);
 
         if (amountInPaise <= 0)
         {

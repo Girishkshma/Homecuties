@@ -15,8 +15,14 @@ public class CartItemDto
 public class CartCalculationDto
 {
     public int Count { get; set; }
+    /// <summary>What the cart's units add up to before both discounts and before tax (ProductPricing.Gross).</summary>
     public decimal SalesPrice { get; set; }
+    /// <summary>What the first discount takes off them (ProductPricing.Discount), line by line.</summary>
     public decimal Discount { get; set; }
+    /// <summary>
+    /// What the additional discount takes off what the first one left (ProductPricing.AdditionalDiscount), line by
+    /// line - the second discount of a bill, not a second share of the same figure.
+    /// </summary>
     public decimal AddDiscount { get; set; }
     public string GST { get; set; } = "0";
     public decimal GSTCharge { get; set; }

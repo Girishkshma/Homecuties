@@ -101,7 +101,7 @@ public partial class OrderService : IOrderService
             // already paid, so there is nothing left to look up - it is refunded further down instead.
             if (OrderStatusFlow.CanCustomerPay(order.OrderStatusId) && IsRazorpayConfigured)
             {
-                var orderTotalInPaise = (int)(order.OrderItems.Sum(oi => oi.UnitPrice) * 100);
+                var orderTotalInPaise = (int)(ProductPricing.ChargedTotal(order.OrderItems) * 100);
                 var (lookup, message) = await FindAndApplyOrderPaymentAsync(order, orderTotalInPaise);
 
                 if (lookup == PaymentLookup.Captured)
@@ -249,7 +249,7 @@ public partial class OrderService : IOrderService
             };
         }
 
-        var orderTotalInPaise = (int)(order.OrderItems.Sum(oi => oi.UnitPrice) * 100);
+        var orderTotalInPaise = (int)(ProductPricing.ChargedTotal(order.OrderItems) * 100);
         var (lookup, message) = await FindAndApplyOrderPaymentAsync(order, orderTotalInPaise);
 
         return lookup == PaymentLookup.Captured

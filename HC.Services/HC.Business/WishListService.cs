@@ -39,9 +39,22 @@ public class WishListService : IWishListService
                         .FirstOrDefault() ?? "",
                     SalesPrice = w.Product.UnitPrice,
                     PostDiscountSalesPrice = w.Product.UnitPrice - (w.Product.UnitPrice * w.Product.DiscountPercent / 100),
-                    PostAdditionalDiscountSalesPrice = w.Product.UnitPrice - (w.Product.UnitPrice * (w.Product.DiscountPercent + w.Product.AdditionalDiscountPercent) / 100),
+                    // What the additional discount leaves of the goods alone - off what the discount left, the way
+                    // the price itself is read (ProductPricing). What a customer pays is ListingPrice, worked out
+                    // after these rows are read.
+                    PostAdditionalDiscountSalesPrice =
+                        (w.Product.UnitPrice - (w.Product.UnitPrice * w.Product.DiscountPercent / 100))
+                            * (1m - w.Product.AdditionalDiscountPercent / 100),
                     DiscountPercent = w.Product.DiscountPercent,
-                    AdditionalDiscountPercent = w.Product.AdditionalDiscountPercent
+                    AdditionalDiscountPercent = w.Product.AdditionalDiscountPercent,
+                    UnitPrice = w.Product.UnitPrice,
+                    ProfitMarginPercent = w.Product.ProfitMarginPercent,
+                    PackagingCharge = w.Product.PackagingCharge,
+                    StorageCharge = w.Product.StorageCharge,
+                    DeliveryCharge = w.Product.DeliveryCharge,
+                    CGSTPercent = w.Product.Cgstpercent,
+                    SGSTPercent = w.Product.Sgstpercent,
+                    IGSTPercent = w.Product.Igstpercent
                 })
                 .ToListAsync();
         }
@@ -66,9 +79,20 @@ public class WishListService : IWishListService
                         .FirstOrDefault() ?? "",
                     SalesPrice = w.Product.UnitPrice,
                     PostDiscountSalesPrice = w.Product.UnitPrice - (w.Product.UnitPrice * w.Product.DiscountPercent / 100),
-                    PostAdditionalDiscountSalesPrice = w.Product.UnitPrice - (w.Product.UnitPrice * (w.Product.DiscountPercent + w.Product.AdditionalDiscountPercent) / 100),
+                    // As above: the additional discount off what the discount left.
+                    PostAdditionalDiscountSalesPrice =
+                        (w.Product.UnitPrice - (w.Product.UnitPrice * w.Product.DiscountPercent / 100))
+                            * (1m - w.Product.AdditionalDiscountPercent / 100),
                     DiscountPercent = w.Product.DiscountPercent,
-                    AdditionalDiscountPercent = w.Product.AdditionalDiscountPercent
+                    AdditionalDiscountPercent = w.Product.AdditionalDiscountPercent,
+                    UnitPrice = w.Product.UnitPrice,
+                    ProfitMarginPercent = w.Product.ProfitMarginPercent,
+                    PackagingCharge = w.Product.PackagingCharge,
+                    StorageCharge = w.Product.StorageCharge,
+                    DeliveryCharge = w.Product.DeliveryCharge,
+                    CGSTPercent = w.Product.Cgstpercent,
+                    SGSTPercent = w.Product.Sgstpercent,
+                    IGSTPercent = w.Product.Igstpercent
                 })
                 .ToListAsync();
         }
@@ -77,6 +101,26 @@ public class WishListService : IWishListService
         // cancelled order gave back is offered again instead of staying "out of stock" forever.
         var stock = await SkuAvailability.CountSellableByProductAsync(
             _context, wishList.Select(item => item.ProductId));
+
+        // The price a wish list shows is the price the listing shows: one unit, everything in both of the product
+        // form's money sections included, worked out by the one rule (ProductPricing) from the product's own fields.
+        foreach (var item in wishList)
+        {
+            var price = new ProductPricing.Inputs(
+                item.UnitPrice,
+                item.DiscountPercent,
+                item.AdditionalDiscountPercent,
+                item.ProfitMarginPercent,
+                item.PackagingCharge,
+                item.StorageCharge,
+                item.DeliveryCharge,
+                item.CGSTPercent,
+                item.SGSTPercent,
+                item.IGSTPercent);
+
+            item.ListingPrice = ProductPricing.ListingPrice(price);
+            item.PreDiscountListingPrice = ProductPricing.PreDiscountListingPrice(price);
+        }
 
         foreach (var item in wishList)
         {

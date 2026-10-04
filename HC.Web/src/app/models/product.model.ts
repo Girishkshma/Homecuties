@@ -5,6 +5,34 @@ export interface Product {
   ProductDescription: string;
   PromoImage: string;
   ProductImages: string[];
+  /**
+   * What one unit costs the customer: the listing price, everything the product's 'Pricing & Charges' and 'Taxes'
+   * sections say included - the unit price, the shop's margin, its packaging / storage / delivery charges, both
+   * discounts and the tax on what is left. It is the figure the cart adds up, the checkout charges and the order is
+   * written at, so it is the one a listing shows (see the API's ProductPricing).
+   */
+  ListingPrice: number;
+  /** The same price with both discounts still on it - what a listing strikes through. */
+  PreDiscountListingPrice: number;
+  /**
+   * The same price with only the first discount read - what one unit costs once it is off, the additional discount
+   * still to come. It is the middle step of the walk the product page shows a shopper: the sell price, this, and
+   * ListingPrice.
+   */
+  PostDiscountListingPrice: number;
+  /** The shop's declared margin inside ListingPrice. */
+  MarginAmount: number;
+  /** The packaging, storage and delivery charges inside ListingPrice, added up. */
+  ChargesAmount: number;
+  /** The GST inside ListingPrice, and the value and rate it was charged on. */
+  TaxableValue: number;
+  GstRatePercent: number;
+  GstAmount: number;
+  /**
+   * What the two discounts do to the goods ALONE: the unit price and what each of them leaves of it, the additional
+   * discount coming off what the first one left. Kept for the screens that speak about the discount itself - the
+   * price a customer pays (with the shop's margin, its own charges and the tax in it) is ListingPrice.
+   */
   SalesPrice: number;
   PreDiscountSalesPrice: number;
   PostDiscountSalesPrice: number;

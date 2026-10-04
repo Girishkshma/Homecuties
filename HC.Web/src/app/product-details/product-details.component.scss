@@ -169,17 +169,10 @@
   border-bottom: 1px solid var(--gray-200);
 }
 
-.price-current {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--primary);
-}
-
-.price-original {
-  font-size: 1rem;
-  color: var(--text-muted);
-  text-decoration: line-through;
-  margin-left: 0.75rem;
+.price-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .price-discount {
@@ -190,7 +183,62 @@
   font-weight: 600;
   padding: 0.25rem 0.625rem;
   border-radius: var(--radius-round);
-  margin-left: 0.75rem;
+}
+
+/* What one unit costs, read one discount at a time: the price the shop marks it at, what the discount leaves of it,
+   and what the additional discount leaves - the last of them the figure the cart charges. Each step is said the same
+   way (with the tax on what is left in it), so the three can be read one after the other. */
+.price-steps {
+  margin: 0.75rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.price-step {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+
+  dt {
+    font-size: 0.875rem;
+    font-weight: 400;
+    color: var(--text-muted);
+    margin: 0;
+  }
+
+  dd {
+    margin: 0;
+  }
+
+  &:not(:last-child) dd {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--gray-700);
+  }
+
+  /* The marked price, struck through: the cue a shopper reads as "this is what it was". */
+  &:first-child:not(:last-child) dd {
+    font-weight: 400;
+    color: var(--text-muted);
+    text-decoration: line-through;
+  }
+
+  /* The price the walk ends on: the figure the customer pays, and the one the cart charges. */
+  &:last-child dd {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--heading-color);
+  }
+}
+
+/* What the figures above are made of - the shop's own charges and the tax inside them - so the price a customer pays
+   is not a number they have to take on trust. */
+.price-note {
+  margin: 0.75rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
 }
 
 .product-description {
@@ -388,8 +436,9 @@
     font-size: 1.375rem;
   }
 
-  .price-current {
-    font-size: 1.25rem;
+  /* The walk's last step - what the customer pays - comes down a size with everything else at this width. */
+  .price-step:last-child dd {
+    font-size: 1.5rem;
   }
 }
 

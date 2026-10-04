@@ -63,16 +63,38 @@
         <p class="product-subtitle">{{ product.ProductName }}</p>
 
         <div class="product-price-section">
-          <span class="price-current">{{ UtilityService.currencyFormat(product.PostAdditionalDiscountSalesPrice) }}</span>
-          <span class="price-original" *ngIf="product.PostDiscountSalesPrice !== product.PostAdditionalDiscountSalesPrice">
-            {{ UtilityService.currencyFormat(product.PostDiscountSalesPrice) }}
-          </span>
-          <span class="price-discount" *ngIf="product.DiscountPercent > 0">
-            {{ product.DiscountPercent }}% OFF
-          </span>
-          <div *ngIf="product.AdditionalDiscountPercent > 0" class="mt-1">
-            <span class="price-discount">Extra {{ product.AdditionalDiscountPercent }}% off</span>
+          <div class="price-badges">
+            <span class="price-discount" *ngIf="product.DiscountPercent > 0">{{ product.DiscountPercent }}% OFF</span>
+            <span class="price-discount" *ngIf="product.AdditionalDiscountPercent > 0">
+              Extra {{ product.AdditionalDiscountPercent }}% off
+            </span>
           </div>
+
+          <!-- What one costs, read one discount at a time: the sell price the shop marks it at, the price the discount
+               leaves of that, and the price the additional discount leaves - the last of them the figure the cart
+               charges and the customer pays. A step is shown only where that discount is set, so a product with none
+               is the one figure said once. -->
+          <dl class="price-steps">
+            <div class="price-step">
+              <dt>Sell price</dt>
+              <dd>{{ UtilityService.currencyFormat(product.PreDiscountListingPrice) }}</dd>
+            </div>
+            <div class="price-step" *ngIf="product.DiscountPercent > 0">
+              <dt>After {{ product.DiscountPercent }}% discount</dt>
+              <dd>{{ UtilityService.currencyFormat(product.PostDiscountListingPrice) }}</dd>
+            </div>
+            <div class="price-step" *ngIf="product.AdditionalDiscountPercent > 0">
+              <dt>After a further {{ product.AdditionalDiscountPercent }}% discount</dt>
+              <dd>{{ UtilityService.currencyFormat(product.ListingPrice) }}</dd>
+            </div>
+          </dl>
+
+          <p class="price-note">
+            Every figure above is one unit priced the same way - the unit price, the shop's margin on it, its
+            packaging, storage and delivery charges, and the GST at {{ product.GstRatePercent }}% on what is left -
+            read with the discounts taken one after the other. The last figure is the one you pay
+            ({{ UtilityService.currencyFormat(product.GstAmount) }} of it is GST).
+          </p>
         </div>
 
         <p class="product-description">{{ product.ProductDescription }}</p>

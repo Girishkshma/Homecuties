@@ -8,10 +8,14 @@
 -- This script does that one pass, in SQL, for every such order: it writes the same figures the writer would, from
 -- the same rules -
 --
---   * what each unit was worth to the customer (its taxable value at the rate the checkout charged - the CGST rate
---     alone, see OrderMoney.ChargedGstRate) is the weight every order-level figure is split by;
---   * the output GST of a line is the tax inside what the customer paid for its units - order-line arithmetic, and
---     the figure the Finance screen's OutputGst total is the sum of;
+--   * what each unit was worth to the customer (what the checkout charged for it: the unit price, the shop's
+--     margin, its packaging / storage / delivery charges and both discounts, taxed at the rate the product's
+--     'Taxes' section records - see ProductPricing and ProductPricing.GstAmount) is the weight every order-level
+--     figure is split by. Money is charged in whole rupees, so that figure - and every figure it is made of - is
+--     taken to the rupee as it is read (ROUND below, the half-up figure a till takes);
+--   * the output GST of a line is the tax inside what the customer paid for its units - the line's own rate applied
+--     to its rounded taxable value and taken to the rupee, which is the figure ProductPricing.GstAmount gives the
+--     app and the sum the Finance screen's OutputGst total is;
 --   * the gateway's charge (the fee the payment row holds, and the GST on it) is spread over ALL the order's units
 --     and the courier's bill for a parcel over the units THAT parcel carried (falling back to the whole order when
 --     nobody said what was in it), with the odd paisa given to the largest remainders so the parts add back up to
@@ -75,28 +79,75 @@ BEGIN TRY
     -- column), with the two figures the split needs from each: what the unit was worth to the customer, and the
     -- output GST inside that.
     --
-    -- The arithmetic is the C#'s, written out: the taxable value is the price less both discounts, the weight is
-    -- that at the rate the checkout charged (the CGST rate alone - see OrderMoney.ChargedGstRate), and the tax is
-    -- the same value at the same rate. Everything is carried at decimal(38,10) so a long division lands where the
-    -- app's does, and Ordinal is each unit's position among the order's SKUs - the tie-break the odd paise are given
-    -- by, matching the order the writer puts its units in.
+    -- What the tax is charged on for one unit of a line is the unit price, plus the shop's margin on it and its own
+    -- handling charges, less the discount and then less the additional discount on what that left - the C#'s
+    -- arithmetic, written out. The two discounts are read one after the other, the second off what the first left,
+    -- exactly as ProductPricing reads them (which is why a backfilled row agrees with the rows the app writes from
+    -- then on); the rate is the one the product's 'Taxes' section records (CGST + SGST where either is set, else
+    -- IGST - see ProductPricing.GstRate); the weight is that value with that tax added to it, and the tax is that
+    -- same value at that same rate. It is the composition
+    -- ProductPricing.ChargedPriceExpression writes for the screens that add an order up in SQL, and
+    -- ProductPricingTests pins the two readings to each other.
+    --
+    -- Money is charged in whole RUPEES, so EVERY figure here is taken to the rupee as it is read - the gross, each
+    -- discount, the value the tax falls on and the tax itself - by ROUND(x, 0), which SQL Server works out half away
+    -- from zero: the same figure ProductPricing.Rupees takes with Math.Round(x, 0, MidpointRounding.AwayFromZero).
+    -- ChargedPriceExpression reads the same rule on the database side, though not with that call: EF Core does not
+    -- translate a MidpointRounding round at all (it leaves it to be evaluated in .NET, which the sums that read it
+    -- cannot do), so the tree says half-away-from-zero with FLOOR(x + 0.5) and CEILING(x - 0.5) - arithmetic SQL
+    -- Server works out to the same rupee this script's ROUND does. The rounding is part of the arithmetic and not a
+    -- tidy-up afterwards: a discount
+    -- is a share of the ROUNDED gross, the value the tax falls on is that rounded gross with the two rounded
+    -- discounts taken off it, and the weight is that rounded value with the rounded tax on it - which is why a bill
+    -- read a figure at a time adds up to the price the customer was charged.
+    --
+    -- Everything is carried at decimal(38,10) so a long division lands where the app's does, and Ordinal is each
+    -- unit's position among the order's SKUs - the tie-break the odd paise are given by, matching the order the
+    -- writer puts its units in.
     IF OBJECT_ID('tempdb..#Units') IS NOT NULL DROP TABLE #Units;
 
     SELECT
         items.OrderID,
         items.SKU,
         CONVERT(bigint, ROW_NUMBER() OVER (PARTITION BY items.OrderID ORDER BY items.SKU)) AS Ordinal,
-        CONVERT(decimal(38, 10), (items.UnitPrice
-            - (items.UnitPrice * items.DiscountPercent / 100)
-            - (items.UnitPrice * items.AdditionalDiscountPercent / 100))
-            * (1 + items.CGSTPercent / 100)) AS UnitValue,
-        CONVERT(decimal(38, 10), (items.UnitPrice
-            - (items.UnitPrice * items.DiscountPercent / 100)
-            - (items.UnitPrice * items.AdditionalDiscountPercent / 100))
-            * items.CGSTPercent / 100) AS UnitGst
+        CONVERT(decimal(38, 10), priced.TaxableValue + priced.UnitGst) AS UnitValue,
+        CONVERT(decimal(38, 10), priced.UnitGst) AS UnitGst
     INTO #Units
     FROM dbo.OrderItems items
-    INNER JOIN #Orders orders ON orders.OrderID = items.OrderID;
+    INNER JOIN #Orders orders ON orders.OrderID = items.OrderID
+    CROSS APPLY (
+        SELECT
+            -- What the discounts come off: the unit price, plus the shop's margin on it, plus its packaging,
+            -- storage and delivery charges - to the rupee.
+            ROUND(items.UnitPrice
+                + (items.UnitPrice * items.ProfitMarginPercent / 100)
+                + (items.PackagingCharge + items.StorageCharge + items.DeliveryCharge), 0) AS Gross,
+            -- The rate the customer was charged, from the rates the line snapshotted.
+            CONVERT(decimal(38, 10), CASE
+                WHEN items.CGSTPercent + items.SGSTPercent > 0
+                    THEN items.CGSTPercent + items.SGSTPercent
+                ELSE items.IGSTPercent END) AS GstPercent
+    ) price
+    CROSS APPLY (
+        SELECT
+            -- The discount comes off that gross, itself to the rupee, so what is left of the gross is a whole
+            -- figure as well,
+            price.Gross - ROUND(price.Gross * items.DiscountPercent / 100, 0) AS AfterDiscount
+    ) discounted
+    CROSS APPLY (
+        SELECT
+            -- and the additional discount off what the discount left - the second discount to the rupee too: what
+            -- the tax is charged on.
+            discounted.AfterDiscount
+                - ROUND(discounted.AfterDiscount * items.AdditionalDiscountPercent / 100, 0) AS TaxableValue
+    ) taxed
+    CROSS APPLY (
+        SELECT
+            -- The tax on that value at the line's own rate, to the rupee as well: the output GST of the unit, and
+            -- - added to the value it was charged on - what the unit was worth to the customer.
+            taxed.TaxableValue,
+            ROUND(taxed.TaxableValue * price.GstPercent / 100, 0) AS UnitGst
+    ) priced;
 
     -- What the whole order is worth, and how many units it holds.
     IF OBJECT_ID('tempdb..#OrderWeights') IS NOT NULL DROP TABLE #OrderWeights;

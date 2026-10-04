@@ -357,7 +357,7 @@ public static class RazorpayRefunds
 
             if (order.OrderItems.Count > 0)
             {
-                payment.AmountInPaise = (int)(order.OrderItems.Sum(oi => oi.UnitPrice) * 100);
+                payment.AmountInPaise = (int)(ProductPricing.ChargedTotal(order.OrderItems) * 100);
                 payment.Amount = payment.AmountInPaise / 100m;
             }
         }
@@ -432,11 +432,11 @@ public static class RazorpayRefunds
                 "refunded here.");
         }
 
-        // Razorpay is asked for the amount it was actually told to take; the order total is the
-        // fallback for a row that was recorded before the amount was stored.
+        // Razorpay is asked for the amount it was actually told to take; what the order's own lines were charged
+        // for is the fallback for a row that was recorded before the amount was stored.
         var amountInPaise = refundable.AmountInPaise > 0
             ? refundable.AmountInPaise
-            : (int)(order.OrderItems.Sum(oi => oi.UnitPrice) * 100);
+            : (int)(ProductPricing.ChargedTotal(order.OrderItems) * 100);
 
         var now = DateTime.UtcNow;
         var (refund, refundId, refundStatus, error) = await PostRefundAsync(
@@ -549,7 +549,7 @@ public static class RazorpayRefunds
 
         var amountInPaise = payment.AmountInPaise > 0
             ? payment.AmountInPaise
-            : (int)(order.OrderItems.Sum(oi => oi.UnitPrice) * 100);
+            : (int)(ProductPricing.ChargedTotal(order.OrderItems) * 100);
 
         payment.Status = OrderPaymentStatus.Refunded;
         payment.RefundId = null;

@@ -73,64 +73,57 @@ public static class OrderMoney
     public static decimal Net(decimal taken, decimal givenBack) => taken - givenBack;
 
     /// <summary>
-    /// The shop's own margin on one line: 'Profit margin %' is the figure the shop typed on the product, read
-    /// here as the profit's share of what the customer paid - a 25% line of 200.00 has made 50.00 and cost
-    /// 150.00 before anything else is taken off. It is the shop's DECLARED figure, not a purchase price:
-    /// nothing in this system records what the goods cost to buy.
+    /// The shop's own margin on one line: 'Profit margin %' is the figure the shop typed on the product, read as a
+    /// share of the UNIT PRICE it starts from - and the figure the price the customer pays is built on top of
+    /// (<see cref="ProductPricing.Margin"/>), so a 25% line of a 200.00 unit price has made 50.00 and was sold for
+    /// 250.00 before the shop's charges, the discounts and the tax are read into it.
+    ///
+    /// It is the shop's DECLARED figure, not a purchase price: nothing in this system records what the goods cost
+    /// to buy.
     /// </summary>
     public static decimal DeclaredProfit(decimal unitPrice, decimal profitMarginPercent) =>
-        unitPrice * profitMarginPercent / 100m;
+        ProductPricing.Margin(unitPrice, profitMarginPercent);
 
     /// <summary>What the shop declared the line cost: what was paid for it, less the margin above.</summary>
     public static decimal DeclaredCost(decimal unitPrice, decimal profitMarginPercent) =>
         unitPrice - DeclaredProfit(unitPrice, profitMarginPercent);
 
     /// <summary>
-    /// The value the GST is charged on for one unit: what the customer pays for it before tax - the price less both
-    /// discounts, which is the sub-total the checkout itself arrives at for the cart (see CartService.Calculation).
+    /// The value the GST is charged on for one unit: what the customer pays for it before tax - which is the
+    /// sub-total the checkout itself arrives at for a cart line, and the same taxable value every listing price is
+    /// built on (<see cref="ProductPricing.TaxableValue"/>).
     ///
-    /// It is worked out here as well as there on purpose: by the time a report is run the cart is long gone, so the
-    /// sale is read back from the order line's own snapshot of the price and the two discounts.
+    /// It is read here as well as there on purpose: by the time a report is run the cart is long gone, so the sale
+    /// is read back from the order line's own snapshot of the price and the discounts.
     /// </summary>
-    public static decimal TaxableValue(decimal unitPrice, decimal discountPercent, decimal additionalDiscountPercent) =>
-        unitPrice - (unitPrice * discountPercent / 100m) - (unitPrice * additionalDiscountPercent / 100m);
+    public static decimal TaxableValue(ProductPricing.Inputs price) => ProductPricing.TaxableValue(price);
 
     /// <summary>The tax on a value at a rate - the one multiplication every GST figure the screens show is built from.</summary>
     public static decimal GstOn(decimal taxableValue, decimal gstPercent) => taxableValue * gstPercent / 100m;
 
     /// <summary>
-    /// The rate the shop's checkout actually charged on a line, which is what the customer really paid and therefore
-    /// what is held for the government: the CGST rate alone.
+    /// The rate a line was charged at, which is what the customer really paid and therefore what is held for the
+    /// government: what the product's 'Taxes' section records - the CGST and SGST rates added together where either
+    /// is set, else the IGST rate (<see cref="ProductPricing.GstRate"/>).
     ///
-    /// SGST and IGST are recorded on the product and snapshotted onto the order line, but the cart's own calculation
-    /// charges the CGST rate and ignores both - so counting them here would make the tax a report shows LARGER than
-    /// the tax the customer paid, and the screen would stop tying to the money the gateway took. They are taken as
-    /// parameters rather than left out so that a reader sees them being passed and passed over, and so that the day
-    /// the checkout charges the other two as well, this is the one place that has to change.
+    /// The checkout and this report read the SAME rule, which is what keeps the tax a report shows equal to the tax
+    /// the customer paid and the gateway was asked for. It is read from the order line's own snapshot, so a line
+    /// sold back when the checkout applied the CGST rate alone is still read at today's rule: the snapshot records
+    /// the rates, not which of them were collected on the day.
     /// </summary>
-    public static decimal ChargedGstRate(decimal cgstPercent, decimal sgstPercent, decimal igstPercent) =>
-        cgstPercent;
+    public static decimal ChargedGstRate(ProductPricing.Inputs price) => ProductPricing.GstRate(price);
 
     /// <summary>
-    /// What one line was worth to the customer: its taxable value plus the tax the checkout charged on it - the
-    /// money the customer really paid for that line, which is what the order's own totals are the sum of.
+    /// What one line was worth to the customer: what its unit was sold for, everything included - the value the tax
+    /// was charged on plus that tax (<see cref="ProductPricing.ListingPrice"/>). Nothing is counted on top of it:
+    /// the shop's margin and its own handling charges are part of the price the customer paid, not a later reading
+    /// of it.
     ///
     /// It is the weight a partner's share of an order is taken by (<see cref="Share"/>): their lines' worth against
-    /// the whole order's. It is worked out from the two rules above rather than restated, so it can never drift from
-    /// the tax the other screens show - and it counts the line BEFORE any declared margin, which is the shop's own
-    /// later reading of the goods rather than anything the customer paid.
+    /// the whole order's - and it is the same figure the checkout charged for that unit, so an order's total, its
+    /// lines' worth and the money the gateway took are one figure read in three places.
     /// </summary>
-    public static decimal LineValue(
-        decimal unitPrice,
-        decimal discountPercent,
-        decimal additionalDiscountPercent,
-        decimal cgstPercent,
-        decimal sgstPercent,
-        decimal igstPercent)
-    {
-        var taxableValue = TaxableValue(unitPrice, discountPercent, additionalDiscountPercent);
-        return taxableValue + GstOn(taxableValue, ChargedGstRate(cgstPercent, sgstPercent, igstPercent));
-    }
+    public static decimal LineValue(ProductPricing.Inputs price) => ProductPricing.ListingPrice(price);
 
     /// <summary>
     /// The part of an amount that belongs to a slice of a whole - the one way this file divides money, so every

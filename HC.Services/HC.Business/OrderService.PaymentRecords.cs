@@ -145,9 +145,9 @@ public partial class OrderService : IOrderService
         }
         else if (payment.AmountInPaise == 0 && order.OrderItems.Count > 0)
         {
-            // Nothing ever said how much was taken: the order total is the best figure we have, and a
-            // refund needs one.
-            payment.AmountInPaise = (int)(order.OrderItems.Sum(oi => oi.UnitPrice) * 100);
+            // Nothing ever said how much was taken: what the order's own lines were charged for is the best
+            // figure we have, and a refund needs one.
+            payment.AmountInPaise = (int)(ProductPricing.ChargedTotal(order.OrderItems) * 100);
             payment.Amount = payment.AmountInPaise / 100m;
         }
 

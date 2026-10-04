@@ -96,6 +96,10 @@ export class HomeComponent implements OnInit, OnDestroy {
             ProductTitle: '',
             ProductDescription: '',
             PromoImage: '',
+            // The prices of this placeholder row: the browser has only the id here (the list itself is reloaded
+            // from the API), and the header badge is all these rows are read for.
+            ListingPrice: 0,
+            PreDiscountListingPrice: 0,
             SalesPrice: 0,
             PostDiscountSalesPrice: 0,
             PostAdditionalDiscountSalesPrice: 0,

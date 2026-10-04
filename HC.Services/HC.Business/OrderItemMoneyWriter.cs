@@ -88,6 +88,10 @@ public static class OrderItemMoneyWriter
                     item.UnitPrice,
                     item.DiscountPercent,
                     item.AdditionalDiscountPercent,
+                    item.ProfitMarginPercent,
+                    item.PackagingCharge,
+                    item.StorageCharge,
+                    item.DeliveryCharge,
                     item.Cgstpercent,
                     item.Sgstpercent,
                     item.Igstpercent
@@ -96,12 +100,17 @@ public static class OrderItemMoneyWriter
             .Select(item => new Line(
                 item.OrderId,
                 item.Sku,
-                item.UnitPrice,
-                item.DiscountPercent,
-                item.AdditionalDiscountPercent,
-                item.Cgstpercent,
-                item.Sgstpercent,
-                item.Igstpercent))
+                new ProductPricing.Inputs(
+                    item.UnitPrice,
+                    item.DiscountPercent,
+                    item.AdditionalDiscountPercent,
+                    item.ProfitMarginPercent,
+                    item.PackagingCharge,
+                    item.StorageCharge,
+                    item.DeliveryCharge,
+                    item.Cgstpercent,
+                    item.Sgstpercent,
+                    item.Igstpercent)))
             .ToList();
 
         // What the gateway took and kept, from the payment rows themselves - the same rows, and the same statuses,
@@ -201,15 +210,16 @@ public static class OrderItemMoneyWriter
             // One entry per physical unit, in a fixed order (by SKU) so that the odd paisa of a split always lands
             // on the same line for the same order - which is what makes two runs of this writer produce the same
             // rows, and what lets the backfill script's set-based version agree with it.
+            //
+            // What a unit was worth to the customer, and the output GST inside it, are both read from the line's own
+            // snapshot of its price (ProductPricing) - so the books hold the price the customer was charged, made up
+            // of everything the product's 'Pricing & Charges' and 'Taxes' sections said at the time, in whole rupees
+            // as the till took them.
             var units = order
                 .Select(line => new Unit(
                     line.Sku,
-                    OrderMoney.LineValue(
-                        line.UnitPrice, line.DiscountPercent, line.AdditionalDiscountPercent,
-                        line.CgstPercent, line.SgstPercent, line.IgstPercent),
-                    OrderMoney.GstOn(
-                        OrderMoney.TaxableValue(line.UnitPrice, line.DiscountPercent, line.AdditionalDiscountPercent),
-                        OrderMoney.ChargedGstRate(line.CgstPercent, line.SgstPercent, line.IgstPercent))))
+                    OrderMoney.LineValue(line.Price),
+                    ProductPricing.GstAmount(line.Price)))
                 .OrderBy(unit => unit.Sku, StringComparer.Ordinal)
                 .ToList();
 
@@ -365,16 +375,17 @@ public static class OrderItemMoneyWriter
         return new Result(orders, rows, parcelsWithoutItems, ordersWithNoCharge);
     }
 
-    /// <summary>One order line as it was snapshotted: what the split needs from it, and nothing else.</summary>
+    /// <summary>
+    /// One order line as it was snapshotted: what the split needs from it, and nothing else.
+    ///
+    /// Its price is carried whole (<see cref="ProductPricing.Inputs"/>) rather than as the handful of figures this
+    /// file happens to ask for today, so the line's own worth and its tax are read from the one pricing rule every
+    /// other screen reads them from.
+    /// </summary>
     private readonly record struct Line(
         long OrderId,
         string Sku,
-        decimal UnitPrice,
-        decimal DiscountPercent,
-        decimal AdditionalDiscountPercent,
-        decimal CgstPercent,
-        decimal SgstPercent,
-        decimal IgstPercent);
+        ProductPricing.Inputs Price);
 
     /// <summary>One payment row that holds money the gateway took, with the charge it reported for taking it.</summary>
     private readonly record struct Payment(

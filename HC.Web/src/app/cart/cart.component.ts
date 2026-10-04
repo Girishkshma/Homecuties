@@ -194,6 +194,8 @@ export class CartComponent implements OnInit {
           ProductTitle: item.ProductTitle || '',
           ProductDescription: item.ProductDescription || '',
           PromoImage: item.PromoImage || '',
+          ListingPrice: item.Price || 0,
+          PreDiscountListingPrice: item.Price || 0,
           SalesPrice: item.Price || 0,
           PostDiscountSalesPrice: item.Price || 0,
           PostAdditionalDiscountSalesPrice: item.Price || 0,

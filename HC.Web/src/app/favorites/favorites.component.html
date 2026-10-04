@@ -44,9 +44,9 @@
           <p class="product-description">{{ item.ProductDescription | slice:0:120 }}{{ item.ProductDescription.length > 120 ? '...' : '' }}</p>
           <div class="product-footer">
             <div class="product-price">
-              <span class="current-price">{{ UtilityService.currencyFormat(item.PostAdditionalDiscountSalesPrice) }}</span>
-              <span class="original-price" *ngIf="item.PostDiscountSalesPrice !== item.PostAdditionalDiscountSalesPrice">
-                {{ UtilityService.currencyFormat(item.PostDiscountSalesPrice) }}
+              <span class="current-price">{{ UtilityService.currencyFormat(item.ListingPrice) }}</span>
+              <span class="original-price" *ngIf="item.PreDiscountListingPrice !== item.ListingPrice">
+                {{ UtilityService.currencyFormat(item.PreDiscountListingPrice) }}
               </span>
               <span class="discount-badge" *ngIf="item.AdditionalDiscountPercent > 0">
                 Extra {{ item.AdditionalDiscountPercent }}% off

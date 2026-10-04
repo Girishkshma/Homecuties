@@ -13,6 +13,17 @@ export interface WishListItem {
   ProductTitle: string;
   ProductDescription: string;
   PromoImage: string;
+  /**
+   * What one unit costs the customer (see the API's ProductPricing) and the figure the wish list shows - the same
+   * price the listing beside it shows, and the figure the cart charges.
+   *
+   * The rows the browser adds to its own local mirror before the server answers are placeholders: the list itself is
+   * reloaded from the API, and those rows carry zeros for every price.
+   */
+  ListingPrice: number;
+  /** The same price with both discounts still on it - what the wish list strikes through. */
+  PreDiscountListingPrice: number;
+  /** The goods alone, before tax and before the shop's own charges. */
   SalesPrice: number;
   PostDiscountSalesPrice: number;
   PostAdditionalDiscountSalesPrice: number;

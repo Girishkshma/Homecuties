@@ -1752,8 +1752,11 @@ public class AdminFinanceSummaryDto
     public decimal TaxableValue { get; set; }
 
     /// <summary>
-    /// The GST charged on those lines, at the rate the checkout charged - which is the CGST rate alone
-    /// (see HC.Business.OrderMoney.ChargedGstRate), because that is the tax the customer really paid.
+    /// The GST charged on those lines, at the rate the checkout charged - the line's own rate, the CGST and SGST
+    /// rates together where either is set, else IGST (see HC.Business.ProductPricing.GstAmount) - because that is
+    /// the tax the customer really paid. It is the sum of the per-line output GST the books hold, so it agrees with
+    /// them rupee for rupee: money is charged in whole rupees, and the tax is taken in the same coin as the price it
+    /// is part of.
     /// </summary>
     [JsonPropertyName("outputGst")]
     public decimal OutputGst { get; set; }

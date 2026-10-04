@@ -161,22 +161,44 @@ public partial class AdminDashboardService
         // gone would be dropped by such a join, and a dropped line quietly shrinks the order's own worth - and with it
         // every share cut from the order, including the other partner's. The code is mapped to its partner below
         // instead, for the partner's books alone, which are the only ones that ask the question.
-        var orderLines = await _context.OrderItems
-            .AsNoTracking()
-            .Where(oi => ordersToRead.Contains(oi.OrderId))
-            .Select(oi => new
-            {
+        var orderLines = (await _context.OrderItems
+                .AsNoTracking()
+                .Where(oi => ordersToRead.Contains(oi.OrderId))
+                .Select(oi => new
+                {
+                    oi.OrderId,
+                    oi.Sku,
+                    oi.UnitPrice,
+                    oi.DiscountPercent,
+                    oi.AdditionalDiscountPercent,
+                    oi.ProfitMarginPercent,
+                    oi.PackagingCharge,
+                    oi.StorageCharge,
+                    oi.DeliveryCharge,
+                    oi.Cgstpercent,
+                    oi.Sgstpercent,
+                    oi.Igstpercent
+                })
+                .ToListAsync())
+            // Each line's price is carried as the one shape every price in the shop is read from (ProductPricing), so
+            // what a line was worth, what it was taxed and what the shop's margin on it was are all read from the
+            // line's own snapshot of the two sections the product form asked for - and cannot drift from the price
+            // the customer was charged for it.
+            .Select(oi => new FinanceLine(
                 oi.OrderId,
                 oi.Sku,
-                oi.UnitPrice,
-                oi.ProfitMarginPercent,
-                oi.DiscountPercent,
-                oi.AdditionalDiscountPercent,
-                oi.Cgstpercent,
-                oi.Sgstpercent,
-                oi.Igstpercent
-            })
-            .ToListAsync();
+                new ProductPricing.Inputs(
+                    oi.UnitPrice,
+                    oi.DiscountPercent,
+                    oi.AdditionalDiscountPercent,
+                    oi.ProfitMarginPercent,
+                    oi.PackagingCharge,
+                    oi.StorageCharge,
+                    oi.DeliveryCharge,
+                    oi.Cgstpercent,
+                    oi.Sgstpercent,
+                    oi.Igstpercent)))
+            .ToList();
 
         // Which partner each of those SKUs belongs to: a SKU sits in one inventory and the inventory belongs to one
         // partner (<c>Sku.InventoryId</c> -> <c>Inventory.PartnerId</c>), and it is that link - never the order's own
@@ -209,15 +231,11 @@ public partial class AdminDashboardService
         {
             foreach (var order in orderLines.GroupBy(line => line.OrderId))
             {
-                var whole = order.Sum(line => OrderMoney.LineValue(
-                    line.UnitPrice, line.DiscountPercent, line.AdditionalDiscountPercent,
-                    line.Cgstpercent, line.Sgstpercent, line.Igstpercent));
+                var whole = order.Sum(line => OrderMoney.LineValue(line.Price));
 
                 var part = order
                     .Where(line => IsTheirLine(line.Sku))
-                    .Sum(line => OrderMoney.LineValue(
-                        line.UnitPrice, line.DiscountPercent, line.AdditionalDiscountPercent,
-                        line.Cgstpercent, line.Sgstpercent, line.Igstpercent));
+                    .Sum(line => OrderMoney.LineValue(line.Price));
 
                 lineValues[order.Key] = (whole, part);
             }
@@ -311,29 +329,34 @@ public partial class AdminDashboardService
             ? periodLines
             : periodLines.Where(line => IsTheirLine(line.Sku)).ToList();
 
-        var declaredMargin = scopeLines.Sum(l => OrderMoney.DeclaredProfit(l.UnitPrice, l.ProfitMarginPercent));
-        var declaredCost = scopeLines.Sum(l => OrderMoney.DeclaredCost(l.UnitPrice, l.ProfitMarginPercent));
+        var declaredMargin = scopeLines.Sum(l => OrderMoney.DeclaredProfit(l.Price.UnitPrice, l.Price.ProfitMarginPercent));
+        var declaredCost = scopeLines.Sum(l => OrderMoney.DeclaredCost(l.Price.UnitPrice, l.Price.ProfitMarginPercent));
 
         // What the customers paid includes the GST the shop is holding for the government - it was never the shop's
         // money, and until now the screen had no line for it. (The one GST line it did have is the opposite way
         // round: the GST the GATEWAY charged on its fee, which is a credit the shop can claim.)
         //
         // It is read line by line from the rates the order snapshotted, at the rate the checkout actually charged
-        // (OrderMoney.ChargedGstRate - the CGST rate alone), because that is the tax the customer really paid. It is
-        // these books' own lines it is read from, so a partner holds the tax on their own goods: the other partner's
-        // share of a shared order is that partner's to hold, and never appears twice.
+        // (ProductPricing.GstAmount, which is that rate applied to the line's taxable value and taken in whole rupees
+        // like the price it is part of), because that is the tax the customer really paid - the same figure the
+        // per-line books record as the line's output GST. It is these books' own lines it is read from, so a partner
+        // holds the tax on their own goods: the other partner's share of a shared order is that partner's to hold, and
+        // never appears twice.
         var taxableValue = 0m;
         var outputGst = 0m;
-        var linesWithUnchargedRates = 0;
+        var linesWithBothTaxReadings = 0;
 
         foreach (var line in scopeLines)
         {
-            var taxable = OrderMoney.TaxableValue(line.UnitPrice, line.DiscountPercent, line.AdditionalDiscountPercent);
-            taxableValue += taxable;
-            outputGst += OrderMoney.GstOn(taxable, OrderMoney.ChargedGstRate(line.Cgstpercent, line.Sgstpercent, line.Igstpercent));
+            taxableValue += OrderMoney.TaxableValue(line.Price);
+            outputGst += ProductPricing.GstAmount(line.Price);
 
-            if (line.Sgstpercent > 0m || line.Igstpercent > 0m)
-                linesWithUnchargedRates++;
+            // A product recording an IGST rate AND a CGST or SGST rate carries both readings of one sale at once,
+            // and GstRate answers that with the CGST + SGST one - so such a line is charged at one of the two
+            // readings whichever state the customer turns out to be in. Counted here rather than guessed at, and
+            // said in words below.
+            if (line.Price.IgstPercent > 0m && (line.Price.CgstPercent > 0m || line.Price.SgstPercent > 0m))
+                linesWithBothTaxReadings++;
         }
 
         // A refund gives the tax back with the goods, so the orders its refunds came from are read too - they can be
@@ -353,11 +376,11 @@ public partial class AdminDashboardService
             if (!linesOfRefundedOrders.TryGetValue(refund.OrderId, out var linesOfOrder))
                 return 0m;
 
-            var orderTaxable = linesOfOrder.Sum(l => OrderMoney.TaxableValue(l.UnitPrice, l.DiscountPercent, l.AdditionalDiscountPercent));
-            var orderGst = linesOfOrder.Sum(l => OrderMoney.GstOn(OrderMoney.TaxableValue(l.UnitPrice, l.DiscountPercent, l.AdditionalDiscountPercent), l.Cgstpercent));
+            var orderTaxable = linesOfOrder.Sum(l => OrderMoney.TaxableValue(l.Price));
+            var orderGst = linesOfOrder.Sum(l => ProductPricing.GstAmount(l.Price));
 
-            // What that order was charged: its value at the rate the checkout charged, which is what the refund is
-            // a share of (the payment row's own amount would do for a single payment, but this holds for any).
+            // What that order was charged: what its lines were sold for with the tax on them, which is what the refund
+            // is a share of (the payment row's own amount would do for a single payment, but this holds for any).
             //
             // The tax a refund gives back belongs to the ORDER, so a partner's books give back their own lines' share
             // of it - the same rule as every other order-level figure - and a refund on an order carrying none of
@@ -485,12 +508,13 @@ public partial class AdminDashboardService
                 "shop is not registered and its products carry no CGST, or the rate is missing on the product form.");
         }
 
-        if (linesWithUnchargedRates > 0)
+        if (linesWithBothTaxReadings > 0)
         {
             messages.Add(
-                $"{linesWithUnchargedRates} of {scopeLines.Count} lines in this period record an SGST or IGST rate beside their CGST " +
-                "rate, but the checkout charges the CGST rate alone - so the GST here is the CGST the customer actually paid. " +
-                "If a line's tax is meant to be CGST + SGST, more is owed than was collected.");
+                $"{linesWithBothTaxReadings} of {scopeLines.Count} lines in this period record an IGST rate BESIDE a CGST or SGST " +
+                "rate. A product is taxed one way - CGST with SGST inside the shop's own state, or IGST across states - so these " +
+                "lines were charged at the CGST + SGST rate (see ProductPricing.GstRate). Where one of them was meant to be an " +
+                "inter-state sale, the tax collected is not the tax owed: worth a look at the rates on those products.");
         }
 
         if (freightCost > 0m)
@@ -551,9 +575,7 @@ public partial class AdminDashboardService
                 group => group.Key,
                 group => (
                     Units: group.Count(),
-                    Value: group.Sum(line => OrderMoney.LineValue(
-                        line.UnitPrice, line.DiscountPercent, line.AdditionalDiscountPercent,
-                        line.Cgstpercent, line.Sgstpercent, line.Igstpercent))),
+                    Value: group.Sum(line => OrderMoney.LineValue(line.Price))),
                 StringComparer.OrdinalIgnoreCase);
 
         var lineItems = moneyRows
@@ -713,6 +735,15 @@ public partial class AdminDashboardService
     /// none - nothing at all, which is what makes the answer the whole shop's.
     /// </summary>
     private sealed record FinanceScope(IReadOnlySet<int> PartnerIds, string PartnerName);
+    /// <summary>
+    /// One order line as these books read it: which order it belongs to, the SKU whose partner owns the goods, and
+    /// the price the customer was charged for its unit - carried whole (see ProductPricing), so the line's worth, the
+    /// tax inside it and the shop's margin on it are all read from the one rule, and from the snapshot taken when it
+    /// was sold rather than from what the product says today.
+    /// </summary>
+    private readonly record struct FinanceLine(long OrderId, string Sku, ProductPricing.Inputs Price);
+
+
 
     /// <summary>
     /// How many of a period's payments carry their charge from the given source (see OrderPaymentCharges) - the

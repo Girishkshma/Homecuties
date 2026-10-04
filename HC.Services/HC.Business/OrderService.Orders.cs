@@ -396,6 +396,12 @@ public partial class OrderService : IOrderService
         await _context.SaveChangesAsync();
 
         // Create the Razorpay order through their REST API (no official .NET SDK is referenced).
+        //
+        // The amount is what the cart is worth, and the cart's lines are priced the way the listings are
+        // (see OrderService.CartMapping): one unit of each product with everything the product form's
+        // 'Pricing & Charges' and 'Taxes' sections say included, times the units taken. So the figure the
+        // customer is shown on the product, the total in the cart and the money the gateway is asked for are
+        // the same money.
         var totalAmount = cartResponse.Calculation.GrandTotal;
         var amountInPaise = (int)(totalAmount * 100);
 
@@ -555,7 +561,7 @@ public partial class OrderService : IOrderService
                 OrderId = o.OrderId,
                 OrderNumber = $"HC{o.OrderId:D6}",
                 OrderDate = o.OrderDate,
-                TotalAmount = o.OrderItems.Sum(oi => oi.UnitPrice),
+                TotalAmount = ProductPricing.ChargedTotal(o.OrderItems),
                 StatusId = o.OrderStatusId,
                 Status = statusName,
                 IsPaid = isPaid,
@@ -615,7 +621,7 @@ public partial class OrderService : IOrderService
                         ProductName = g.Key,
                         ProductTitle = g.First().ProductTitle,
                         Quantity = g.Count(),
-                        Price = g.First().UnitPrice
+                        Price = ProductPricing.ChargedPrice(g.First())
                     })
                     .ToList(),
 

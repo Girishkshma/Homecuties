@@ -6,8 +6,8 @@ namespace HC.Tests;
 /// <summary>
 /// The money rules the shop's screens are built on (see HC.Business.OrderMoney): which payment rows hold money
 /// the gateway took, the day a sale belongs to, when a refund counts as gone, the period a report covers, what a
-/// line was worth to the customer, one partner's share of a shared order's money, and the tax the shop is holding
-/// for the government.
+/// line was worth to the customer (the product's own pricing rule, see ProductPricing), one partner's share of a
+/// shared order's money, and the tax the shop is holding for the government.
 ///
 /// These are pinned here because three screens read them - the dashboard's revenue tiles, the Finance screen and
 /// the order screen's margin card - and a change to any of them moves money figures a shop keeper reads as fact.
@@ -108,27 +108,47 @@ public class OrderMoneyTests
     }
 
     /// <summary>
-    /// The tax is charged on what the customer pays for the goods before tax: the price less BOTH discounts, which
-    /// is the sub-total the checkout itself arrives at for the cart (see CartService.Calculation). Pinned because
-    /// the Finance screen reads the tax back out of the order line's snapshot with these rules, and because a rate
-    /// applied to the wrong base is the quietest way for a tax figure to be wrong.
+    /// The three figures the money screens read a sale back with - the value its tax was charged on, the rate it was
+    /// charged at, and what the unit was worth with the tax in it - are the product's OWN pricing rule under the
+    /// names the order side has always used them by (see ProductPricing): the unit price, the shop's margin, its
+    /// packaging / storage / delivery charges and both discounts, taxed at the rate the 'Taxes' section records.
+    ///
+    /// Pinned as a TIE rather than as figures, because that is the invariant: a report reading a different
+    /// composition from the one the checkout charged would be tax the shop never collected, which is the quietest
+    /// way for these books to be wrong.
     /// </summary>
     [Fact]
-    public void TaxIsChargedOnThePriceLessBothDiscounts()
+    public void TheMoneyScreensReadASaleWithTheOnePricingRule()
     {
-        // An undiscounted line is taxed on its price, and the two discounts come off before the tax does.
-        Assert.Equal(200m, OrderMoney.TaxableValue(200m, 0m, 0m));
-        Assert.Equal(180m, OrderMoney.TaxableValue(200m, 10m, 0m));
-        Assert.Equal(170m, OrderMoney.TaxableValue(200m, 10m, 5m));
+        var price = TestPrices.Priced(
+            200m,
+            discountPercent: 10m,
+            additionalDiscountPercent: 5m,
+            profitMarginPercent: 25m,
+            packagingCharge: 10m,
+            storageCharge: 5m,
+            deliveryCharge: 15m,
+            cgstPercent: 9m,
+            sgstPercent: 9m);
 
-        // A line given away costs nothing and is taxed on nothing.
-        Assert.Equal(0m, OrderMoney.TaxableValue(0m, 10m, 10m));
+        Assert.Equal(ProductPricing.TaxableValue(price), OrderMoney.TaxableValue(price));
+        Assert.Equal(ProductPricing.GstRate(price), OrderMoney.ChargedGstRate(price));
+        Assert.Equal(ProductPricing.ListingPrice(price), OrderMoney.LineValue(price));
+
+        // What the customer paid for the unit: the value the tax was charged on, plus the tax on it - each figure
+        // taken to the rupee as the price is built (ProductPricing.Rupees), so the two really do come to the figure
+        // the gateway was asked for rather than to a fraction of a rupee beside it.
+        Assert.Equal(282m, OrderMoney.LineValue(price));
+        Assert.Equal(
+            OrderMoney.TaxableValue(price) +
+                ProductPricing.Rupees(OrderMoney.GstOn(OrderMoney.TaxableValue(price), OrderMoney.ChargedGstRate(price))),
+            OrderMoney.LineValue(price));
     }
 
     /// <summary>
-    /// The tax on a value is one multiplication by the rate, and a zero on either side is a zero - never a guess,
-    /// never a default rate. The pair is also the whole of what the customer paid for the line, which is what lets
-    /// the report split money it already knows the total of.
+    /// The tax on a value is one multiplication by the rate - the one multiplication every GST figure these screens
+    /// show is built from (see ProductPricing.GstAmount, which is it applied to a unit's taxable value) - and a zero
+    /// on either side is a zero: never a guess, never a default rate.
     /// </summary>
     [Fact]
     public void TaxIsTheTaxableValueAtTheRate()
@@ -138,36 +158,24 @@ public class OrderMoneyTests
         Assert.Equal(0m, OrderMoney.GstOn(200m, 0m));
         Assert.Equal(0m, OrderMoney.GstOn(0m, 18m));
 
-        const decimal price = 899.50m;
-        const decimal rate = 12m;
+        var price = TestPrices.Priced(899.50m, discountPercent: 20m, additionalDiscountPercent: 5m);
+        var taxable = OrderMoney.TaxableValue(price);
+        var tax = OrderMoney.GstOn(taxable, 12m);
 
-        var taxable = OrderMoney.TaxableValue(price, 20m, 5m);
-        var tax = OrderMoney.GstOn(taxable, rate);
+        // 899.50 of goods is 900.00 to the rupee, 20% off that is 180.00 and 5% of the 720.00 left is 36.00, so the
+        // value the tax falls on is a whole figure already. The multiplication below is the one unrounded figure in
+        // the file - by design, since it is the reading a rate is applied with, not a price: 12% of 684.00 is 82.08,
+        // and 82.00 the moment it is a figure a price is made of (ProductPricing.Rupees, which is what the tax
+        // inside a listing price has been through).
+        Assert.Equal(684m, taxable);
+        Assert.Equal(82.08m, tax);
+        Assert.Equal(82m, ProductPricing.Rupees(tax));
 
-        Assert.Equal(674.625m, taxable);
-        Assert.Equal(80.955m, tax);
-
-        // What the customer paid: the value and the tax of it, added up.
-        Assert.Equal(
-            decimal.Round(taxable * (1m + rate / 100m), 2),
-            decimal.Round(taxable + tax, 2));
-    }
-
-    /// <summary>
-    /// The rate the shop charges - and therefore the tax the customer really paid and the shop holds - is the CGST
-    /// rate ALONE: the checkout applies it to the cart and ignores the SGST and IGST rates the product form records
-    /// beside it. Pinned so the report keeps tying to the money the gateway took (counting all three would show more
-    /// tax than was ever collected), and so that a change here is a deliberate one.
-    /// </summary>
-    [Fact]
-    public void TheChargedRateIsTheCgstRateAlone()
-    {
-        Assert.Equal(9m, OrderMoney.ChargedGstRate(9m, 9m, 18m));
-        Assert.Equal(18m, OrderMoney.ChargedGstRate(18m, 0m, 0m));
-        Assert.Equal(0m, OrderMoney.ChargedGstRate(0m, 9m, 18m));
-
-        // A 200.00 line at 9% CGST / 9% SGST cost the customer 9% of it, not 18%.
-        Assert.Equal(18m, OrderMoney.GstOn(200m, OrderMoney.ChargedGstRate(9m, 9m, 18m)));
+        // What the customer paid: the value and the tax of it, added up. Each taken to the rupee, that is a whole
+        // figure a bill can show - 684.00 + 82.00 = 766.00 - where the raw multiplication would leave 8 paise beside
+        // it.
+        Assert.Equal(766.08m, decimal.Round(taxable * (1m + 12m / 100m), 2));
+        Assert.Equal(766m, taxable + ProductPricing.Rupees(tax));
     }
 
     /// <summary>
@@ -233,31 +241,6 @@ public class OrderMoneyTests
     }
 
     /// <summary>
-    /// A line is worth what the customer paid for it: its price less both discounts, plus the tax the checkout
-    /// charged on that (the CGST rate alone - see ChargedGstRate). It is the weight a partner's share of an order is
-    /// taken by, so it is pinned against the two rules it is built from rather than against a figure typed here.
-    /// </summary>
-    [Fact]
-    public void ALineIsWorthWhatTheCustomerPaidForIt()
-    {
-        // 200.00 with 10% off and a further 5% off, charged at 9% CGST.
-        var taxable = OrderMoney.TaxableValue(200m, 10m, 5m);
-        Assert.Equal(170m, taxable);
-
-        Assert.Equal(
-            taxable + OrderMoney.GstOn(taxable, OrderMoney.ChargedGstRate(9m, 9m, 18m)),
-            OrderMoney.LineValue(200m, 10m, 5m, 9m, 9m, 18m));
-
-        // The tax is the CGST rate the checkout charges, not the SGST or IGST rates recorded beside it.
-        Assert.Equal(
-            OrderMoney.LineValue(200m, 0m, 0m, 9m, 9m, 18m),
-            OrderMoney.LineValue(200m, 0m, 0m, 9m, 18m, 0m));
-
-        // A line with no discount and no tax is worth its own price.
-        Assert.Equal(200m, OrderMoney.LineValue(200m, 0m, 0m, 0m, 0m, 0m));
-    }
-
-    /// <summary>
     /// A partner's part of a shared order's money is their own lines' worth against the whole order's - the
     /// apportionment every figure of their books is read by. What the customer paid, the gateway's charge for taking
     /// it and the courier's bill are all recorded against the ORDER, so all of them are cut the same way, and the two
@@ -266,9 +249,9 @@ public class OrderMoneyTests
     [Fact]
     public void APartnersShareOfASharedOrderIsTheirOwnLinesWorth()
     {
-        // One order, two partners' goods: a line of 400.00 and one of 600.00, each charged at 9% CGST.
-        var mine = OrderMoney.LineValue(400m, 0m, 0m, 9m, 0m, 0m);
-        var theirs = OrderMoney.LineValue(600m, 0m, 0m, 9m, 0m, 0m);
+        // One order, two partners' goods: a line of 400.00 and one of 600.00, each charged at 9% tax.
+        var mine = OrderMoney.LineValue(TestPrices.Priced(400m, cgstPercent: 9m));
+        var theirs = OrderMoney.LineValue(TestPrices.Priced(600m, cgstPercent: 9m));
         var order = mine + theirs;
 
         // 1,200.00 was taken for it and the gateway kept 24.00 for taking it (the courier billed 30.00).
@@ -295,7 +278,7 @@ public class OrderMoneyTests
     [Fact]
     public void AnOrderOfOnePartnersGoodsIsEntirelyTheirs()
     {
-        var mine = OrderMoney.LineValue(400m, 0m, 0m, 9m, 0m, 0m);
+        var mine = OrderMoney.LineValue(TestPrices.Priced(400m, cgstPercent: 9m));
 
         Assert.Equal(1200m, OrderMoney.Share(1200m, mine, mine));
         Assert.Equal(24m, OrderMoney.Share(24m, mine, mine));

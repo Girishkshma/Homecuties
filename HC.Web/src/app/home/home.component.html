@@ -183,9 +183,9 @@
             </div>
             <div class="product-footer">
               <div class="product-price">
-                <span class="current-price">{{ UtilityService.currencyFormat(product.PostAdditionalDiscountSalesPrice) }}</span>
-                <span class="original-price" *ngIf="product.PostDiscountSalesPrice !== product.PostAdditionalDiscountSalesPrice">
-                  {{ UtilityService.currencyFormat(product.PostDiscountSalesPrice) }}
+                <span class="current-price">{{ UtilityService.currencyFormat(product.ListingPrice) }}</span>
+                <span class="original-price" *ngIf="product.PreDiscountListingPrice !== product.ListingPrice">
+                  {{ UtilityService.currencyFormat(product.PreDiscountListingPrice) }}
                 </span>
                 <span class="discount-badge" *ngIf="product.AdditionalDiscountPercent > 0">
                   Extra {{ product.AdditionalDiscountPercent }}% off

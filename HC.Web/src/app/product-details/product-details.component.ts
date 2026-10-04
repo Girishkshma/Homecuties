@@ -123,6 +123,8 @@ export class ProductDetailsComponent implements OnInit, OnDestroy {
             ProductTitle: this.product!.ProductTitle,
             ProductDescription: this.product!.ProductDescription,
             PromoImage: this.product!.PromoImage || '',
+            ListingPrice: this.product!.ListingPrice,
+            PreDiscountListingPrice: this.product!.PreDiscountListingPrice,
             SalesPrice: this.product!.SalesPrice,
             PostDiscountSalesPrice: this.product!.PostDiscountSalesPrice,
             PostAdditionalDiscountSalesPrice: this.product!.PostAdditionalDiscountSalesPrice,

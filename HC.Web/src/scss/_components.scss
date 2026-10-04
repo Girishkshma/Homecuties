@@ -412,19 +412,7 @@
     .product-price-section {
       margin-bottom: 1.25rem;
 
-      .price-current {
-        font-size: 1.75rem;
-        font-weight: 700;
-        color: var(--heading-color);
-      }
-
-      .price-original {
-        font-size: 1rem;
-        color: var(--text-muted);
-        text-decoration: line-through;
-        margin-left: 0.75rem;
-      }
-
+      /* The two discounts, on one line above the price they are taken off ('price-badges' spaces them). */
       .price-discount {
         display: inline-block;
         font-size: 0.625rem;
@@ -435,7 +423,6 @@
         background: var(--primary);
         padding: 3px 8px;
         border-radius: var(--radius-badge);
-        margin-left: 0.5rem;
       }
     }
 

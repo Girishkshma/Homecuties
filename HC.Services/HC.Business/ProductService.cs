@@ -25,6 +25,7 @@ public class ProductService : IProductService
             .Select(ProductProjection)
             .ToListAsync();
 
+        AddListingPrices(products);
         await AddStockAsync(products);
         return products;
     }
@@ -40,6 +41,7 @@ public class ProductService : IProductService
             .Select(ProductProjection)
             .ToListAsync();
 
+        AddListingPrices(products);
         await AddStockAsync(products);
         return products;
     }
@@ -58,6 +60,7 @@ public class ProductService : IProductService
         if (product == null)
             return null;
 
+        AddListingPrices(new[] { product });
         await AddStockAsync(new[] { product });
         return product;
     }
@@ -74,6 +77,7 @@ public class ProductService : IProductService
             .Select(ProductProjection)
             .ToListAsync();
 
+        AddListingPrices(products);
         await AddStockAsync(products);
         return products;
     }
@@ -124,6 +128,46 @@ public class ProductService : IProductService
     }
 
     /// <summary>
+    /// Works out what one unit of each product costs the customer and writes it into
+    /// <see cref="ProductDto.ListingPrice"/> and the figures it is made of.
+    ///
+    /// Every price on a listing is composed from the product form's own two sections - 'Pricing &amp; Charges'
+    /// (the unit price, both discounts, the packaging / storage / delivery charges and the profit margin) and
+    /// 'Taxes' (CGST, SGST, IGST) - by the one rule (<see cref="ProductPricing"/>), so a card, the cart and the
+    /// bill cannot describe the same product differently.
+    ///
+    /// It is a pass over the read rows rather than part of <see cref="ProductProjection"/> for the same reason the
+    /// stock is: the projection is translated into SQL and the rule is C#, and putting it in only one of the two
+    /// would leave the other free to drift.
+    /// </summary>
+    private static void AddListingPrices(IReadOnlyCollection<ProductDto> products)
+    {
+        foreach (var product in products)
+        {
+            var price = new ProductPricing.Inputs(
+                product.UnitPrice,
+                product.DiscountPercent,
+                product.AdditionalDiscountPercent,
+                product.ProfitMarginPercent,
+                product.PackagingCharge,
+                product.StorageCharge,
+                product.DeliveryCharge,
+                product.CGSTPercent,
+                product.SGSTPercent,
+                product.IGSTPercent);
+
+            product.MarginAmount = ProductPricing.Margin(price);
+            product.ChargesAmount = ProductPricing.Charges(price);
+            product.TaxableValue = ProductPricing.TaxableValue(price);
+            product.GstRatePercent = ProductPricing.GstRate(price);
+            product.GstAmount = ProductPricing.GstAmount(price);
+            product.ListingPrice = ProductPricing.ListingPrice(price);
+            product.PreDiscountListingPrice = ProductPricing.PreDiscountListingPrice(price);
+            product.PostDiscountListingPrice = ProductPricing.PostDiscountListingPrice(price);
+        }
+    }
+
+    /// <summary>
     /// Reads the sellable units of the given products and writes them into their
     /// <see cref="ProductDto.IsInStock"/> and <see cref="ProductDto.AvailableQty"/> fields, which
     /// <see cref="ProductProjection"/> leaves at their defaults.
@@ -168,10 +212,23 @@ public class ProductService : IProductService
             .OrderBy(pi => pi.ImageIndex)
             .Select(pi => pi.ImageUrl)
             .ToList(),
+        // What the price a customer pays is made up of, straight off the product: the pass below turns these into
+        // the listing price with the one rule (ProductPricing), because that rule is C# and not something SQL is
+        // asked to repeat.
+        UnitPrice = p.UnitPrice,
+        ProfitMarginPercent = p.ProfitMarginPercent,
+        PackagingCharge = p.PackagingCharge,
+        StorageCharge = p.StorageCharge,
+        DeliveryCharge = p.DeliveryCharge,
+        // What the two discounts do to the goods alone: the unit price, and what each of them leaves of it - the
+        // additional discount coming off what the discount left, the way both of them come off the price itself
+        // (<see cref="ProductPricing"/>). These are the figures a screen speaks about the discount with; what a
+        // customer actually pays is ListingPrice, filled in below.
         SalesPrice = p.UnitPrice,
         PreDiscountSalesPrice = p.UnitPrice,
         PostDiscountSalesPrice = p.UnitPrice - (p.UnitPrice * p.DiscountPercent / 100),
-        PostAdditionalDiscountSalesPrice = p.UnitPrice - (p.UnitPrice * (p.DiscountPercent + p.AdditionalDiscountPercent) / 100),
+        PostAdditionalDiscountSalesPrice =
+            (p.UnitPrice - (p.UnitPrice * p.DiscountPercent / 100)) * (1m - p.AdditionalDiscountPercent / 100),
         DiscountPercent = p.DiscountPercent,
         AdditionalDiscountPercent = p.AdditionalDiscountPercent,
         CGSTPercent = p.Cgstpercent,

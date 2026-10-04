@@ -37,7 +37,9 @@ public partial class CartService : ICartService
                     ProductName = ci.Product.ProductName,
                     ProductTitle = ci.Product.ProductTitle,
                     Quantity = ci.Quantity,
-                    Price = ci.Product.UnitPrice,
+                    // What one of this product costs the customer, everything in (ProductPricing) - so the price the
+                    // cart shows is the price the checkout charges for it.
+                    Price = ProductPricing.ListingPrice(ProductPricing.Of(ci.Product)),
                     Image = ci.Product.ProductImages
                         .Where(pi => pi.IsPromoImage && pi.IsActive)
                         .Select(pi => pi.ImageUrl)
@@ -73,7 +75,9 @@ public partial class CartService : ICartService
                     ProductName = ci.Product.ProductName,
                     ProductTitle = ci.Product.ProductTitle,
                     Quantity = ci.Quantity,
-                    Price = ci.Product.UnitPrice,
+                    // What one of this product costs the customer, everything in (ProductPricing) - so the price the
+                    // cart shows is the price the checkout charges for it.
+                    Price = ProductPricing.ListingPrice(ProductPricing.Of(ci.Product)),
                     Image = ci.Product.ProductImages
                         .Where(pi => pi.IsPromoImage && pi.IsActive)
                         .Select(pi => pi.ImageUrl)

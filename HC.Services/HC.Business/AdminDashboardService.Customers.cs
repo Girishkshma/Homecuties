@@ -40,10 +40,9 @@ public partial class AdminDashboardService : IAdminDashboardService
 
     public async Task<AdminCustomerDetailDto?> GetCustomerDetailAsync(long customerId)
     {
-        return await _context.Customers
+        var customer = await _context.Customers
             .Include(c => c.CustomerStatus)
             .Include(c => c.CustomerAddresses)
-            .Include(c => c.Orders)
             .Where(c => c.CustomerId == customerId)
             .Select(c => new AdminCustomerDetailDto
             {
@@ -73,9 +72,22 @@ public partial class AdminDashboardService : IAdminDashboardService
                     MobileNumber = a.MobileNumber
                 }).ToList(),
                 OrderCount = c.Orders.Count,
-                TotalSpent = c.Orders.SelectMany(o => o.OrderItems).Sum(oi => (decimal?)oi.UnitPrice) ?? 0
+
+                // Filled in below, from the lines themselves: what the customer spent is a sum over every unit they
+                // ever bought, which the one pricing rule works out (ProductPricing.ChargedPriceExpression).
+                TotalSpent = 0
             })
             .FirstOrDefaultAsync();
+
+        if (customer == null)
+            return null;
+
+        customer.TotalSpent = await _context.OrderItems
+            .AsNoTracking()
+            .Where(line => line.Order.CustomerId == customerId)
+            .SumAsync(ProductPricing.ChargedPriceExpression);
+
+        return customer;
     }
 
     public async Task<AdminResultDto> UpdateCustomerStatusAsync(long customerId, short customerStatusId)

@@ -29,12 +29,13 @@ public partial class AdminDashboardService : IAdminDashboardService
     // shop front, the admin screen and the tracking pull share one definition of where a unit is.
 
     /// <summary>
-    /// Every order for the admin list, newest first. <c>TotalAmount</c> is what the checkout charged
-    /// (OrderItems holds one row per physical unit and the checkout charges the unit prices) and
-    /// <c>IsPaid</c> mirrors 'My Orders': an order counts as paid once it is Confirmed, Shipped or
-    /// Delivered - a Pending order has not been paid yet and a cancelled one is not money we keep.
-    /// Every row also carries the customer's id and email, so a customer can be identified by more
-    /// than a name.
+    /// Every order for the admin list, newest first. <c>TotalAmount</c> is what the checkout charged: OrderItems
+    /// holds one row per physical unit, and each unit is priced the way the listing is - the unit price, the shop's
+    /// margin, its packaging / storage / delivery charges, both discounts and the tax on what is left
+    /// (ProductPricing.ChargedPriceExpression, the database-side reading of that one rule). <c>IsPaid</c> mirrors
+    /// 'My Orders': an order counts as paid once it is Confirmed, Shipped or Delivered - a Pending order has not
+    /// been paid yet and a cancelled one is not money we keep. Every row also carries the customer's id and email,
+    /// so a customer can be identified by more than a name.
     /// </summary>
     public async Task<List<AdminOrderListDto>> GetOrdersAsync()
     {
@@ -54,7 +55,14 @@ public partial class AdminDashboardService : IAdminDashboardService
                 IsPaid = o.OrderStatusId == OrderStatusConfirmed
                          || o.OrderStatusId == OrderStatusShipped
                          || o.OrderStatusId == OrderStatusDelivered,
-                TotalAmount = o.OrderItems.Sum(oi => oi.UnitPrice),
+                // What this order was charged: its lines, one per physical unit, each priced by the one rule and
+                // added up in the database (ProductPricing.ChargedPriceExpression - see the type for why the rule
+                // has a database-side reading at all). Written as a subquery over the lines themselves rather than
+                // over the order's own collection, because only an IQueryable can be handed that expression - and
+                // the arithmetic underneath it is not something to write out a second time here.
+                TotalAmount = _context.OrderItems
+                    .Where(line => line.OrderId == o.OrderId)
+                    .Sum(ProductPricing.ChargedPriceExpression),
                 ItemCount = o.OrderItems.Count,
 
                 // A refund is owed on an order whose money we still hold: a refund that has been asked for
@@ -112,7 +120,7 @@ public partial class AdminDashboardService : IAdminDashboardService
                 IsPaid = o.OrderStatusId == OrderStatusConfirmed
                          || o.OrderStatusId == OrderStatusShipped
                          || o.OrderStatusId == OrderStatusDelivered,
-                TotalAmount = o.OrderItems.Sum(oi => oi.UnitPrice),
+                TotalAmount = 0,
                 SellerName = o.Seller.PartnerName,
                 BillingAddress = new AdminAddressDto
                 {
@@ -166,6 +174,11 @@ public partial class AdminDashboardService : IAdminDashboardService
 
         if (order == null)
             return null;
+
+        // What the checkout charged for it, worked out here rather than in the query: the lines above already carry
+        // everything the one pricing rule asks for (ProductPricing), so nothing has to be read a second time - and
+        // the figure is the same one the customer was charged, the cart showed and the gateway was asked for.
+        order.TotalAmount = order.Items.Sum(ChargedPriceOf);
 
         // What each of the order's lines really carried, money-wise - the split the shop records
         // (OrderItemMoney, see OrderItemMoneyWriter). Its own table, so it is read on its own: nothing about the
@@ -883,5 +896,23 @@ public partial class AdminDashboardService : IAdminDashboardService
     };
 
     private static string OrderNumber(long orderId) => $"HC{orderId:D6}";
+
+    /// <summary>
+    /// What one unit of an order was charged, read from the line as the order screen already carries it - the one
+    /// pricing rule (ProductPricing), over the snapshot the line itself holds, so an order is always read at the
+    /// price it was sold at.
+    /// </summary>
+    private static decimal ChargedPriceOf(AdminOrderItemDto item) =>
+        ProductPricing.ListingPrice(new ProductPricing.Inputs(
+            item.UnitPrice,
+            item.DiscountPercent,
+            item.AdditionalDiscountPercent,
+            item.ProfitMarginPercent,
+            item.PackagingCharge,
+            item.StorageCharge,
+            item.DeliveryCharge,
+            item.Cgstpercent,
+            item.Sgstpercent,
+            item.Igstpercent));
 
 }
