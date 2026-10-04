@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <!-- Households: a turned serving bowl. Palette and box convention as hero-scene.svg. -->
+  <defs>
+    <linearGradient id="gWood" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#cba976"/><stop offset=".24" stop-color="#f7ecd6"/>
+      <stop offset=".46" stop-color="#ecd8b3"/><stop offset=".72" stop-color="#d4b483"/>
+      <stop offset="1" stop-color="#a8804b"/>
+    </linearGradient>
+    <linearGradient id="gWoodD" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#a8804b"/><stop offset=".26" stop-color="#dcc29a"/>
+      <stop offset=".5" stop-color="#c1a077"/><stop offset=".78" stop-color="#9a7444"/>
+      <stop offset="1" stop-color="#7d5c33"/>
+    </linearGradient>
+    <linearGradient id="gGreen" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#1b5434"/><stop offset=".24" stop-color="#45a86c"/>
+      <stop offset=".46" stop-color="#2f8353"/><stop offset=".72" stop-color="#22653f"/>
+      <stop offset="1" stop-color="#16462c"/>
+    </linearGradient>
+    <radialGradient id="gGlow" gradientUnits="userSpaceOnUse" cx="200" cy="170" r="190">
+      <stop offset="0" stop-color="#fdf7ec"/><stop offset="1" stop-color="#faf3e8" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softSm" x="-60%" y="-160%" width="220%" height="420%"><feGaussianBlur stdDeviation="4"/></filter>
+
+    <g id="toyBowl">
+      <ellipse cx="100" cy="190" rx="32" ry="10" fill="url(#gWoodD)"/>
+      <path d="M30 116 Q100 96 170 116 Q166 196 100 200 Q34 196 30 116 Z" fill="url(#gWood)"/>
+      <path d="M31 122 Q100 102 169 122" stroke="url(#gGreen)" stroke-width="11" fill="none" stroke-linecap="round"/>
+      <ellipse cx="100" cy="116" rx="70" ry="18" fill="url(#gWoodD)"/>
+      <ellipse cx="100" cy="116" rx="62" ry="14" fill="#6b4f2c" opacity=".5"/>
+      <ellipse cx="100" cy="115" rx="55" ry="11" fill="#4a3520" opacity=".55"/>
+      <path d="M46 132 Q52 168 78 184" stroke="#fbf3e3" stroke-width="8" fill="none" stroke-linecap="round" opacity=".3"/>
+    </g>
+  </defs>
+
+  <ellipse cx="200" cy="120" rx="150" ry="110" fill="url(#gGlow)"/>
+  <ellipse cx="200" cy="250" rx="72" ry="8" fill="#3b2a1b" opacity=".16" filter="url(#softSm)"/>
+  <use href="#toyBowl" transform="translate(200,246) translate(-100,-200)"/>
+</svg>

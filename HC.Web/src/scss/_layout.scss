@@ -9,9 +9,13 @@
   flex: 1;
 }
 
-/* ===== Section ===== */
+/* ===== Section =====
+   The shop page, the categories and the featured grid all open with one of these, so the top
+   padding here is the first thing a visitor sees after the header. It used to reach its 6.5rem
+   cap above ~1730px and stacked on the 106px fixed header to leave ~210px of white above the
+   first heading; capped at 4rem the page opens as one block with the header instead of two. */
 .section {
-  padding: clamp(3.5rem, 6vw, 6.5rem) 0;
+  padding: clamp(2.5rem, 4vw, 4rem) 0;
 }
 
 .section-title {

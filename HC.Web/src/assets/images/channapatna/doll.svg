@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240">
+  <!-- The Channapatna dancing doll, on its own. Drawn the way the toy is turned: weighted
+       base, a stack of lacquered beads, a big head and a plumed crown. See hero-scene.svg
+       for the shared 200 x 200 / base-on-y=200 convention. -->
+  <defs>
+    <linearGradient id="gWood" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#cba976"/>
+      <stop offset=".24" stop-color="#f7ecd6"/>
+      <stop offset=".46" stop-color="#ecd8b3"/>
+      <stop offset=".72" stop-color="#d4b483"/>
+      <stop offset="1" stop-color="#a8804b"/>
+    </linearGradient>
+    <linearGradient id="gWoodD" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#a8804b"/>
+      <stop offset=".26" stop-color="#dcc29a"/>
+      <stop offset=".5" stop-color="#c1a077"/>
+      <stop offset=".78" stop-color="#9a7444"/>
+      <stop offset="1" stop-color="#7d5c33"/>
+    </linearGradient>
+    <linearGradient id="gRed" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#8f2b1a"/>
+      <stop offset=".24" stop-color="#dc5a35"/>
+      <stop offset=".46" stop-color="#d1492c"/>
+      <stop offset=".72" stop-color="#a83620"/>
+      <stop offset="1" stop-color="#75220f"/>
+    </linearGradient>
+    <linearGradient id="gYellow" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#a9710e"/>
+      <stop offset=".24" stop-color="#f8cd55"/>
+      <stop offset=".46" stop-color="#edb12d"/>
+      <stop offset=".72" stop-color="#c78c13"/>
+      <stop offset="1" stop-color="#8f5f08"/>
+    </linearGradient>
+    <linearGradient id="gGreen" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#1b5434"/>
+      <stop offset=".24" stop-color="#45a86c"/>
+      <stop offset=".46" stop-color="#2f8353"/>
+      <stop offset=".72" stop-color="#22653f"/>
+      <stop offset="1" stop-color="#16462c"/>
+    </linearGradient>
+    <radialGradient id="gGlow" gradientUnits="userSpaceOnUse" cx="120" cy="120" r="150">
+      <stop offset="0" stop-color="#fdf7ec"/>
+      <stop offset="1" stop-color="#faf3e8" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softSm" x="-60%" y="-160%" width="220%" height="420%">
+      <feGaussianBlur stdDeviation="3"/>
+    </filter>
+
+    <g id="toyDoll">
+      <ellipse cx="100" cy="192" rx="41" ry="10" fill="url(#gRed)"/>
+      <ellipse cx="100" cy="170" rx="38" ry="13" fill="url(#gRed)"/>
+      <ellipse cx="100" cy="146" rx="40" ry="13" fill="url(#gYellow)"/>
+      <ellipse cx="100" cy="122" rx="37" ry="13" fill="url(#gGreen)"/>
+      <ellipse cx="100" cy="100" rx="30" ry="11" fill="url(#gRed)"/>
+      <ellipse cx="100" cy="84" rx="16" ry="8" fill="url(#gWoodD)"/>
+      <circle cx="100" cy="58" r="28" fill="url(#gWood)"/>
+      <path d="M100 14 L118 40 L82 40 Z" fill="url(#gRed)"/>
+      <circle cx="100" cy="12" r="7" fill="url(#gYellow)"/>
+      <circle cx="90" cy="56" r="2.6" fill="#3b2a1b"/>
+      <circle cx="110" cy="56" r="2.6" fill="#3b2a1b"/>
+    </g>
+  </defs>
+
+  <rect width="240" height="240" fill="url(#gGlow)"/>
+  <ellipse cx="120" cy="212" rx="52" ry="7" fill="#3b2a1b" opacity=".16" filter="url(#softSm)"/>
+  <use href="#toyDoll" transform="translate(120,210) scale(.9) translate(-100,-200)"/>
+</svg>

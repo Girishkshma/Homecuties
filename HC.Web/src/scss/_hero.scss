@@ -5,7 +5,12 @@
   background: var(--white);
   color: var(--body-color);
   border-bottom: 1px solid var(--border-color);
-  padding: clamp(3.5rem, 7vw, 6.5rem) 0;
+  /* The fixed header is already 106px of air above this section, so the hero's own top padding
+     is deliberately the smaller of the two: two near-identical bands stacked up to ~210px of
+     white above the first line of the home page. The bottom stays roomier - that is what
+     separates the hero from the service strip under it. The 7vw this used to run climbed to its
+     6.5rem cap on any screen wider than ~1490px, which is where the two bands met. */
+  padding: clamp(2.5rem, 3.5vw, 3.5rem) 0 clamp(3rem, 5.5vw, 5rem);
   overflow: hidden;
 
   .hero-bg-overlay {
@@ -249,14 +254,13 @@
 
   .showcase-card-sm {
     position: absolute;
+    /* Square frame: the mini-card art (doll.svg / top.svg) is drawn in a 240x240 box, so a
+       non-square frame forced object-fit: cover to slice the hat and base rings off. The
+       base `.showcase-card img` rule (width/height 100% + cover) then fills it 1:1. */
     width: 160px;
-    height: 120px;
+    height: 160px;
     border: 6px solid var(--white);
     box-shadow: var(--shadow-md);
-
-    img {
-      height: 120px;
-    }
   }
 
   .showcase-card-top {

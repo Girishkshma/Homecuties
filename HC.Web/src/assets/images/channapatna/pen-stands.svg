@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <!-- Pen Stands: a banded turned pot with three pens. Palette and box convention as hero-scene.svg. -->
+  <defs>
+    <linearGradient id="gWood" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#cba976"/><stop offset=".24" stop-color="#f7ecd6"/>
+      <stop offset=".46" stop-color="#ecd8b3"/><stop offset=".72" stop-color="#d4b483"/>
+      <stop offset="1" stop-color="#a8804b"/>
+    </linearGradient>
+    <linearGradient id="gWoodD" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#a8804b"/><stop offset=".26" stop-color="#dcc29a"/>
+      <stop offset=".5" stop-color="#c1a077"/><stop offset=".78" stop-color="#9a7444"/>
+      <stop offset="1" stop-color="#7d5c33"/>
+    </linearGradient>
+    <linearGradient id="gRed" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#8f2b1a"/><stop offset=".24" stop-color="#dc5a35"/>
+      <stop offset=".46" stop-color="#d1492c"/><stop offset=".72" stop-color="#a83620"/>
+      <stop offset="1" stop-color="#75220f"/>
+    </linearGradient>
+    <linearGradient id="gYellow" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#a9710e"/><stop offset=".24" stop-color="#f8cd55"/>
+      <stop offset=".46" stop-color="#edb12d"/><stop offset=".72" stop-color="#c78c13"/>
+      <stop offset="1" stop-color="#8f5f08"/>
+    </linearGradient>
+    <linearGradient id="gGreen" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#1b5434"/><stop offset=".24" stop-color="#45a86c"/>
+      <stop offset=".46" stop-color="#2f8353"/><stop offset=".72" stop-color="#22653f"/>
+      <stop offset="1" stop-color="#16462c"/>
+    </linearGradient>
+    <linearGradient id="gBlue" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#1a3057"/><stop offset=".24" stop-color="#4275bd"/>
+      <stop offset=".46" stop-color="#315795"/><stop offset=".72" stop-color="#244070"/>
+      <stop offset="1" stop-color="#152848"/>
+    </linearGradient>
+    <radialGradient id="gGlow" gradientUnits="userSpaceOnUse" cx="200" cy="170" r="190">
+      <stop offset="0" stop-color="#fdf7ec"/><stop offset="1" stop-color="#faf3e8" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softSm" x="-60%" y="-160%" width="220%" height="420%"><feGaussianBlur stdDeviation="4"/></filter>
+
+    <g id="toyPenPot">
+      <path d="M84 114 L74 46" stroke="url(#gBlue)" stroke-width="9" stroke-linecap="round"/>
+      <path d="M116 114 L128 50" stroke="url(#gRed)" stroke-width="9" stroke-linecap="round"/>
+      <path d="M100 112 L100 40" stroke="url(#gGreen)" stroke-width="9" stroke-linecap="round"/>
+      <rect x="54" y="120" width="92" height="66" fill="url(#gWood)"/>
+      <rect x="54" y="150" width="92" height="12" fill="url(#gRed)"/>
+      <rect x="54" y="164" width="92" height="7" fill="url(#gYellow)"/>
+      <ellipse cx="100" cy="186" rx="46" ry="14" fill="url(#gWood)"/>
+      <ellipse cx="100" cy="120" rx="46" ry="14" fill="url(#gWoodD)"/>
+      <ellipse cx="100" cy="118" rx="38" ry="11" fill="#4a3520" opacity=".55"/>
+      <ellipse cx="100" cy="115" rx="31" ry="9" fill="#3b2a1b" opacity=".5"/>
+    </g>
+  </defs>
+
+  <ellipse cx="200" cy="120" rx="150" ry="110" fill="url(#gGlow)"/>
+  <ellipse cx="200" cy="250" rx="52" ry="8" fill="#3b2a1b" opacity=".16" filter="url(#softSm)"/>
+  <use href="#toyPenPot" transform="translate(200,246) translate(-100,-200)"/>
+</svg>

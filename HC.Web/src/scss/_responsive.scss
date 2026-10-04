@@ -13,7 +13,9 @@
   }
 
   .hero-banner {
-    padding: 3.5rem 0 3rem;
+    /* Same reasoning as the desktop rule in _hero.scss: the copy column is centred against the
+       taller image column here, which adds ~20px of its own, so the padding comes down. */
+    padding: 2.25rem 0 3rem;
 
     h1 {
       font-size: 2.5rem;
@@ -34,20 +36,21 @@
     }
 
     .showcase-card-main {
-      height: 320px;
+      /* The card goes full-width once the hero stacks; a fixed 320px height then made it far
+         wider than the 640x512 art and object-fit: cover sliced ~50% of the scene off the top
+         and bottom. Matching the art's own aspect keeps the frame honest at every width. */
+      height: auto;
+      aspect-ratio: 640 / 512;
 
       img {
-        height: 320px;
+        height: 100%;
       }
     }
 
     .showcase-card-sm {
+      /* Kept square to match the 240x240 mini-card art (see _hero.scss). */
       width: 130px;
-      height: 100px;
-
-      img {
-        height: 100px;
-      }
+      height: 130px;
     }
 
     .showcase-card-top {

@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240">
+  <!-- A Channapatna spinning top (bhumara): a lacquered disc threaded onto a turned wooden
+       stem, over a cone that tapers to the point it spins on. -->
+  <defs>
+    <linearGradient id="gWoodD" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#a8804b"/>
+      <stop offset=".26" stop-color="#dcc29a"/>
+      <stop offset=".5" stop-color="#c1a077"/>
+      <stop offset=".78" stop-color="#9a7444"/>
+      <stop offset="1" stop-color="#7d5c33"/>
+    </linearGradient>
+    <linearGradient id="gRed" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#8f2b1a"/>
+      <stop offset=".24" stop-color="#dc5a35"/>
+      <stop offset=".46" stop-color="#d1492c"/>
+      <stop offset=".72" stop-color="#a83620"/>
+      <stop offset="1" stop-color="#75220f"/>
+    </linearGradient>
+    <linearGradient id="gYellow" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#a9710e"/>
+      <stop offset=".24" stop-color="#f8cd55"/>
+      <stop offset=".46" stop-color="#edb12d"/>
+      <stop offset=".72" stop-color="#c78c13"/>
+      <stop offset="1" stop-color="#8f5f08"/>
+    </linearGradient>
+    <linearGradient id="gGreen" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#1b5434"/>
+      <stop offset=".24" stop-color="#45a86c"/>
+      <stop offset=".46" stop-color="#2f8353"/>
+      <stop offset=".72" stop-color="#22653f"/>
+      <stop offset="1" stop-color="#16462c"/>
+    </linearGradient>
+    <radialGradient id="gGlow" gradientUnits="userSpaceOnUse" cx="120" cy="130" r="150">
+      <stop offset="0" stop-color="#fdf7ec"/>
+      <stop offset="1" stop-color="#faf3e8" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softSm" x="-60%" y="-160%" width="220%" height="420%">
+      <feGaussianBlur stdDeviation="3"/>
+    </filter>
+
+    <g id="toyTop">
+      <path d="M100 196 L44 132 Q100 160 156 132 Z" fill="url(#gYellow)"/>
+      <ellipse cx="100" cy="130" rx="56" ry="16" fill="url(#gRed)"/>
+      <ellipse cx="100" cy="121" rx="47" ry="13" fill="url(#gGreen)"/>
+      <ellipse cx="100" cy="114" rx="34" ry="9" fill="url(#gYellow)"/>
+      <rect x="95" y="76" width="10" height="40" rx="5" fill="url(#gWoodD)"/>
+      <circle cx="100" cy="74" r="11" fill="url(#gRed)"/>
+    </g>
+  </defs>
+
+  <rect width="240" height="240" fill="url(#gGlow)"/>
+  <ellipse cx="120" cy="216" rx="34" ry="6" fill="#3b2a1b" opacity=".16" filter="url(#softSm)"/>
+  <use href="#toyTop" transform="translate(120,214) scale(.9) translate(-100,-200)"/>
+</svg>

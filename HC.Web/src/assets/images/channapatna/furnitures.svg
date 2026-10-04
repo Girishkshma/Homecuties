@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <!-- Furnitures: a small turned stool. Palette and box convention as hero-scene.svg. -->
+  <defs>
+    <linearGradient id="gWood" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#cba976"/><stop offset=".24" stop-color="#f7ecd6"/>
+      <stop offset=".46" stop-color="#ecd8b3"/><stop offset=".72" stop-color="#d4b483"/>
+      <stop offset="1" stop-color="#a8804b"/>
+    </linearGradient>
+    <linearGradient id="gWoodD" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#a8804b"/><stop offset=".26" stop-color="#dcc29a"/>
+      <stop offset=".5" stop-color="#c1a077"/><stop offset=".78" stop-color="#9a7444"/>
+      <stop offset="1" stop-color="#7d5c33"/>
+    </linearGradient>
+    <linearGradient id="gRed" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#8f2b1a"/><stop offset=".24" stop-color="#dc5a35"/>
+      <stop offset=".46" stop-color="#d1492c"/><stop offset=".72" stop-color="#a83620"/>
+      <stop offset="1" stop-color="#75220f"/>
+    </linearGradient>
+    <linearGradient id="gYellow" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#a9710e"/><stop offset=".24" stop-color="#f8cd55"/>
+      <stop offset=".46" stop-color="#edb12d"/><stop offset=".72" stop-color="#c78c13"/>
+      <stop offset="1" stop-color="#8f5f08"/>
+    </linearGradient>
+    <radialGradient id="gGlow" gradientUnits="userSpaceOnUse" cx="200" cy="170" r="190">
+      <stop offset="0" stop-color="#fdf7ec"/><stop offset="1" stop-color="#faf3e8" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softSm" x="-60%" y="-160%" width="220%" height="420%"><feGaussianBlur stdDeviation="4"/></filter>
+
+    <g id="toyStool">
+      <path d="M52 124 L36 194" stroke="url(#gWoodD)" stroke-width="12" stroke-linecap="round"/>
+      <path d="M148 124 L164 194" stroke="url(#gWoodD)" stroke-width="12" stroke-linecap="round"/>
+      <path d="M100 130 L100 194" stroke="url(#gWoodD)" stroke-width="12" stroke-linecap="round"/>
+      <ellipse cx="100" cy="168" rx="52" ry="13" fill="none" stroke="url(#gWood)" stroke-width="9"/>
+      <ellipse cx="100" cy="122" rx="76" ry="21" fill="url(#gWood)"/>
+      <ellipse cx="100" cy="117" rx="69" ry="18" fill="url(#gWoodD)"/>
+      <ellipse cx="100" cy="115" rx="52" ry="13" fill="url(#gRed)"/>
+      <ellipse cx="100" cy="114" rx="33" ry="8" fill="url(#gYellow)"/>
+    </g>
+  </defs>
+
+  <ellipse cx="200" cy="120" rx="150" ry="110" fill="url(#gGlow)"/>
+  <ellipse cx="200" cy="250" rx="80" ry="8" fill="#3b2a1b" opacity=".16" filter="url(#softSm)"/>
+  <use href="#toyStool" transform="translate(200,246) translate(-100,-200)"/>
+</svg>

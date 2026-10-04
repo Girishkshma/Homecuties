@@ -64,7 +64,7 @@
           transform: scale(1.06);
         }
         .category-overlay {
-          opacity: 0.15;
+          opacity: 0.04;
         }
       }
 
@@ -76,7 +76,10 @@
     .category-image-wrapper {
       position: relative;
       width: 100%;
-      height: 180px;
+      /* The tiles are drawn 400 x 300 and object-fit: cover crops whatever does not match the
+         frame, so the frame is locked to the artwork's own 4:3. Without this the piece loses
+         its base at the desktop column width and most of its width inside a col-6 on mobile. */
+      aspect-ratio: 4 / 3;
       overflow: hidden;
 
       .category-img {
@@ -90,7 +93,8 @@
         position: absolute;
         inset: 0;
         background: linear-gradient(to top, rgba(0,0,0,0.6), transparent);
-        opacity: 0.3;
+        /* Drawn on paper rather than shot on a dark set, so the vignette only whispers. */
+        opacity: 0.12;
         transition: var(--transition-base);
       }
     }

@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <!-- Utilities: three turned storage jars in a graduated row. Palette and box convention as hero-scene.svg. -->
+  <defs>
+    <linearGradient id="gWood" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#cba976"/><stop offset=".24" stop-color="#f7ecd6"/>
+      <stop offset=".46" stop-color="#ecd8b3"/><stop offset=".72" stop-color="#d4b483"/>
+      <stop offset="1" stop-color="#a8804b"/>
+    </linearGradient>
+    <linearGradient id="gWoodD" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#a8804b"/><stop offset=".26" stop-color="#dcc29a"/>
+      <stop offset=".5" stop-color="#c1a077"/><stop offset=".78" stop-color="#9a7444"/>
+      <stop offset="1" stop-color="#7d5c33"/>
+    </linearGradient>
+    <linearGradient id="gRed" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#8f2b1a"/><stop offset=".24" stop-color="#dc5a35"/>
+      <stop offset=".46" stop-color="#d1492c"/><stop offset=".72" stop-color="#a83620"/>
+      <stop offset="1" stop-color="#75220f"/>
+    </linearGradient>
+    <linearGradient id="gYellow" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#a9710e"/><stop offset=".24" stop-color="#f8cd55"/>
+      <stop offset=".46" stop-color="#edb12d"/><stop offset=".72" stop-color="#c78c13"/>
+      <stop offset="1" stop-color="#8f5f08"/>
+    </linearGradient>
+    <linearGradient id="gGreen" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#1b5434"/><stop offset=".24" stop-color="#45a86c"/>
+      <stop offset=".46" stop-color="#2f8353"/><stop offset=".72" stop-color="#22653f"/>
+      <stop offset="1" stop-color="#16462c"/>
+    </linearGradient>
+    <linearGradient id="gBlue" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#1a3057"/><stop offset=".24" stop-color="#4275bd"/>
+      <stop offset=".46" stop-color="#315795"/><stop offset=".72" stop-color="#244070"/>
+      <stop offset="1" stop-color="#152848"/>
+    </linearGradient>
+    <linearGradient id="gOrange" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#9a4a0c"/><stop offset=".24" stop-color="#f09947"/>
+      <stop offset=".46" stop-color="#de7c22"/><stop offset=".72" stop-color="#bb6013"/>
+      <stop offset="1" stop-color="#83400a"/>
+    </linearGradient>
+    <radialGradient id="gGlow" gradientUnits="userSpaceOnUse" cx="200" cy="170" r="190">
+      <stop offset="0" stop-color="#fdf7ec"/><stop offset="1" stop-color="#faf3e8" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softSm" x="-60%" y="-160%" width="220%" height="420%"><feGaussianBlur stdDeviation="4"/></filter>
+
+    <g id="toyJars">
+      <ellipse cx="52" cy="188" rx="38" ry="12" fill="url(#gWoodD)"/>
+      <ellipse cx="52" cy="170" rx="36" ry="12" fill="url(#gRed)"/>
+      <ellipse cx="52" cy="148" rx="38" ry="13" fill="url(#gWood)"/>
+      <ellipse cx="52" cy="126" rx="34" ry="12" fill="url(#gYellow)"/>
+      <ellipse cx="52" cy="108" rx="26" ry="9" fill="url(#gWoodD)"/>
+      <ellipse cx="52" cy="100" rx="30" ry="10" fill="url(#gGreen)"/>
+      <circle cx="52" cy="90" r="8" fill="url(#gWoodD)"/>
+
+      <ellipse cx="112" cy="190" rx="30" ry="10" fill="url(#gWoodD)"/>
+      <ellipse cx="112" cy="176" rx="28" ry="10" fill="url(#gBlue)"/>
+      <ellipse cx="112" cy="158" rx="30" ry="11" fill="url(#gWood)"/>
+      <ellipse cx="112" cy="140" rx="26" ry="10" fill="url(#gRed)"/>
+      <ellipse cx="112" cy="128" rx="22" ry="8" fill="url(#gWoodD)"/>
+      <ellipse cx="112" cy="122" rx="24" ry="8" fill="url(#gYellow)"/>
+      <circle cx="112" cy="114" r="6" fill="url(#gWoodD)"/>
+
+      <ellipse cx="166" cy="192" rx="22" ry="8" fill="url(#gWoodD)"/>
+      <ellipse cx="166" cy="182" rx="20" ry="8" fill="url(#gGreen)"/>
+      <ellipse cx="166" cy="168" rx="22" ry="9" fill="url(#gWood)"/>
+      <ellipse cx="166" cy="156" rx="18" ry="7" fill="url(#gOrange)"/>
+      <ellipse cx="166" cy="150" rx="19" ry="7" fill="url(#gWoodD)"/>
+      <circle cx="166" cy="144" r="5" fill="url(#gWoodD)"/>
+    </g>
+  </defs>
+
+  <ellipse cx="200" cy="120" rx="150" ry="110" fill="url(#gGlow)"/>
+  <ellipse cx="200" cy="250" rx="96" ry="8" fill="#3b2a1b" opacity=".16" filter="url(#softSm)"/>
+  <use href="#toyJars" transform="translate(200,246) translate(-100,-200)"/>
+</svg>

@@ -3,7 +3,9 @@
   min-height: calc(100vh - var(--navbar-height) - 300px);
   display: flex;
   align-items: center;
-  padding: 3rem 0;
+  /* Down from 3rem: the fixed header already offsets the page, so this padding only widened the
+     band of white the sign-in card floats in. */
+  padding: 2rem 0;
 }
 
 .auth-card {

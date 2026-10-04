@@ -1,0 +1,163 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512">
+  <!-- Channapatna display for the home hero: the shop's own photography, drawn.
+       Channapatna is lathe-turned wood, so every piece below is built the way the toy is:
+       a stack of turned beads and rings in lacquer over ivory wood.
+
+       Conventions, shared by every file in this folder:
+         - each piece lives in a 200 x 200 box, base on y=200, spinning axis on x=100, so the
+           scene places one with transform="translate(centreX, baseY) scale(s) translate(-100,-200)"
+         - the gradients are userSpaceOnUse across that box, so one sheen axis spans a whole
+           piece instead of restarting inside every little bead
+         - the highlight sits left of centre and the shadow to the right, which is what makes a
+           turned cylinder read as round -->
+  <defs>
+    <!-- Ivory wood, lit from the left. -->
+    <linearGradient id="gWood" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#cba976"/>
+      <stop offset=".24" stop-color="#f7ecd6"/>
+      <stop offset=".46" stop-color="#ecd8b3"/>
+      <stop offset=".72" stop-color="#d4b483"/>
+      <stop offset="1" stop-color="#a8804b"/>
+    </linearGradient>
+    <linearGradient id="gWoodD" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#a8804b"/>
+      <stop offset=".26" stop-color="#dcc29a"/>
+      <stop offset=".5" stop-color="#c1a077"/>
+      <stop offset=".78" stop-color="#9a7444"/>
+      <stop offset="1" stop-color="#7d5c33"/>
+    </linearGradient>
+    <!-- The Channapatna lacquers. -->
+    <linearGradient id="gRed" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#8f2b1a"/>
+      <stop offset=".24" stop-color="#dc5a35"/>
+      <stop offset=".46" stop-color="#d1492c"/>
+      <stop offset=".72" stop-color="#a83620"/>
+      <stop offset="1" stop-color="#75220f"/>
+    </linearGradient>
+    <linearGradient id="gYellow" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#a9710e"/>
+      <stop offset=".24" stop-color="#f8cd55"/>
+      <stop offset=".46" stop-color="#edb12d"/>
+      <stop offset=".72" stop-color="#c78c13"/>
+      <stop offset="1" stop-color="#8f5f08"/>
+    </linearGradient>
+    <linearGradient id="gGreen" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#1b5434"/>
+      <stop offset=".24" stop-color="#45a86c"/>
+      <stop offset=".46" stop-color="#2f8353"/>
+      <stop offset=".72" stop-color="#22653f"/>
+      <stop offset="1" stop-color="#16462c"/>
+    </linearGradient>
+    <linearGradient id="gBlue" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#1a3057"/>
+      <stop offset=".24" stop-color="#4275bd"/>
+      <stop offset=".46" stop-color="#315795"/>
+      <stop offset=".72" stop-color="#244070"/>
+      <stop offset="1" stop-color="#152848"/>
+    </linearGradient>
+    <linearGradient id="gOrange" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#9a4a0c"/>
+      <stop offset=".24" stop-color="#f09947"/>
+      <stop offset=".46" stop-color="#de7c22"/>
+      <stop offset=".72" stop-color="#bb6013"/>
+      <stop offset="1" stop-color="#83400a"/>
+    </linearGradient>
+
+    <!-- The warm air around the shelf, so the pieces do not sit on a flat white card. -->
+    <radialGradient id="gGlow" gradientUnits="userSpaceOnUse" cx="320" cy="240" r="360">
+      <stop offset="0" stop-color="#fdf7ec"/>
+      <stop offset=".5" stop-color="#faf3e8" stop-opacity=".9"/>
+      <stop offset="1" stop-color="#faf3e8" stop-opacity="0"/>
+    </radialGradient>
+
+    <filter id="soft" x="-40%" y="-60%" width="180%" height="220%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+    <filter id="softSm" x="-60%" y="-160%" width="220%" height="420%">
+      <feGaussianBlur stdDeviation="3"/>
+    </filter>
+    <!-- Rocking horse. -->
+    <g id="toyHorse">
+      <path d="M20 188 Q100 212 180 188" stroke="url(#gWoodD)" stroke-width="12" fill="none" stroke-linecap="round"/>
+      <path d="M64 168 L57 187" stroke="url(#gWood)" stroke-width="10" stroke-linecap="round"/>
+      <path d="M100 172 L96 190" stroke="url(#gWood)" stroke-width="10" stroke-linecap="round"/>
+      <path d="M136 168 L143 187" stroke="url(#gWood)" stroke-width="10" stroke-linecap="round"/>
+      <ellipse cx="100" cy="146" rx="52" ry="28" fill="url(#gWood)"/>
+      <path d="M50 136 q-14 8 -12 24" stroke="url(#gGreen)" stroke-width="7" fill="none" stroke-linecap="round"/>
+      <path d="M132 132 L152 96" stroke="url(#gWood)" stroke-width="24" stroke-linecap="round"/>
+      <ellipse cx="156" cy="92" rx="21" ry="14" fill="url(#gWood)"/>
+      <path d="M149 80 l6 -13 l9 5 z" fill="url(#gWoodD)"/>
+      <path d="M126 118 q10 -18 26 -22" stroke="url(#gRed)" stroke-width="7" fill="none" stroke-linecap="round"/>
+      <path d="M74 124 Q100 112 124 124" stroke="url(#gRed)" stroke-width="9" fill="none" stroke-linecap="round"/>
+      <circle cx="162" cy="90" r="2.8" fill="#3b2a1b"/>
+    </g>
+
+    <!-- Ring-stacking tower: turned base, six lacquered rings, a finial ball on the pole. -->
+    <g id="toyStack">
+      <rect x="94" y="36" width="12" height="154" rx="6" fill="url(#gWoodD)"/>
+      <ellipse cx="100" cy="186" rx="54" ry="14" fill="url(#gBlue)"/>
+      <ellipse cx="100" cy="170" rx="54" ry="16" fill="url(#gRed)"/>
+      <ellipse cx="100" cy="144" rx="50" ry="15" fill="url(#gYellow)"/>
+      <ellipse cx="100" cy="119" rx="44" ry="14" fill="url(#gGreen)"/>
+      <ellipse cx="100" cy="96" rx="36" ry="12" fill="url(#gBlue)"/>
+      <ellipse cx="100" cy="76" rx="27" ry="10" fill="url(#gOrange)"/>
+      <circle cx="100" cy="50" r="13" fill="url(#gRed)"/>
+    </g>
+
+    <!-- Dancing doll: weighted base, stacked turned beads, big head, plumed crown. -->
+    <g id="toyDoll">
+      <ellipse cx="100" cy="192" rx="41" ry="10" fill="url(#gRed)"/>
+      <ellipse cx="100" cy="170" rx="38" ry="13" fill="url(#gRed)"/>
+      <ellipse cx="100" cy="146" rx="40" ry="13" fill="url(#gYellow)"/>
+      <ellipse cx="100" cy="122" rx="37" ry="13" fill="url(#gGreen)"/>
+      <ellipse cx="100" cy="100" rx="30" ry="11" fill="url(#gRed)"/>
+      <ellipse cx="100" cy="84" rx="16" ry="8" fill="url(#gWoodD)"/>
+      <circle cx="100" cy="58" r="28" fill="url(#gWood)"/>
+      <path d="M100 14 L118 40 L82 40 Z" fill="url(#gRed)"/>
+      <circle cx="100" cy="12" r="7" fill="url(#gYellow)"/>
+      <circle cx="90" cy="56" r="2.6" fill="#3b2a1b"/>
+      <circle cx="110" cy="56" r="2.6" fill="#3b2a1b"/>
+    </g>
+
+    <!-- Elephant: turned body on stubby turned legs, painted ear, curled trunk, ivory tusks. -->
+    <g id="toyElephant">
+      <rect x="46" y="168" width="19" height="32" rx="9" fill="url(#gWoodD)"/>
+      <rect x="80" y="170" width="19" height="30" rx="9" fill="url(#gWoodD)"/>
+      <rect x="114" y="168" width="19" height="32" rx="9" fill="url(#gWoodD)"/>
+      <ellipse cx="88" cy="148" rx="46" ry="38" fill="url(#gWood)"/>
+      <path d="M54 128 Q88 104 122 128" stroke="url(#gGreen)" stroke-width="9" fill="none" stroke-linecap="round"/>
+      <circle cx="136" cy="122" r="26" fill="url(#gWood)"/>
+      <ellipse cx="132" cy="122" rx="18" ry="23" fill="url(#gRed)"/>
+      <ellipse cx="132" cy="122" rx="10" ry="14" fill="#f7ecd6" opacity=".28"/>
+      <path d="M152 138 Q170 164 158 188 Q154 196 145 192" stroke="url(#gWood)" stroke-width="12" fill="none" stroke-linecap="round"/>
+      <path d="M147 146 Q158 154 163 164" stroke="#f9f1e0" stroke-width="6" fill="none" stroke-linecap="round"/>
+      <circle cx="142" cy="112" r="3" fill="#3b2a1b"/>
+    </g>
+
+  </defs>
+  <!-- Warm air, then a whisper of concentric turning rings behind the pieces. -->
+  <rect width="640" height="512" fill="url(#gGlow)"/>
+  <g opacity=".07" fill="none" stroke="#3b2a1b" stroke-width="1.5">
+    <circle cx="320" cy="250" r="96"/>
+    <circle cx="320" cy="250" r="140"/>
+    <circle cx="320" cy="250" r="184"/>
+    <circle cx="320" cy="250" r="228"/>
+  </g>
+
+  <!-- The shelf itself: a turned, chamfered plank. -->
+  <ellipse cx="320" cy="408" rx="298" ry="14" fill="#3b2a1b" opacity=".13" filter="url(#soft)"/>
+  <rect x="20" y="386" width="600" height="18" rx="9" fill="url(#gWood)"/>
+  <ellipse cx="320" cy="386" rx="300" ry="14" fill="url(#gWood)"/>
+  <path d="M20 395 h600" stroke="#7d5c33" stroke-width="1.5" opacity=".3"/>
+
+  <!-- Contact shadows on the shelf, then the four pieces standing on it. -->
+  <ellipse cx="124" cy="382" rx="66" ry="6" fill="#3b2a1b" opacity=".16" filter="url(#softSm)"/>
+  <ellipse cx="277" cy="382" rx="48" ry="6" fill="#3b2a1b" opacity=".16" filter="url(#softSm)"/>
+  <ellipse cx="397" cy="382" rx="38" ry="6" fill="#3b2a1b" opacity=".16" filter="url(#softSm)"/>
+  <ellipse cx="527" cy="382" rx="62" ry="6" fill="#3b2a1b" opacity=".16" filter="url(#softSm)"/>
+
+  <use href="#toyHorse" transform="translate(124,380) scale(.92) translate(-100,-200)"/>
+  <use href="#toyStack" transform="translate(277,380) scale(1) translate(-100,-200)"/>
+  <use href="#toyDoll" transform="translate(397,380) scale(1.02) translate(-100,-200)"/>
+  <use href="#toyElephant" transform="translate(527,380) scale(.94) translate(-100,-200)"/>
+</svg>

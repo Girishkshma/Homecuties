@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <!-- For Kids: the rocking horse. Same piece the hero shelf uses. Palette and box convention as hero-scene.svg. -->
+  <defs>
+    <linearGradient id="gWood" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#cba976"/><stop offset=".24" stop-color="#f7ecd6"/>
+      <stop offset=".46" stop-color="#ecd8b3"/><stop offset=".72" stop-color="#d4b483"/>
+      <stop offset="1" stop-color="#a8804b"/>
+    </linearGradient>
+    <linearGradient id="gWoodD" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#a8804b"/><stop offset=".26" stop-color="#dcc29a"/>
+      <stop offset=".5" stop-color="#c1a077"/><stop offset=".78" stop-color="#9a7444"/>
+      <stop offset="1" stop-color="#7d5c33"/>
+    </linearGradient>
+    <linearGradient id="gRed" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#8f2b1a"/><stop offset=".24" stop-color="#dc5a35"/>
+      <stop offset=".46" stop-color="#d1492c"/><stop offset=".72" stop-color="#a83620"/>
+      <stop offset="1" stop-color="#75220f"/>
+    </linearGradient>
+    <linearGradient id="gGreen" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#1b5434"/><stop offset=".24" stop-color="#45a86c"/>
+      <stop offset=".46" stop-color="#2f8353"/><stop offset=".72" stop-color="#22653f"/>
+      <stop offset="1" stop-color="#16462c"/>
+    </linearGradient>
+    <radialGradient id="gGlow" gradientUnits="userSpaceOnUse" cx="200" cy="170" r="190">
+      <stop offset="0" stop-color="#fdf7ec"/><stop offset="1" stop-color="#faf3e8" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softSm" x="-60%" y="-160%" width="220%" height="420%"><feGaussianBlur stdDeviation="4"/></filter>
+
+    <g id="toyHorse">
+      <path d="M20 188 Q100 212 180 188" stroke="url(#gWoodD)" stroke-width="12" fill="none" stroke-linecap="round"/>
+      <path d="M64 168 L57 187" stroke="url(#gWood)" stroke-width="10" stroke-linecap="round"/>
+      <path d="M100 172 L96 190" stroke="url(#gWood)" stroke-width="10" stroke-linecap="round"/>
+      <path d="M136 168 L143 187" stroke="url(#gWood)" stroke-width="10" stroke-linecap="round"/>
+      <ellipse cx="100" cy="146" rx="52" ry="28" fill="url(#gWood)"/>
+      <path d="M50 136 q-14 8 -12 24" stroke="url(#gGreen)" stroke-width="7" fill="none" stroke-linecap="round"/>
+      <path d="M132 132 L152 96" stroke="url(#gWood)" stroke-width="24" stroke-linecap="round"/>
+      <ellipse cx="156" cy="92" rx="21" ry="14" fill="url(#gWood)"/>
+      <path d="M149 80 l6 -13 l9 5 z" fill="url(#gWoodD)"/>
+      <path d="M126 118 q10 -18 26 -22" stroke="url(#gRed)" stroke-width="7" fill="none" stroke-linecap="round"/>
+      <path d="M74 124 Q100 112 124 124" stroke="url(#gRed)" stroke-width="9" fill="none" stroke-linecap="round"/>
+      <circle cx="162" cy="90" r="2.8" fill="#3b2a1b"/>
+    </g>
+  </defs>
+
+  <ellipse cx="200" cy="130" rx="150" ry="110" fill="url(#gGlow)"/>
+  <ellipse cx="200" cy="250" rx="90" ry="8" fill="#3b2a1b" opacity=".16" filter="url(#softSm)"/>
+  <use href="#toyHorse" transform="translate(200,246) scale(1.06) translate(-100,-200)"/>
+</svg>

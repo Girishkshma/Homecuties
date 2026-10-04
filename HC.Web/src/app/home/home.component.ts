@@ -24,24 +24,28 @@ export class HomeComponent implements OnInit, OnDestroy {
   cartQuantities: Map<number, number> = new Map();
   private cartSubscription?: Subscription;
 
+  /* Category tile artwork: hand-drawn Channapatna SVGs under src/assets/images/channapatna.
+     Each tile is drawn at 400 x 300 with the piece centred on the canvas, and
+     .category-image-wrapper is locked to the same 4:3, so object-fit: cover never crops the
+     illustration. */
   // Category image mapping based on category name
   private readonly categoryImageMap: { [key: string]: string } = {
-    'Toys': '/images/categories/toys.jpg',
-    'Decoratives': '/images/categories/decoratives.jpg',
-    'Office/Study': '/images/categories/office-study.jpg',
-    'Households': '/images/categories/households.jpg',
-    'Furnitures': '/images/categories/furnitures.jpg',
-    'Vases': '/images/categories/vases.jpg',
-    'Pot Houses': '/images/categories/pot-houses.jpg',
-    'Musicians': '/images/categories/musicians.jpg',
-    'Show Pieces': '/images/categories/show-pieces.jpg',
-    'Pen Stands': '/images/categories/pen-stands.jpg',
-    'Calendars': '/images/categories/calendars.jpg',
-    'Costers': '/images/categories/costers.jpg',
-    'Center Tables': '/images/categories/center-tables.jpg',
-    'For Kids': '/images/categories/for-kids.jpg',
-    'Mobile Stands': '/images/categories/mobile-stands.jpg',
-    'Utilities': '/images/categories/utilities.jpg'
+    'Toys': '/images/channapatna/toys.svg',
+    'Decoratives': '/images/channapatna/decoratives.svg',
+    'Office/Study': '/images/channapatna/office-study.svg',
+    'Households': '/images/channapatna/households.svg',
+    'Furnitures': '/images/channapatna/furnitures.svg',
+    'Vases': '/images/channapatna/vases.svg',
+    'Pot Houses': '/images/channapatna/pot-houses.svg',
+    'Musicians': '/images/channapatna/musicians.svg',
+    'Show Pieces': '/images/channapatna/show-pieces.svg',
+    'Pen Stands': '/images/channapatna/pen-stands.svg',
+    'Calendars': '/images/channapatna/calendars.svg',
+    'Costers': '/images/channapatna/costers.svg',
+    'Center Tables': '/images/channapatna/center-tables.svg',
+    'For Kids': '/images/channapatna/for-kids.svg',
+    'Mobile Stands': '/images/channapatna/mobile-stands.svg',
+    'Utilities': '/images/channapatna/utilities.svg'
   };
 
   constructor(
@@ -68,7 +72,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   getCategoryImage(category: Category): string {
-    return this.categoryImageMap[category.CategoryName] || '/images/categories/decoratives.jpg';
+    return this.categoryImageMap[category.CategoryName] || '/images/channapatna/decoratives.svg';
   }
 
   toggleFavorite(productId: number): void {

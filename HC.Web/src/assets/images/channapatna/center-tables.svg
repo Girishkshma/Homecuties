@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <!-- Center Tables: a small turned pedestal table. Palette and box convention as hero-scene.svg. -->
+  <defs>
+    <linearGradient id="gWood" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#cba976"/><stop offset=".24" stop-color="#f7ecd6"/>
+      <stop offset=".46" stop-color="#ecd8b3"/><stop offset=".72" stop-color="#d4b483"/>
+      <stop offset="1" stop-color="#a8804b"/>
+    </linearGradient>
+    <linearGradient id="gWoodD" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#a8804b"/><stop offset=".26" stop-color="#dcc29a"/>
+      <stop offset=".5" stop-color="#c1a077"/><stop offset=".78" stop-color="#9a7444"/>
+      <stop offset="1" stop-color="#7d5c33"/>
+    </linearGradient>
+    <linearGradient id="gRed" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#8f2b1a"/><stop offset=".24" stop-color="#dc5a35"/>
+      <stop offset=".46" stop-color="#d1492c"/><stop offset=".72" stop-color="#a83620"/>
+      <stop offset="1" stop-color="#75220f"/>
+    </linearGradient>
+    <linearGradient id="gYellow" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#a9710e"/><stop offset=".24" stop-color="#f8cd55"/>
+      <stop offset=".46" stop-color="#edb12d"/><stop offset=".72" stop-color="#c78c13"/>
+      <stop offset="1" stop-color="#8f5f08"/>
+    </linearGradient>
+    <radialGradient id="gGlow" gradientUnits="userSpaceOnUse" cx="200" cy="170" r="190">
+      <stop offset="0" stop-color="#fdf7ec"/><stop offset="1" stop-color="#faf3e8" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softSm" x="-60%" y="-160%" width="220%" height="420%"><feGaussianBlur stdDeviation="4"/></filter>
+
+    <g id="toyTable">
+      <path d="M100 174 L54 188 M100 174 L146 188 M100 174 L100 194" stroke="url(#gWoodD)" stroke-width="10" stroke-linecap="round"/>
+      <ellipse cx="100" cy="186" rx="62" ry="11" fill="none" stroke="url(#gWood)" stroke-width="8"/>
+      <ellipse cx="100" cy="142" rx="20" ry="8" fill="url(#gWood)"/>
+      <ellipse cx="100" cy="158" rx="15" ry="7" fill="url(#gYellow)"/>
+      <ellipse cx="100" cy="170" rx="19" ry="8" fill="url(#gWood)"/>
+      <path d="M14 108 Q100 134 186 108 L186 122 Q100 148 14 122 Z" fill="url(#gWoodD)"/>
+      <ellipse cx="100" cy="104" rx="86" ry="24" fill="url(#gWood)"/>
+      <ellipse cx="100" cy="100" rx="80" ry="22" fill="url(#gWoodD)"/>
+      <ellipse cx="100" cy="97" rx="62" ry="16" fill="url(#gRed)"/>
+      <ellipse cx="100" cy="96" rx="40" ry="10" fill="url(#gWood)"/>
+    </g>
+  </defs>
+
+  <ellipse cx="200" cy="120" rx="150" ry="110" fill="url(#gGlow)"/>
+  <ellipse cx="200" cy="250" rx="90" ry="8" fill="#3b2a1b" opacity=".16" filter="url(#softSm)"/>
+  <use href="#toyTable" transform="translate(200,246) translate(-100,-200)"/>
+</svg>

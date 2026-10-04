@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <!-- Calendars: a wooden easel calendar, its date marked with two lacquered pegs. Palette and box convention as hero-scene.svg. -->
+  <defs>
+    <linearGradient id="gWood" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#cba976"/><stop offset=".24" stop-color="#f7ecd6"/>
+      <stop offset=".46" stop-color="#ecd8b3"/><stop offset=".72" stop-color="#d4b483"/>
+      <stop offset="1" stop-color="#a8804b"/>
+    </linearGradient>
+    <linearGradient id="gWoodD" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#a8804b"/><stop offset=".26" stop-color="#dcc29a"/>
+      <stop offset=".5" stop-color="#c1a077"/><stop offset=".78" stop-color="#9a7444"/>
+      <stop offset="1" stop-color="#7d5c33"/>
+    </linearGradient>
+    <linearGradient id="gRed" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#8f2b1a"/><stop offset=".24" stop-color="#dc5a35"/>
+      <stop offset=".46" stop-color="#d1492c"/><stop offset=".72" stop-color="#a83620"/>
+      <stop offset="1" stop-color="#75220f"/>
+    </linearGradient>
+    <linearGradient id="gGreen" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#1b5434"/><stop offset=".24" stop-color="#45a86c"/>
+      <stop offset=".46" stop-color="#2f8353"/><stop offset=".72" stop-color="#22653f"/>
+      <stop offset="1" stop-color="#16462c"/>
+    </linearGradient>
+    <radialGradient id="gGlow" gradientUnits="userSpaceOnUse" cx="200" cy="170" r="190">
+      <stop offset="0" stop-color="#fdf7ec"/><stop offset="1" stop-color="#faf3e8" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softSm" x="-60%" y="-160%" width="220%" height="420%"><feGaussianBlur stdDeviation="4"/></filter>
+
+    <g id="toyCalendar">
+      <path d="M56 200 L100 124 L144 200 Z" fill="url(#gWoodD)"/>
+      <rect x="44" y="70" width="112" height="98" rx="6" fill="#fbf6ea" stroke="#d9c9a8" stroke-width="2"/>
+      <g fill="none" stroke="url(#gWoodD)" stroke-width="4">
+        <circle cx="62" cy="70" r="7"/>
+        <circle cx="86" cy="70" r="7"/>
+        <circle cx="114" cy="70" r="7"/>
+        <circle cx="138" cy="70" r="7"/>
+      </g>
+      <circle cx="76" cy="110" r="11" fill="url(#gRed)"/>
+      <circle cx="124" cy="110" r="11" fill="url(#gGreen)"/>
+      <path d="M72 138 h56" stroke="#c9b48c" stroke-width="4" stroke-linecap="round"/>
+      <path d="M72 154 h34" stroke="#c9b48c" stroke-width="4" stroke-linecap="round"/>
+      <rect x="50" y="184" width="100" height="16" rx="8" fill="url(#gWood)"/>
+    </g>
+  </defs>
+
+  <ellipse cx="200" cy="120" rx="150" ry="110" fill="url(#gGlow)"/>
+  <ellipse cx="200" cy="250" rx="64" ry="8" fill="#3b2a1b" opacity=".16" filter="url(#softSm)"/>
+  <use href="#toyCalendar" transform="translate(200,246) translate(-100,-200)"/>
+</svg>

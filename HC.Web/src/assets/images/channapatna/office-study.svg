@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <!-- Office/Study: a turned wooden paper tidy holding a sheet. Palette and box convention as hero-scene.svg. -->
+  <defs>
+    <linearGradient id="gWood" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#cba976"/><stop offset=".24" stop-color="#f7ecd6"/>
+      <stop offset=".46" stop-color="#ecd8b3"/><stop offset=".72" stop-color="#d4b483"/>
+      <stop offset="1" stop-color="#a8804b"/>
+    </linearGradient>
+    <linearGradient id="gWoodD" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="160" y2="0">
+      <stop offset="0" stop-color="#a8804b"/><stop offset=".26" stop-color="#dcc29a"/>
+      <stop offset=".5" stop-color="#c1a077"/><stop offset=".78" stop-color="#9a7444"/>
+      <stop offset="1" stop-color="#7d5c33"/>
+    </linearGradient>
+    <radialGradient id="gGlow" gradientUnits="userSpaceOnUse" cx="200" cy="170" r="190">
+      <stop offset="0" stop-color="#fdf7ec"/><stop offset="1" stop-color="#faf3e8" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softSm" x="-60%" y="-160%" width="220%" height="420%"><feGaussianBlur stdDeviation="4"/></filter>
+
+    <g id="toyTidy">
+      <rect x="36" y="86" width="128" height="104" rx="10" fill="url(#gWoodD)"/>
+      <rect x="48" y="70" width="104" height="112" rx="4" fill="#fbf6ea" stroke="#d9c9a8" stroke-width="2"/>
+      <g stroke="#c9b48c" stroke-width="4" stroke-linecap="round">
+        <path d="M64 96 h72"/>
+        <path d="M64 114 h72"/>
+        <path d="M64 132 h50"/>
+      </g>
+      <rect x="28" y="172" width="144" height="28" rx="10" fill="url(#gWood)"/>
+      <path d="M28 184 h144" stroke="#7d5c33" stroke-width="2" opacity=".3"/>
+      <ellipse cx="64" cy="164" rx="26" ry="9" fill="url(#gWood)"/>
+    </g>
+  </defs>
+
+  <ellipse cx="200" cy="120" rx="150" ry="110" fill="url(#gGlow)"/>
+  <ellipse cx="200" cy="250" rx="76" ry="8" fill="#3b2a1b" opacity=".16" filter="url(#softSm)"/>
+  <use href="#toyTidy" transform="translate(200,246) translate(-100,-200)"/>
+</svg>
