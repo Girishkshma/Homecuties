@@ -16,7 +16,7 @@ describe('Storefront theme', () => {
     probe = document.createElement('div');
     probe.innerHTML = `
       <div class="header-promo">
-        <p><span class="promo-item">30-Day Easy Returns</span></p>
+        <p><span class="promo-item">Secure Checkout</span></p>
       </div>
       <div class="container"></div>
       <h2>Shop by Category</h2>
