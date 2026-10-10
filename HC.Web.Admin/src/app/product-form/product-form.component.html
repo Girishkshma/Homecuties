@@ -143,44 +143,76 @@
 <!-- Images -->
     <div class="form-section">
       <h2>Images</h2>
-      <div *ngIf="form.images.length === 0" class="no-data">No images added.</div>
 
-      <div class="image-card" *ngFor="let img of form.images; let i = index">
-        <div class="image-upload-row">
-          <div class="image-preview-box">
-            <img *ngIf="img.previewUrl" [src]="img.previewUrl" class="image-preview" alt="Product image preview">
-            <span *ngIf="!img.previewUrl && img.imageUrl" class="preview-note">No local preview for this image</span>
-            <span *ngIf="!img.imageUrl && !img.uploading" class="preview-note">No image uploaded</span>
-          </div>
-          <div class="upload-actions">
-            <button type="button" class="btn-sm btn-view" [disabled]="img.uploading"
-              (click)="fileInput.click()">📤 Upload Image</button>
-            <input #fileInput type="file" accept="image/*" class="file-input"
-              (change)="onImageSelected(i, $event)">
-            <span *ngIf="img.uploading" class="upload-status uploading">Uploading…</span>
-            <span *ngIf="img.uploadError" class="upload-status error">{{ img.uploadError }}</span>
-            <span *ngIf="img.imageUrl && !img.uploading" class="upload-status">✓ {{ img.imageUrl }}</span>
-          </div>
-        </div>
-        <div class="image-controls">
-          <select class="form-input image-type" [(ngModel)]="img.imageTypeId" [name]="'imageType' + i">
-            <option *ngFor="let t of options.imageTypes" [ngValue]="t.imageTypeId">{{ imageTypeName(t.imageTypeId) }}</option>
-          </select>
-          <input type="number" min="1" placeholder="Index" class="form-input image-index"
-            [(ngModel)]="img.imageIndex" [name]="'imageIndex' + i">
-          <label class="checkbox-item">
-            <input type="checkbox" [(ngModel)]="img.isPromoImage" [name]="'isPromo' + i">
-            <span>Promo</span>
-          </label>
-          <label class="checkbox-item">
-            <input type="checkbox" [(ngModel)]="img.isActive" [name]="'imgActive' + i">
-            <span>Active</span>
-          </label>
-          <button type="button" class="btn-sm btn-delete" (click)="removeImage(i)" title="Remove">✕ Remove</button>
+      <!-- A photo's files are named after the product's id, so there is nothing to name one after until the product has
+           been saved: saving a new product opens this page again for it, with the picture picker. -->
+      <p class="section-note" *ngIf="!isEditMode">
+        Save the product first - a product's photos are added from its own page. Every photo file is named after the
+        product's id, exactly as the shop's other photos are, so this page opens again with the picture picker as soon
+        as the product is created.
+      </p>
+
+      <ng-container *ngIf="isEditMode">
+      <p class="section-note">
+        Upload each photo once and tick the sizes to write. The API fits the photograph into each ticked size's box and
+        the product is saved with one row per size, which is what the shop's pages are pictured from. The sizes the
+        storefront draws come ticked already - untick one and no file is written for it. The pixels beside each file
+        name are the file's own rather than its box: a photo wider than it is tall is written wider than it is tall,
+        not cut to the box. Uploading the same photo again replaces it.
+      </p>
+
+      <div class="size-picker">
+        <div class="size-picker-head">Sizes to write</div>
+        <label class="size-choice" *ngFor="let type of options.imageTypes"
+          [class.unavailable]="!hasSizeBox(type)" [class.picked]="isSizeSelected(type.imageTypeId)">
+          <input type="checkbox" [checked]="isSizeSelected(type.imageTypeId)" [disabled]="!hasSizeBox(type)"
+            (change)="toggleSize(type.imageTypeId, $event)">
+          <span class="size-name">{{ imageTypeName(type.imageTypeId) }}</span>
+          <span class="size-box" *ngIf="hasSizeBox(type)">{{ type.width }}&times;{{ type.height }} box</span>
+          <span class="size-box" *ngIf="!hasSizeBox(type)">no size the uploader writes</span>
+          <span class="size-tag" *ngIf="type.generatedByDefault">drawn by the shop</span>
+          <span class="size-tag" *ngIf="type.isPromoImage">listing picture</span>
+        </label>
+        <div class="size-picker-hint">
+          One photograph needs at least one size. Without the promo (P) the shop's cards, cart rows and order rows are
+          pictured from the largest size the photo does have, and a photo written only as a thumbnail is drawn soft in
+          the product page's frame. Tick the two sizes no screen draws only when something else - a feed, a printed
+          sheet - asks for that shape.
         </div>
       </div>
 
-      <button type="button" class="btn-secondary btn-add-row" (click)="addImage()">+ Add Image</button>
+      <div class="upload-actions upload-bar">
+        <button type="button" class="btn-sm btn-view" [disabled]="photoUploading" (click)="photoInput.click()">
+          {{ photoUploading ? 'Uploading…' : '📤 Upload Photo' }}
+        </button>
+        <input #photoInput type="file" accept="image/*" class="file-input" (change)="onPhotoSelected($event)">
+        <span *ngIf="photoUploadError" class="upload-status error">{{ photoUploadError }}</span>
+      </div>
+
+      <div *ngIf="photos.length === 0 && !photoUploading" class="no-data">No photos uploaded yet.</div>
+
+      <div class="image-card" *ngFor="let photo of photos; trackBy: trackPhoto">
+        <div class="image-upload-row">
+          <div class="image-preview-box">
+            <img *ngIf="photo.previewUrl" [src]="photo.previewUrl" class="image-preview"
+              [alt]="'Photo ' + photo.imageIndex">
+            <span *ngIf="!photo.previewUrl" class="preview-note">No preview</span>
+          </div>
+          <div class="upload-actions">
+            <span class="photo-title">Photo {{ photo.imageIndex }}</span>
+            <button type="button" class="btn-sm btn-delete" (click)="removePhoto(photo.imageIndex)"
+              title="Remove this photo, every size of it">✕ Remove Photo</button>
+          </div>
+        </div>
+        <div class="image-controls">
+          <span class="image-size" *ngFor="let row of photo.rows; trackBy: trackImageRow">
+            {{ imageTypeName(row.imageTypeId) }}<ng-container *ngIf="row.width && row.height"> {{ row.width
+              }}&times;{{ row.height }}</ng-container> - {{ row.imageUrl
+              }}<ng-container *ngIf="row.isPromoImage"> (promo)</ng-container>
+          </span>
+        </div>
+      </div>
+      </ng-container>
     </div>
 
     <div *ngIf="message" class="form-message" [class.error]="isError">{{ message }}</div>

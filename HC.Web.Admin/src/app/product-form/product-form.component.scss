@@ -132,6 +132,102 @@ textarea.form-input {
   margin-top: 4px;
 }
 
+// Images: one upload control for the whole section, and one card per photo - the sizes of a photo are written by
+// the API, never picked here, so nothing but the photograph itself is the admin's to choose.
+.section-note {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: #6c757d;
+  line-height: 1.5;
+}
+
+.upload-bar {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+// The sizes an upload writes: one tick per type the shop's own 'ImageTypes' table names, each saying the pixels of the
+// box it is written in and whether the storefront draws it. The two sizes no screen draws are here because the shop's
+// table lists them - the admin ticks them for the photograph that needs that shape - and a type the uploader has no box
+// for is shown greyed, with nothing to tick.
+.size-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  background: #f8f9fc;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+
+  .size-picker-head {
+    flex: 0 0 100%;
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
+  }
+
+  .size-choice {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #333;
+    cursor: pointer;
+    user-select: none;
+
+    input[type='checkbox'] {
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      accent-color: #4a6cf7;
+      cursor: pointer;
+    }
+
+    .size-box {
+      font-size: 12px;
+      color: #6c757d;
+    }
+
+    .size-tag {
+      padding: 1px 7px;
+      border-radius: 10px;
+      font-size: 11px;
+      color: #4a6cf7;
+      background: #eef1fe;
+    }
+
+    &.picked .size-name {
+      font-weight: 600;
+    }
+
+    // A type the shop's table names that the uploader has no box for: the name is shown so the list is the table's,
+    // but there is nothing to tick.
+    &.unavailable {
+      color: #adb5bd;
+      cursor: not-allowed;
+
+      .size-box {
+        color: #adb5bd;
+      }
+
+      input[type='checkbox'] {
+        cursor: not-allowed;
+      }
+    }
+  }
+
+  .size-picker-hint {
+    flex: 0 0 100%;
+    font-size: 12px;
+    color: #6c757d;
+    line-height: 1.5;
+  }
+}
+
 // Image upload cards
 .image-card {
   background: #f8f9fc;
@@ -139,6 +235,12 @@ textarea.form-input {
   border-radius: 8px;
   padding: 12px 14px;
   margin-bottom: 10px;
+}
+
+.photo-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
 }
 
 .image-upload-row {
@@ -163,7 +265,9 @@ textarea.form-input {
   .image-preview {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    /* The whole photo, at whatever shape it really is, so the admin sees everything they picked rather than the
+       middle of it. */
+    object-fit: contain;
   }
 
   .preview-note {
@@ -205,16 +309,19 @@ textarea.form-input {
 .image-controls {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   margin-top: 10px;
   flex-wrap: wrap;
 
-  .image-type {
-    max-width: 180px;
-  }
-
-  .image-index {
-    max-width: 90px;
+  // One chip per size the API wrote for the photo: which size it is, the pixels it is stored at, and the file.
+  .image-size {
+    font-size: 12px;
+    color: #495057;
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 2px 10px;
+    white-space: nowrap;
   }
 }
 

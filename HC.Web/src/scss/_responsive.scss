@@ -75,8 +75,12 @@
     }
   }
 
-  .product-detail .product-gallery .main-image img {
-    height: 350px;
+  // The product page's gallery frame, one square: this used to name '.main-image img', an element the page no longer
+  // has. The frame is '.main-image-square' and it is square on purpose - the photo is drawn 'contain' inside it, so a
+  // tall or wide photograph is shown whole - which makes a smaller frame at this width a smaller square, not a
+  // shorter image (a capped height would have had to crop the photo).
+  .product-detail .product-gallery .main-image-square {
+    max-width: 350px;
   }
 
   .benefits-section .benefits-image .benefits-image-grid {
@@ -126,8 +130,8 @@
     height: 200px;
   }
 
-  .product-detail .product-gallery .main-image img {
-    height: 280px;
+  .product-detail .product-gallery .main-image-square {
+    max-width: 280px;
   }
 
   .auth-card {
@@ -199,8 +203,8 @@
     height: 180px;
   }
 
-  .product-detail .product-gallery .main-image img {
-    height: 240px;
+  .product-detail .product-gallery .main-image-square {
+    max-width: 240px;
   }
 }
 

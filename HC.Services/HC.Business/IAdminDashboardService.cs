@@ -7,7 +7,7 @@ public interface IAdminDashboardService
     Task<DashboardStatsDto> GetDashboardStatsAsync();
     Task<List<AdminProductListDto>> GetProductsAsync();
     Task<AdminProductDetailDto?> GetProductDetailAsync(int productId);
-    Task<AdminResultDto> CreateProductAsync(CreateProductRequest request, long userId);
+    Task<CreateProductResultDto> CreateProductAsync(CreateProductRequest request, long userId);
     Task<AdminResultDto> UpdateProductAsync(int productId, CreateProductRequest request, long userId);
     Task<AdminResultDto> DeactivateProductAsync(int productId, long userId);
     Task<ProductFormOptionsDto> GetProductFormOptionsAsync();

@@ -7,6 +7,9 @@ import {
   AdminCategory,
   AdminProductDetail,
   CreateProductRequest,
+  CreateProductResult,
+  GeneratedProductImage,
+  ImageTypeOption,
   ProductFormOptions
 } from '../models/admin.model';
 
@@ -21,9 +24,23 @@ export interface ProductImageRow {
   imageIndex: number;
   isPromoImage: boolean;
   isActive: boolean;
+  width?: number;
+  height?: number;
   previewUrl?: string;
-  uploading?: boolean;
-  uploadError?: string;
+}
+
+/**
+ * One photo of a product as the form shows it: which photo it is ('imageIndex') and every size the API wrote for
+ * it.
+ *
+ * A photo is a set of rows - one index at four or six sizes - because the main frame of the product page and the
+ * strip of thumbnails under it are two sizes of the same photograph. Keeping them together is what makes the form
+ * show a photo rather than a list of files, and what lets a photo be removed as the one thing it is.
+ */
+export interface ProductPhotoRow {
+  imageIndex: number;
+  rows: ProductImageRow[];
+  previewUrl?: string;
 }
 
 @Component({
@@ -86,6 +103,12 @@ export class ProductFormComponent implements OnInit {
     this.adminService.getProductFormOptions().subscribe({
       next: (options) => {
         this.options = options;
+        // The sizes the storefront draws come ticked, so the usual upload needs nothing chosen; the admin unticks what
+        // a photograph does not need and ticks anything else it does. A type the uploader has no box for (width 0) is
+        // left unticked and is shown without a tick to give, see the picker's markup.
+        this.selectedImageTypeIds = options.imageTypes
+          .filter(type => type.generatedByDefault && type.width > 0)
+          .map(type => type.imageTypeId);
         if (this.isEditMode && this.productId) {
           this.loadProduct(this.productId);
         } else {
@@ -140,9 +163,9 @@ export class ProductFormComponent implements OnInit {
             imageIndex: i.imageIndex,
             isPromoImage: i.isPromoImage,
             isActive: i.isActive,
-            previewUrl: /^prod_/.test(i.imageUrl)
-              ? `${this.imageBaseUrl}/images/products/${i.imageUrl}`
-              : undefined
+            // Every row's file is in the shop's own image folder, so every row has a preview: the API serves the
+            // folder the uploader writes to.
+            previewUrl: `${this.imageBaseUrl}/images/products/${i.imageUrl}`
           }))
         };
         this.isLoading = false;
@@ -191,55 +214,166 @@ export class ProductFormComponent implements OnInit {
   }
 
   // Images
-  addImage(): void {
-    this.form.images.push({
-      imageUrl: '',
-      imageTypeId: this.options.imageTypes[0]?.imageTypeId ?? 1,
-      imageIndex: this.form.images.length + 1,
-      isPromoImage: false,
-      isActive: true,
-      previewUrl: undefined,
-      uploading: false,
-      uploadError: undefined
+  /**
+   * True while the photograph the admin just picked is being written. One upload covers every size ticked for it, so
+   * there is one such flag rather than one per row: no size is ever uploaded by hand.
+   */
+  photoUploading = false;
+  photoUploadError = '';
+
+  /**
+   * The sizes the next upload is to write, as the ids of the shop's own 'ImageTypes' rows: the ticks on the upload
+   * screen. It starts as the sizes the storefront draws (the ones the API marks 'generatedByDefault'), and the admin
+   * changes it per photograph - the API writes exactly what is ticked here and nothing else.
+   */
+  selectedImageTypeIds: number[] = [];
+
+  /**
+   * The product's photos, in the order the admin uploaded them, each with the sizes the API wrote for it. This is
+   * what the form shows - a photo, not a list of files - and what it removes, so a photograph cannot be left behind
+   * at one size and gone at another.
+   */
+  get photos(): ProductPhotoRow[] {
+    const indices = Array.from(new Set(this.form.images.map(i => i.imageIndex))).sort((a, b) => a - b);
+
+    return indices.map(imageIndex => {
+      const rows = this.form.images.filter(i => i.imageIndex === imageIndex);
+
+      return {
+        imageIndex,
+        rows,
+        // The promo image is what the shop's cards, cart rows and order rows are pictured from, so it is the one
+        // worth showing as the photo's own picture.
+        previewUrl: (rows.find(row => row.isPromoImage) ?? rows[0])?.previewUrl
+      };
     });
   }
 
-  removeImage(index: number): void {
-    this.form.images.splice(index, 1);
+  /** The index the next uploaded photo is written as: photos are numbered from 1 and never reused. */
+  nextImageIndex(): number {
+    return this.form.images.reduce((highest, row) => Math.max(highest, row.imageIndex), 0) + 1;
   }
 
-  onImageSelected(index: number, event: Event): void {
+  /**
+   * Tells one photo from another across redraws. The form builds its photo cards out of the saved rows every time it
+   * is checked, so without this every check would rebuild them - and a rebuilt preview is a photograph the browser
+   * asks for again.
+   */
+  trackPhoto(_index: number, photo: ProductPhotoRow): number {
+    return photo.imageIndex;
+  }
+
+  /** The same, for the sizes inside a photo: the file is what each row is. */
+  trackImageRow(_index: number, row: ProductImageRow): string {
+    return row.imageUrl;
+  }
+
+  /**
+   * The one upload control of the form: the admin picks a photograph and the API writes it in the sizes ticked above,
+   * at the next photo's index. The rows that come back are that photo's; the file never passes through the form, and no
+   * size is written that the admin did not ask for.
+   *
+   * The control belongs to a saved product's page and is not shown while one is being created (see the Images section of
+   * the markup): the API names a photo's files after the product's id, so a product has to be saved before it can have
+   * one - which is why creating a product opens its edit page, where this picker is.
+   */
+  onPhotoSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files && input.files[0];
+    input.value = '';
     if (!file) return;
 
-    const image = this.form.images[index];
-    if (!image) return;
+    // Nothing to write a photo for until the product has an id to name its files after. The picker is not offered
+    // before then either, so this is the answer to a form that was left open across the create.
+    if (!this.isEditMode || !this.productId) {
+      this.photoUploadError = 'Save the product first - its photos are added from its own page.';
+      return;
+    }
 
-    image.uploading = true;
-    image.uploadError = undefined;
-    this.adminService.uploadProductImage(file).subscribe({
-      next: (result) => {
-        image.uploading = false;
-        if (result.result === 1) {
-          image.imageUrl = result.fileName;
-          image.previewUrl = `${this.imageBaseUrl}${result.url}`;
-        } else {
-          image.uploadError = result.messages[0] || 'Upload failed.';
+    // A photograph with no size ticked would be a photograph with no file, so nothing is sent: the API refuses such an
+    // upload too, but saying so here saves the round trip and leaves the answer where the admin is looking.
+    if (this.selectedImageTypeIds.length === 0) {
+      this.photoUploadError = 'Tick at least one size to write the photo in.';
+      return;
+    }
+
+    const productId = this.productId;
+    const imageIndex = this.nextImageIndex();
+    this.photoUploading = true;
+    this.photoUploadError = '';
+
+    this.adminService
+      .uploadProductImage(file, productId, imageIndex, this.selectedImageTypeIds)
+      .subscribe({
+        next: (result) => {
+          this.photoUploading = false;
+          if (result.result !== 1) {
+            this.photoUploadError = result.messages[0] || 'Upload failed.';
+            return;
+          }
+
+          this.addPhotoRows(result.images);
+        },
+        error: () => {
+          this.photoUploading = false;
+          this.photoUploadError = 'Upload failed. Please check your connection and try again.';
         }
-      },
-      error: () => {
-        image.uploading = false;
-        image.uploadError = 'Upload failed. Please check your connection and try again.';
-      }
-    });
-
-    input.value = '';
+      });
   }
 
+  /**
+   * The sizes the API wrote for one photo, as the rows that are saved with the product. They replace that photo's
+   * rows rather than joining them: uploading a photo again writes the same file names, so the old rows would point
+   * at the same files and only make the form show the photo twice.
+   */
+  private addPhotoRows(images: GeneratedProductImage[]): void {
+    const imageIndex = images[0]?.imageIndex ?? 0;
+
+    this.form.images = this.form.images.filter(row => row.imageIndex !== imageIndex);
+    this.form.images.push(...images.map(image => ({
+      imageUrl: image.fileName,
+      imageTypeId: image.imageTypeId,
+      imageIndex: image.imageIndex,
+      isPromoImage: image.isPromoImage,
+      isActive: true,
+      width: image.width,
+      height: image.height,
+      previewUrl: `${this.imageBaseUrl}${image.url}`
+    })));
+  }
+
+  /** Removes a photo: every size of it, because half a photo is a broken frame on the storefront. */
+  removePhoto(imageIndex: number): void {
+    this.form.images = this.form.images.filter(row => row.imageIndex !== imageIndex);
+  }
+
+  /** The name of a size the way the shop's own 'ImageTypes' row spells it, with its short code - 'Large (L)'. */
   imageTypeName(imageTypeId: number): string {
     const t = this.options.imageTypes.find(x => x.imageTypeId === imageTypeId);
     return t ? `${t.imageTypeName}${t.shortCode ? ` (${t.shortCode})` : ''}` : 'Unknown';
+  }
+
+  /** Whether the next upload is to write the given size: what that size's tick says. */
+  isSizeSelected(imageTypeId: number): boolean {
+    return this.selectedImageTypeIds.includes(imageTypeId);
+  }
+
+  /** Ticks or unticks one size for the next upload. */
+  toggleSize(imageTypeId: number, event: Event): void {
+    const checked = (event.target as HTMLInputElement).checked;
+    if (checked) {
+      if (!this.selectedImageTypeIds.includes(imageTypeId)) this.selectedImageTypeIds.push(imageTypeId);
+    } else {
+      this.selectedImageTypeIds = this.selectedImageTypeIds.filter(id => id !== imageTypeId);
+    }
+  }
+
+  /**
+   * Whether the uploader has a box to write this size into. A type the shop's 'ImageTypes' table names and the uploader
+   * does not know is shown without a tick to give, rather than as a tick that would quietly write nothing.
+   */
+  hasSizeBox(type: ImageTypeOption): boolean {
+    return type.width > 0 && type.height > 0;
   }
   private num(v: any): number {
     const n = Number(v);
@@ -308,10 +442,37 @@ export class ProductFormComponent implements OnInit {
       });
     } else {
       this.adminService.createProduct(request, actorUserId).subscribe({
-        next: (result) => this.handleSaveResult(result),
+        next: (result) => this.handleCreateResult(result),
         error: () => this.handleSaveError()
       });
     }
+  }
+
+  /**
+   * A created product opens its own page, rather than going back to the list: its photos are added from that page and
+   * not while it was being created, because the API names a photo's files after the product's id (see
+   * ProductImageVariants.FileName in HC.Business). The create form has done its job the moment the product exists, so
+   * what opens is the page that can finish it - the product's edit page, with its picture picker.
+   */
+  handleCreateResult(result: CreateProductResult): void {
+    this.isSaving = false;
+
+    if (result.result !== 1) {
+      this.message = result.messages[0];
+      this.isError = true;
+      return;
+    }
+
+    if (result.productId) {
+      this.router.navigate(['/products', result.productId]);
+      return;
+    }
+
+    // A create that named no product cannot open the page its photos belong on, and the form must not be left able to
+    // create the product a second time: the list is where the admin is told what happened.
+    this.message = result.messages[0];
+    this.isError = false;
+    setTimeout(() => this.router.navigate(['/products']), 1400);
   }
 
   handleSaveResult(result: { result: number; messages: string[] }): void {

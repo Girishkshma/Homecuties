@@ -332,8 +332,29 @@ public class CreateProductRequest
     public List<short> CategoryIds { get; set; } = new();
     [JsonPropertyName("features")]
     public List<AdminProductFeatureDto> Features { get; set; } = new();
+
+    /// <summary>
+    /// The product's image rows. The edit page writes these - the uploader writes the files, and each file becomes a
+    /// row here. A create that carries any is refused rather than saved: every photo file is named after the product's
+    /// id, and a product that is still being created has no id to name one after (see
+    /// <c>ProductImageVariants.FileName</c>).
+    /// </summary>
     [JsonPropertyName("images")]
     public List<AdminProductImageDto> Images { get; set; } = new();
+}
+
+/// <summary>
+/// The answer to creating a product: the usual result and message, plus the id the product was given, which tells the
+/// admin screen which product's page to open next.
+///
+/// It opens that page because a product's photos are added from its own page and not while it is being created: a photo
+/// file is named after the product's id (see <c>ProductImageVariants.FileName</c>), so a product that has not been saved
+/// has nothing to name a photo after. The screen saves the product, lands on its edit page, and adds the photos there.
+/// </summary>
+public class CreateProductResultDto : AdminResultDto
+{
+    [JsonPropertyName("productId")]
+    public int? ProductId { get; set; }
 }
 
 public class ProductStatusOptionDto
@@ -352,6 +373,33 @@ public class ImageTypeOptionDto
     public string ImageTypeName { get; set; } = "";
     [JsonPropertyName("shortCode")]
     public string ShortCode { get; set; } = "";
+
+    /// <summary>
+    /// The width of the pixel box this size is written in (see ProductImageVariants), so the upload screen can label a
+    /// tick with the size it will really write. Zero - which is what a type the uploader has no size for comes back as
+    /// - is how that screen knows not to offer it: there is no box to describe the file with.
+    /// </summary>
+    [JsonPropertyName("width")]
+    public int Width { get; set; }
+
+    /// <summary>The height of that box, the other way round from <see cref="Width"/>.</summary>
+    [JsonPropertyName("height")]
+    public int Height { get; set; }
+
+    /// <summary>
+    /// True for the sizes the upload screen offers already ticked: the ones the storefront draws, so a shop that
+    /// changes nothing stores exactly what its pages show. False for the sizes the admin has to tick for, so nothing
+    /// is written that no screen draws.
+    /// </summary>
+    [JsonPropertyName("generatedByDefault")]
+    public bool GeneratedByDefault { get; set; }
+
+    /// <summary>
+    /// True for the type a product's card, its cart row and its order row are pictured from: the upload screen says so
+    /// beside the tick, because a photo written without it is drawn from whatever larger size it has instead.
+    /// </summary>
+    [JsonPropertyName("isPromoImage")]
+    public bool IsPromoImage { get; set; }
 }
 
 public class ProductFormOptionsDto

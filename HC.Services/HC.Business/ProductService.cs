@@ -8,10 +8,12 @@ namespace HC.Business;
 public class ProductService : IProductService
 {
     private readonly HomecutiesDbContext _context;
+    private readonly IProductImageService _productImages;
 
-    public ProductService(HomecutiesDbContext context)
+    public ProductService(HomecutiesDbContext context, IProductImageService productImages)
     {
         _context = context;
+        _productImages = productImages;
     }
 
     public async Task<IEnumerable<ProductDto>> GetProductsForHomepageAsync()
@@ -27,6 +29,7 @@ public class ProductService : IProductService
 
         AddListingPrices(products);
         await AddStockAsync(products);
+        ResolveImages(products);
         return products;
     }
 
@@ -43,6 +46,7 @@ public class ProductService : IProductService
 
         AddListingPrices(products);
         await AddStockAsync(products);
+        ResolveImages(products);
         return products;
     }
 
@@ -62,6 +66,7 @@ public class ProductService : IProductService
 
         AddListingPrices(new[] { product });
         await AddStockAsync(new[] { product });
+        ResolveImages(new[] { product });
         return product;
     }
 
@@ -79,6 +84,7 @@ public class ProductService : IProductService
 
         AddListingPrices(products);
         await AddStockAsync(products);
+        ResolveImages(products);
         return products;
     }
 
@@ -168,6 +174,21 @@ public class ProductService : IProductService
     }
 
     /// <summary>
+    /// Works out what a product's photos are drawn from - the file a big frame takes and the file the strip takes -
+    /// from its stored rows and the shop's image folder, which the projection cannot do: whether a row's file is
+    /// really there is the file system's answer, not SQL's (see <see cref="ProductGallery.Resolve"/>).
+    ///
+    /// It is the reason a product page no longer draws the rows as they stand. The shop's older products have rows for
+    /// sizes that were never produced, and drawing those rows is what put broken thumbnails in the strip and blank
+    /// frames under the main image's arrows.
+    /// </summary>
+    private void ResolveImages(IReadOnlyCollection<ProductDto> products)
+    {
+        foreach (var product in products)
+            product.Pictures = ProductGallery.Resolve(product.ProductImages, _productImages.Exists);
+    }
+
+    /// <summary>
     /// Reads the sellable units of the given products and writes them into their
     /// <see cref="ProductDto.IsInStock"/> and <see cref="ProductDto.AvailableQty"/> fields, which
     /// <see cref="ProductProjection"/> leaves at their defaults.
@@ -210,7 +231,12 @@ public class ProductService : IProductService
         ProductImages = p.ProductImages
             .Where(pi => pi.IsActive)
             .OrderBy(pi => pi.ImageIndex)
-            .Select(pi => pi.ImageUrl)
+            .Select(pi => new ProductImageRefDto
+            {
+                ImageTypeId = pi.ImageTypeId,
+                ImageIndex = pi.ImageIndex,
+                ImageUrl = pi.ImageUrl
+            })
             .ToList(),
         // What the price a customer pays is made up of, straight off the product: the pass below turns these into
         // the listing price with the one rule (ProductPricing), because that rule is C# and not something SQL is

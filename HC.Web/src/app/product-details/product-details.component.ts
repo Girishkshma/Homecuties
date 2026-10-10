@@ -4,7 +4,7 @@ import { ProductService } from '../services/product.service';
 import { FavoritesService } from '../services/favorites.service';
 import { AuthService } from '../services/auth.service';
 import { CartService } from '../services/cart.service';
-import { Product, Category } from '../models/product.model';
+import { Product, Category, ProductPicture } from '../models/product.model';
 import { UtilityService } from '../services/utility.service';
 
 @Component({
@@ -18,7 +18,6 @@ export class ProductDetailsComponent implements OnInit, OnDestroy {
   loading = true;
   error = '';
   quantity = 1;
-  selectedImage = '';
   addedToCart = false;
   isFavorite = false;
   UtilityService = UtilityService;
@@ -64,18 +63,30 @@ export class ProductDetailsComponent implements OnInit, OnDestroy {
     this.stopAutoSlide();
   }
 
-  get images(): string[] {
-    if (!this.product) return [];
-    const images = this.product.ProductImages || [];
-    // Ensure PromoImage is first if it exists and isn't already in the list
-    if (this.product.PromoImage && !images.includes(this.product.PromoImage)) {
-      return [this.product.PromoImage, ...images];
-    }
-    return images.length > 0 ? images : [this.product.PromoImage];
+  /**
+   * The product's photos as this page draws them: for each one the file the main frame takes and the file the strip
+   * takes, resolved by the API against the shop's image folder (see ProductGallery in HC.Business). Drawing the
+   * product's own image rows instead is what put broken thumbnails in the strip and blank frames under the arrows.
+   *
+   * A product the API could resolve nothing for - one with no image rows at all, or one whose every file is missing -
+   * is still shown as the single picture the shop has always had for it, its promo image, rather than as a page with
+   * no picture.
+   */
+  get pictures(): ProductPicture[] {
+    const pictures = this.product?.Pictures ?? [];
+    if (pictures.length > 0) return pictures;
+
+    const promo = this.product?.PromoImage;
+    return promo ? [{ Large: promo, Thumbnail: promo }] : [];
+  }
+
+  /** The file the main frame draws: the current photo's large file. */
+  get currentImage(): string {
+    return this.pictures[this.currentIndex]?.Large ?? '';
   }
 
   get hasMultipleImages(): boolean {
-    return this.images.length > 1;
+    return this.pictures.length > 1;
   }
 
   /**
@@ -92,7 +103,6 @@ export class ProductDetailsComponent implements OnInit, OnDestroy {
     this.productService.getProduct(productId).subscribe({
       next: (data) => {
         this.product = data;
-        this.selectedImage = data.PromoImage;
         this.currentIndex = 0;
         this.quantity = 1;
         this.loading = false;
@@ -162,24 +172,34 @@ export class ProductDetailsComponent implements OnInit, OnDestroy {
     }
   }
 
-  selectImage(image: string): void {
-    this.selectedImage = image;
-    this.currentIndex = this.images.indexOf(image);
+  /**
+   * Tells one photo of the gallery from another across redraws: the page builds its photo list out of the product it
+   * holds every time it is checked, and a thumbnail that is rebuilt is a photograph the browser asks for again.
+   */
+  trackPicture(_index: number, picture: ProductPicture): string {
+    return picture.Large;
+  }
+
+  /**
+   * Shows one photo of the product. The photos are held by their place in the gallery rather than by a file: the main
+   * frame draws the photo's large file and the strip draws its thumbnail, so which photo is shown is the only thing a
+   * click has to say.
+   */
+  selectImage(index: number): void {
+    this.currentIndex = index;
     // Reset auto-slide timer on manual selection
     this.restartAutoSlide();
   }
 
   prevImage(): void {
-    if (this.images.length === 0) return;
-    this.currentIndex = (this.currentIndex - 1 + this.images.length) % this.images.length;
-    this.selectedImage = this.images[this.currentIndex];
+    if (this.pictures.length === 0) return;
+    this.currentIndex = (this.currentIndex - 1 + this.pictures.length) % this.pictures.length;
     this.restartAutoSlide();
   }
 
   nextImage(): void {
-    if (this.images.length === 0) return;
-    this.currentIndex = (this.currentIndex + 1) % this.images.length;
-    this.selectedImage = this.images[this.currentIndex];
+    if (this.pictures.length === 0) return;
+    this.currentIndex = (this.currentIndex + 1) % this.pictures.length;
     this.restartAutoSlide();
   }
 
@@ -193,12 +213,15 @@ export class ProductDetailsComponent implements OnInit, OnDestroy {
     this.startAutoSlide();
   }
 
+  /**
+   * The photos walk by themselves while the shopper is not on the gallery, one photo every few seconds. Nothing is
+   * remembered between steps: the main frame draws whichever photo the index points at.
+   */
   private startAutoSlide(): void {
     if (this.autoSlideTimer || !this.hasMultipleImages) return;
     this.autoSlideTimer = setInterval(() => {
       if (!this.isHovering) {
-        this.currentIndex = (this.currentIndex + 1) % this.images.length;
-        this.selectedImage = this.images[this.currentIndex];
+        this.currentIndex = (this.currentIndex + 1) % this.pictures.length;
       }
     }, this.autoSlideInterval);
   }

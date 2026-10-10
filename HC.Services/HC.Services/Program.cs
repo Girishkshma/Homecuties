@@ -67,6 +67,22 @@ builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IAdminAuthService, AdminAuthService>();
 builder.Services.AddScoped<IAdminDashboardService, AdminDashboardService>();
 
+// The shop's product images: the folder one upload writes a photo's sizes into and the product page checks a
+// row's file against (see HC.Business.ProductImageService). One folder, resolved once here and handed to both
+// ends, because the files a photo is written to and the files a shopper's browser asks for have to be the same
+// files - a folder apart and every upload is invisible.
+//
+// 'ProductImages:Root' names it when the shop sets it: that is how a storefront served by another host on the
+// same machine is pointed at - the photographs land in the folder '{host}/images/products/{file}' really
+// answers from. Left unset, it is the API's own '{content root}/wwwroot/images/products', which is what a shop
+// serving its storefront from the API host needs, and what the static files below are served from.
+var productImagesRoot = ProductImageService.ResolveRoot(
+    builder.Configuration[ProductImageService.RootConfigurationKey],
+    builder.Environment.WebRootPath,
+    builder.Environment.ContentRootPath);
+
+builder.Services.AddSingleton<IProductImageService>(new ProductImageService(productImagesRoot));
+
 // PIN code lookup: the address forms send a 6-digit PIN code here and get back the city, the state and
 // the areas it covers, so the customer does not have to type them ('Customer/GetPincode'). The base
 // address comes from configuration ('Pincode:BaseUrl') so a mirror or a paid provider can take over
@@ -383,6 +399,21 @@ app.UseStaticFiles(new StaticFileOptions
     FileProvider = new PhysicalFileProvider(wwwrootPath),
     RequestPath = ""
 });
+
+// When the shop's product images live outside the API's own web root - a storefront served by another host on
+// the same machine, pointed at by 'ProductImages:Root' - the API serves that folder at the same request path.
+// The folder the API writes to and the folder '/images/products/{file}' answers from are then one folder even
+// then: the storefront's own host is what a shopper asks, and asking the API host directly answers the same
+// files, which is what makes the two arrangements interchangeable.
+if (!string.Equals(productImagesRoot, productImagesPath, StringComparison.OrdinalIgnoreCase))
+{
+    Directory.CreateDirectory(productImagesRoot);
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(productImagesRoot),
+        RequestPath = "/" + IProductImageService.RequestPath
+    });
+}
 
 if (!app.Environment.IsDevelopment())
 {

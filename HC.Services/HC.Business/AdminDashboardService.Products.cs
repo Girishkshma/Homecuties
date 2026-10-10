@@ -81,8 +81,22 @@ public partial class AdminDashboardService : IAdminDashboardService
             .FirstOrDefaultAsync();
     }
 
-    public async Task<AdminResultDto> CreateProductAsync(CreateProductRequest request, long userId)
+    public async Task<CreateProductResultDto> CreateProductAsync(CreateProductRequest request, long userId)
     {
+        // A product's photos are added from its own page and not while it is being created, so a create that carries
+        // image rows is refused rather than saved: every photo file is named after the product's id (see
+        // ProductImageVariants.FileName), and a product that does not exist yet has no id to name one after - the rows
+        // would point at no file at all. The admin screen saves the product, lands on its edit page and adds the photos
+        // from there, which is also why the id it was given is answered back.
+        if (request.Images.Count > 0)
+        {
+            return new CreateProductResultDto
+            {
+                Result = 0,
+                Messages = new[] { "Save the product first: photos are added from its edit page." }
+            };
+        }
+
         var product = new Product
         {
             ProductName = request.ProductName,
@@ -132,26 +146,15 @@ public partial class AdminDashboardService : IAdminDashboardService
             });
         }
 
-        // Add images
-        foreach (var image in request.Images)
-        {
-            _context.ProductImages.Add(new ProductImage
-            {
-                ProductId = product.ProductId,
-                ImageUrl = image.ImageUrl,
-                ImageTypeId = image.ImageTypeId,
-                ImageIndex = image.ImageIndex,
-                IsPromoImage = image.IsPromoImage,
-                IsActive = image.IsActive
-            });
-        }
-
         await _context.SaveChangesAsync();
 
-        return new AdminResultDto
+        // The id is answered back because it is where the admin screen goes next: a product's photos are added from its
+        // own page, and the screen opens that page as soon as the product is created.
+        return new CreateProductResultDto
         {
             Result = 1,
-            Messages = new[] { "Product created successfully." }
+            Messages = new[] { "Product created successfully." },
+            ProductId = product.ProductId
         };
     }
 
@@ -282,7 +285,7 @@ public partial class AdminDashboardService : IAdminDashboardService
 
     public async Task<ProductFormOptionsDto> GetProductFormOptionsAsync()
     {
-        return new ProductFormOptionsDto
+        var options = new ProductFormOptionsDto
         {
             Statuses = await _context.ProductStatuses
                 .OrderBy(s => s.ProductStatusId)
@@ -302,6 +305,23 @@ public partial class AdminDashboardService : IAdminDashboardService
                 })
                 .ToListAsync()
         };
+
+        // The upload screen offers one tick per type, and a tick has to name the pixels of the size it writes and say
+        // which sizes come ticked already. Neither fact is in the 'ImageTypes' table - they are the uploader's own (see
+        // ProductImageVariants) - so they are read from it here rather than spelled out a second time in the admin app,
+        // where the two lists would drift apart.
+        foreach (var type in options.ImageTypes)
+        {
+            if (ProductImageVariants.For(type.ImageTypeId) is not { } size)
+                continue;
+
+            type.Width = size.Width;
+            type.Height = size.Height;
+            type.GeneratedByDefault = size.GeneratedByDefault;
+            type.IsPromoImage = ProductImageVariants.IsPromoImage(type.ImageTypeId);
+        }
+
+        return options;
     }
 
 }

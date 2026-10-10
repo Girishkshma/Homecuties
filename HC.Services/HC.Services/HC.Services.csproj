@@ -23,4 +23,17 @@
     <ProjectReference Include="..\HC.Business\HC.Business.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The catalogue's own photographs, carried into the API's product image folder on publish.
+         That folder is where an upload's sizes are written (see ProductImageService in HC.Business) and where the
+         storefront asks for a product's picture ('{api host}/images/products/{file}', not the storefront's own host
+         - see environment.prod.ts in HC.Web), so it has to hold the shop's photographs and not only the ones
+         uploaded from now on. The storefront's asset folder is just where they are read from at build time: a
+         photography re-uploaded in the admin area replaces the file in the published folder, not this one.
+         Nothing else of the storefront is taken - its artwork is served by the storefront itself. -->
+    <Content Include="..\..\HC.Web\src\assets\images\products\**\*"
+             Link="wwwroot\images\products\%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

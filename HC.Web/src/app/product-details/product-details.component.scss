@@ -24,7 +24,10 @@
   img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    /* The whole photograph, not the middle of it: the uploader writes every file in the photo's own shape (a 3:2
+       upload is a 1200x800 file), so the square frame is a box the picture sits inside and the frame's own grey
+       shows at the sides. 'cover' would slice the top and bottom off every photo that is not square. */
+    object-fit: contain;
     display: block;
     transition: opacity 0.3s ease;
   }
@@ -128,7 +131,9 @@
   img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    /* Contained like the main frame above, so the strip shows the same whole photo the frame does rather than a
+       different crop of it. */
+    object-fit: contain;
     display: block;
   }
 

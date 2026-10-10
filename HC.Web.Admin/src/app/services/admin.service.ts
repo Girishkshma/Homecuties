@@ -15,6 +15,7 @@ import {
   ProductFormOptions,
   ImageUploadResult,
   CreateProductRequest,
+  CreateProductResult,
   AdminOrder,
   AdminOrderDetail,
   AdminOrderStatusOption,
@@ -163,17 +164,44 @@ export class AdminService {
     });
   }
 
-  uploadProductImage(file: File): Observable<ImageUploadResult> {
+  /**
+   * Uploads one photograph and lets the API write the sizes the admin ticked - one file per size, each fitted into the
+   * box that size names (see ProductImageVariants in HC.Business). What comes back is one entry per file written, and
+   * the form saves those as the product's image rows.
+   *
+   * 'imageTypeIds' is one id per ticked size, and the API writes exactly those: a call naming none of them is refused
+   * rather than read as 'the usual sizes', so the form must not send an empty list (it refuses to upload until at least
+   * one size is ticked). 'productId' is the product the photo belongs to and is required: every file is named after it,
+   * exactly as the shop's other photos are, so the form offers no photo picker until the product has been saved and has
+   * an id to name one after. 'imageIndex' is which photo of the product this is: a photo's several sizes share it, and
+   * uploading the same index again replaces that photo rather than adding another one.
+   */
+  uploadProductImage(
+    file: File,
+    productId: number,
+    imageIndex: number,
+    imageTypeIds: number[]
+  ): Observable<ImageUploadResult> {
     const formData = new FormData();
     formData.append('file', file, file.name);
+    formData.append('productId', String(productId));
+    formData.append('imageIndex', String(imageIndex));
+    // One entry per ticked size: the API binds the repeated field to its own 'imageTypeIds' array.
+    imageTypeIds.forEach(imageTypeId => formData.append('imageTypeIds', String(imageTypeId)));
     const token = this.authService.getToken();
     let headers = new HttpHeaders();
     if (token) headers = headers.set('Authorization', `Bearer ${token}`);
     return this.http.post<ImageUploadResult>(`${this.apiUrl}/upload-product-image`, formData, { headers });
   }
 
-  createProduct(request: CreateProductRequest, userId: number): Observable<AdminResult> {
-    return this.http.post<AdminResult>(`${this.apiUrl}/products?userId=${userId}`, request, {
+  /**
+   * Creates a product and answers the id it was given, which is the page the form opens next: a product's photos are
+   * added from its own page and not while it is being created, because every photo file is named after the product's id
+   * (see <c>ProductImageVariants.FileName</c> in HC.Business). A create that carries image rows is refused rather than
+   * saved, so the form sends none.
+   */
+  createProduct(request: CreateProductRequest, userId: number): Observable<CreateProductResult> {
+    return this.http.post<CreateProductResult>(`${this.apiUrl}/products?userId=${userId}`, request, {
       headers: this.getAuthHeaders()
     });
   }

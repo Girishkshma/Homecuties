@@ -1,6 +1,10 @@
 export const environment = {
   production: false,
   baseServUrl: 'http://localhost:5024/api/',
+  // Where a product's photographs are served from while developing: the storefront's own dev server ('ng serve' on
+  // 4211), which serves 'src/assets' as '{host}/images/...'. The API is pointed at that same folder by
+  // 'ProductImages:Root' in appsettings.Development.json, so a photo uploaded in the admin area is on the storefront
+  // page the moment it is written - the two folders have to be one, exactly as they do in production.
   baseImageUrl: 'http://localhost:4211/images/',
   // Google OAuth client id from Google Cloud Console (APIs & Services > Credentials).
   // Must match "Google:ClientId" in HC.Services/appsettings.json.

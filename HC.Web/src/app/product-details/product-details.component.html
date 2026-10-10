@@ -34,7 +34,7 @@
            (mouseleave)="onMouseLeave()">
         <!-- Main square image with nav arrows -->
         <div class="main-image-square">
-          <img [src]="selectedImage | productImage" alt="{{ product.ProductName }}">
+          <img [src]="currentImage | productImage" alt="{{ product.ProductName }}">
 
           <!-- Left/Right navigation arrows -->
           <button class="carousel-arrow carousel-arrow-left" *ngIf="hasMultipleImages"
@@ -48,15 +48,15 @@
 
           <!-- Image counter -->
           <span class="image-counter" *ngIf="hasMultipleImages">
-            {{ currentIndex + 1 }} / {{ images.length }}
+            {{ currentIndex + 1 }} / {{ pictures.length }}
           </span>
         </div>
 
-        <!-- Thumbnails -->
+        <!-- Thumbnails: one per photo, drawn from that photo's own thumbnail file -->
         <div class="thumbnail-list" *ngIf="hasMultipleImages">
-          <div *ngFor="let img of images; let i = index" class="thumbnail"
-               [class.active]="selectedImage === img" (click)="selectImage(img)">
-            <img [src]="img | productImage" alt="Product thumbnail">
+          <div *ngFor="let picture of pictures; let i = index; trackBy: trackPicture" class="thumbnail"
+               [class.active]="i === currentIndex" (click)="selectImage(i)">
+            <img [src]="picture.Thumbnail | productImage" alt="Product thumbnail">
           </div>
         </div>
       </div>

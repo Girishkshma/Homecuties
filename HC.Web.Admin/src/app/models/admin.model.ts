@@ -301,7 +301,24 @@ export interface CreateProductRequest {
   igstpercent: number;
   categoryIds: number[];
   features: AdminProductFeature[];
+  /**
+   * The product's image rows. The edit page writes these: the uploader writes the files, and each file becomes a row
+   * here. A create carries none - a photo file is named after the product's id, so a photo is added from the product's
+   * own page once the product has been given one.
+   */
   images: AdminProductImage[];
+}
+
+/**
+ * What 'POST products' answers: the usual result and message, plus the id the product was given.
+ *
+ * The form goes straight to that product's page, because that is where its photos are added - a photo file is named
+ * after the product's id, so a product that is still being created has nothing to name one after.
+ */
+export interface CreateProductResult {
+  result: number;
+  messages: string[];
+  productId?: number;
 }
 
 export interface ProductStatusOption {
@@ -313,6 +330,24 @@ export interface ImageTypeOption {
   imageTypeId: number;
   imageTypeName: string;
   shortCode: string;
+  /**
+   * The width of the pixel box this size is written in (see ProductImageVariants in HC.Business), so a tick can say
+   * the size it will really write. 0 for a type the uploader has no size for: there is no box to write it into, so the
+   * form offers no tick for it.
+   */
+  width: number;
+  /** The height of that box, the other way round from width. */
+  height: number;
+  /**
+   * True for the sizes the form ticks before the admin touches anything: the ones the storefront draws, so a shop that
+   * changes nothing stores exactly what its pages show. False for the sizes the admin has to tick for.
+   */
+  generatedByDefault: boolean;
+  /**
+   * True for the type a product's card, its cart row and its order row are pictured from - the promo. A photo written
+   * without it is drawn from whatever larger size it has instead, so the form says so beside the tick.
+   */
+  isPromoImage: boolean;
 }
 
 export interface ProductFormOptions {
@@ -320,11 +355,35 @@ export interface ProductFormOptions {
   imageTypes: ImageTypeOption[];
 }
 
+/**
+ * One file the API wrote for an uploaded photo: the size it is, spelled the way the shop's 'ImageTypes' table
+ * spells it, and the name it is served under.
+ *
+ * The API writes these itself, which is the point of the single upload: the form uploads the photograph once and
+ * turns what comes back into the product's image rows, so no size is ever uploaded, named or typed by hand. See
+ * ProductImageVariants in HC.Business for the sizes a photo can be written in.
+ */
+export interface GeneratedProductImage {
+  imageTypeId: number;
+  imageTypeName: string;
+  shortCode: string;
+  /**
+   * The pixels the file really is - the photograph's own shape inside the size's box - and not the box itself: a
+   * 3:2 photo written for the 1200x1200 master reports 1200x800. It is printed beside the file name in the form,
+   * which is how the shop team sees what an upload produced, so it must describe the file rather than the box.
+   */
+  width: number;
+  height: number;
+  imageIndex: number;
+  isPromoImage: boolean;
+  fileName: string;
+  url: string;
+}
+
 export interface ImageUploadResult {
   result: number;
   messages: string[];
-  fileName: string;
-  url: string;
+  images: GeneratedProductImage[];
 }
 
 export interface AdminOrder {

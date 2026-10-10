@@ -7,7 +7,21 @@ public class ProductDto
     public string ProductTitle { get; set; } = "";
     public string ProductDescription { get; set; } = "";
     public string PromoImage { get; set; } = "";
-    public List<string> ProductImages { get; set; } = new();
+
+    /// <summary>
+    /// The product's image rows as they are stored (see <see cref="ProductImageRefDto"/>): which size each row holds
+    /// and the file it names. A screen draws <see cref="Pictures"/> instead - a row is written down whether or not its
+    /// file was ever produced, and the shop's older products have rows for sizes their files were never made at.
+    /// </summary>
+    public List<ProductImageRefDto> ProductImages { get; set; } = new();
+
+    /// <summary>
+    /// The product's photos as a screen draws them, in the order they were uploaded: for each one the file a big
+    /// frame takes and the file the strip of thumbnails takes, resolved against the shop's image folder (see
+    /// <see cref="ProductGallery"/>). The two are the same file when the smaller size was never produced, and a photo
+    /// with no file at all is left out - which is what keeps a page from drawing a broken picture.
+    /// </summary>
+    public List<ProductGallery.Picture> Pictures { get; set; } = new();
     /// <summary>
     /// The pricing fields of the product itself, carried on the listing (see <see cref="ProductPricing"/>): what the
     /// price below is made up of, so a screen can show the saving or the tax without a second read.

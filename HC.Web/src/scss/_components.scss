@@ -114,7 +114,9 @@
     img {
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      /* The whole promo photo inside the square tile: the uploader writes it in the photo's own shape, so a tall one
+         shows with the tile's grey above and below it rather than losing its top and bottom to 'cover'. */
+      object-fit: contain;
       transition: transform 0.4s ease;
     }
 

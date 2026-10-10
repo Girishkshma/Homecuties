@@ -1,10 +1,29 @@
+/**
+ * One photo of a product as a screen draws it: the file the big frame takes ('Large') and the file the strip of
+ * thumbnails takes ('Thumbnail'). Both are names in the shop's image folder, resolved by the API (see ProductGallery).
+ */
+export interface ProductPicture {
+  Large: string;
+  Thumbnail: string;
+}
+
 export interface Product {
   ProductID: number;
   ProductName: string;
   ProductTitle: string;
   ProductDescription: string;
   PromoImage: string;
-  ProductImages: string[];
+
+  /**
+   * The product's photos as this page draws them, in the order they were uploaded: for each one the file the main
+   * frame takes and the file the strip of thumbnails takes.
+   *
+   * The API resolves these against the shop's image folder (see ProductGallery in HC.Business), so a file that is not
+   * really there is never drawn - the product's own image rows cannot say that, and drawing them as they stood is
+   * what put broken thumbnails in the strip and blank frames under the arrows. The two files of a photo are the same
+   * file when the smaller size was never produced.
+   */
+  Pictures: ProductPicture[];
   /**
    * What one unit costs the customer: the listing price, everything the product's 'Pricing & Charges' and 'Taxes'
    * sections say included - the unit price, the shop's margin, its packaging / storage / delivery charges, both

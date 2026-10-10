@@ -4,7 +4,6 @@ using HC.Business.Dtos;
 using HC.Business.Security;
 using HC.Services.Authorization;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HC.Services.Controllers;
@@ -27,13 +26,16 @@ public class AdminController : ControllerBase
 {
     private readonly IAdminAuthService _adminAuthService;
     private readonly IAdminDashboardService _adminDashboardService;
-    private readonly IWebHostEnvironment _env;
+    private readonly IProductImageService _productImageService;
 
-    public AdminController(IAdminAuthService adminAuthService, IAdminDashboardService adminDashboardService, IWebHostEnvironment env)
+    public AdminController(
+        IAdminAuthService adminAuthService,
+        IAdminDashboardService adminDashboardService,
+        IProductImageService productImageService)
     {
         _adminAuthService = adminAuthService;
         _adminDashboardService = adminDashboardService;
-        _env = env;
+        _productImageService = productImageService;
     }
 
     #region Authentication
@@ -175,13 +177,53 @@ public class AdminController : ControllerBase
         return Ok(options);
     }
 
+    /// <summary>
+    /// One uploaded photograph, written into the shop's image folder in the sizes the admin ticked.
+    ///
+    /// The admin uploads a photo once and the API writes the sizes asked for (see ProductImageVariants): the four the
+    /// storefront draws - the 1200x1200 master as L, S and P and the 150x150 thumbnail as T - are ticked already, and
+    /// any other size the shop's 'ImageTypes' table names is written when it is ticked too. What comes back is one
+    /// entry per file written, and the form turns those into the product's image rows. The sizes are never uploaded by
+    /// hand: a size the storefront does not draw is a file nobody serves, and a size somebody forgot is a broken
+    /// picture on a screen nobody looked at.
+    ///
+    /// 'imageTypeIds' is one entry per size ticked, and 'includeUnusedVariants' is what the form sent before it had a
+    /// tick per size: a request that carries the flag and no ids is read the old way, and a request that asks for no
+    /// size at all is refused rather than guessed at.
+    ///
+    /// Each entry reports the pixels the file really is rather than the box it was fitted into, because the form
+    /// prints them beside the file name: a 3:2 photo written for the master comes back as 1200x800, not as the
+    /// 1200x1200 box - the box caps the size, it does not reshape the photo (see <c>ProductImageService.FitToBox</c>).
+    ///
+    /// 'productId' is the product the photo belongs to and is required: the files are named after it
+    /// ('I{id}_{code}_{index:00}.jpg'), exactly as every other photo in the shop's folder is, so a product that has not
+    /// been saved yet has nothing to name its files after. That is why the admin screen adds photos from a product's
+    /// edit page and not while the product is being created: a create that carries image rows is refused, and the form
+    /// saves the product, lands on its edit page and adds the photos there (see
+    /// <see cref="ProductImageVariants.FileName"/>). 'imageIndex' is which photo of the product this is (the admin's
+    /// 'Image Index'): a photo's several sizes share it, which is what lets a screen show one photo big and small at
+    /// once, and uploading the same index again replaces that photo rather than adding a row.
+    /// </summary>
     [Authorize(Policy = AdminPolicies.Products)]
     [HttpPost("upload-product-image")]
     [RequestSizeLimit(6 * 1024 * 1024)]
-    public async Task<ActionResult> UploadProductImage([FromForm] IFormFile file)
+    public async Task<ActionResult> UploadProductImage(
+        [FromForm] IFormFile? file,
+        [FromForm] int? productId,
+        [FromForm] int? imageIndex,
+        [FromForm] short[]? imageTypeIds = null,
+        [FromForm] bool? includeUnusedVariants = null)
     {
         if (file == null || file.Length == 0)
             return BadRequest(new { result = 0, messages = new[] { "No file was uploaded." } });
+
+        // A photo is named after the product it belongs to, so there is nothing to write one for until the product has
+        // been saved and given an id.
+        if (productId is null or <= 0)
+            return BadRequest(new { result = 0, messages = new[] { "Save the product first: photos are added from its edit page." } });
+
+        if (imageIndex is null || imageIndex < 1)
+            return BadRequest(new { result = 0, messages = new[] { "The photo's image index is required, and must be 1 or more." } });
 
         var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
         var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
@@ -192,25 +234,56 @@ public class AdminController : ControllerBase
         if (file.Length > maxBytes)
             return BadRequest(new { result = 0, messages = new[] { "Image size must be 5 MB or less." } });
 
-        var uploadRoot = Path.Combine(
-            _env.WebRootPath ?? Path.Combine(_env.ContentRootPath, "wwwroot"),
-            "images", "products");
-        Directory.CreateDirectory(uploadRoot);
+        // The sizes to write: the ones the admin ticked on the upload screen, as the ids this uploader knows them by. A
+        // request that names none of them comes from a form older than the tick list - a browser still holding the
+        // previous admin bundle - so the flag that form sent decides instead: the sizes the storefront draws, or every
+        // size the uploader knows when it asked for the unused ones as well. A request that asks for no size at all is
+        // nobody's to guess at.
+        var sizes = imageTypeIds is { Length: > 0 }
+            ? ProductImageVariants.Selected(imageTypeIds).Select(size => size.ImageTypeId).ToList()
+            : includeUnusedVariants switch
+            {
+                true => ProductImageVariants.All.Select(size => size.ImageTypeId).ToList(),
+                false => ProductImageVariants.Default.Select(size => size.ImageTypeId).ToList(),
+                null => (IReadOnlyList<short>)Array.Empty<short>()
+            };
 
-        var fileName = $"prod_{DateTime.UtcNow:yyyyMMddHHmmss}_{Guid.NewGuid():N}{extension}";
-        var fullPath = Path.Combine(uploadRoot, fileName);
+        if (sizes.Count == 0)
+            return BadRequest(new { result = 0, messages = new[] { "Tick at least one size to write the photo in." } });
 
-        await using (var stream = new FileStream(fullPath, FileMode.Create))
+        IReadOnlyList<GeneratedProductImage> written;
+        try
         {
-            await file.CopyToAsync(stream);
+            await using var stream = file.OpenReadStream();
+            written = await _productImageService.GenerateAsync(stream, productId.Value, imageIndex.Value, sizes);
+        }
+        catch (InvalidOperationException refused)
+        {
+            // A file that cannot be read as a photograph is the admin's file to fix, not a server fault, and nothing
+            // was written: the uploader decodes the photo before it touches the folder.
+            return BadRequest(new { result = 0, messages = new[] { refused.Message } });
         }
 
         return Ok(new
         {
             result = 1,
-            messages = new[] { "Image uploaded successfully." },
-            fileName = fileName,
-            url = $"/images/products/{fileName}"
+            messages = new[]
+            {
+                $"The photo was written in {written.Count} sizes: "
+                + $"{string.Join(", ", written.Select(image => image.Variant.ShortCode))}."
+            },
+            images = written.Select(image => new
+            {
+                imageTypeId = image.Variant.ImageTypeId,
+                imageTypeName = image.Variant.ImageTypeName,
+                shortCode = image.Variant.ShortCode,
+                width = image.Width,
+                height = image.Height,
+                imageIndex = image.ImageIndex,
+                isPromoImage = image.IsPromoImage,
+                fileName = image.FileName,
+                url = $"/{IProductImageService.RequestPath}/{image.FileName}"
+            })
         });
     }
 
