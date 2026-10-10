@@ -120,10 +120,11 @@
           </ul>
         </div>
 
-        <!-- Categories -->
+        <!-- Categories: where the piece is filed, heading first ('Decoratives / Vases'), so a shopper reads which
+             collection it belongs to and not only the shelf it sits on. -->
         <div class="product-categories" *ngIf="product.Categories && product.Categories.length > 0">
           <span class="category-tag" *ngFor="let category of product.Categories">
-            <i class="bi bi-tag me-1"></i>{{ category.CategoryName }}
+            <i class="bi bi-tag me-1"></i>{{ categoryPath(category) }}
           </span>
         </div>
 

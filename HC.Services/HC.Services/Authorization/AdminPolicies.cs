@@ -27,6 +27,17 @@ public static class AdminPolicies
     public const string ProductsOrAdminUsers = SectionPrefix + "/products|/users";
 
     /// <summary>
+    /// The catalogue itself: the Categories screen, where the shop adds a category, renames one, moves it and takes
+    /// one out (see AddCategoriesMenu.sql for the menu that grants it).
+    ///
+    /// It is deliberately not folded into the products section even though the two work on the same rows: filing a
+    /// product under a category is the product form's business, and reshaping the catalogue is a rarer, heavier edit
+    /// (a delete that has to be refused, a move that could make a branch unreachable), so a role can be given one
+    /// without the other.
+    /// </summary>
+    public const string Categories = SectionPrefix + "/categories";
+
+    /// <summary>
     /// The shop's money screens - the Finance screen, and the one action that keeps it honest (pulling the
     /// gateway's settlement books from the Dashboard). Both read the same rows the order screens act on
     /// (payments, refunds, what the gateway kept), so a role that may open either section may read the books;
@@ -46,6 +57,7 @@ public static class AdminPolicies
         Purchases,
         AdminUsers,
         ProductsOrAdminUsers,
+        Categories,
         OrdersOrFinance
     };
 

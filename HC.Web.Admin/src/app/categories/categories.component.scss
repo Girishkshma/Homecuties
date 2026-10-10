@@ -1,0 +1,308 @@
+/* Component-specific styles only - table, page and form styles are centralized in _tables.scss */
+
+.definition-card {
+  background: #e8f5e9;
+  border: 1px solid #c8e6c9;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+
+  p {
+    margin: 0 0 8px;
+    font-size: 0.9rem;
+    color: #2e7d32;
+    line-height: 1.6;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  strong {
+    color: #1b5e20;
+  }
+}
+
+/* The failure of the read is said on the page, not tucked in a modal. */
+.page-error {
+  margin-bottom: 16px;
+}
+
+.catalogue-summary {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e9ecef;
+  background: #f8f9fc;
+  font-size: 13px;
+  color: #6c757d;
+}
+
+/* The key to the list: the two pills the Type column hands out, so the words are taught where they are read. */
+.catalogue-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 28px;
+  padding: 10px 16px;
+  background: #fff;
+  border-bottom: 1px solid #e9ecef;
+  font-size: 12px;
+  color: #6c757d;
+
+  .key-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+/* What a row is, as a pill. A heading is filled in - it is the collection - and a shelf is left plain. */
+.type-pill {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.type-pill-heading {
+  background: #1a73e8;
+  border-color: #1a73e8;
+  color: #fff;
+}
+
+.type-pill-shelf {
+  background: #fff;
+  border-color: #cbd3e1;
+  color: #5a6478;
+}
+
+/* The catalogue is a tree, and its two kinds of row are drawn apart from each other: a heading is drawn as the header
+   of its group - tinted, barred and in the catalogue's own ink - while the shelves read beneath it stay plain and are
+   stepped in under it (see indentOf), each joined to the row above by its own elbow. */
+.catalogue-table {
+  .heading-row {
+    background: #eef3fd;
+
+    td {
+      border-top: 1px solid #dbe4f7;
+      color: #21356b;
+      font-weight: 600;
+    }
+
+    td:first-child {
+      box-shadow: inset 3px 0 0 #1a73e8;
+    }
+
+    .category-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: #14306b;
+    }
+
+    &:hover {
+      background: #e4ecfb;
+    }
+  }
+
+  .shelf-row {
+    background: #fff;
+
+    &:hover {
+      background: #f8f9ff;
+    }
+  }
+
+  .name-wrap {
+    display: flex;
+    align-items: baseline;
+  }
+
+  /* The join between a shelf and the heading it is read under: a step in alone reads as a stray indent. */
+  .branch {
+    margin-right: 6px;
+    color: #a9b8d6;
+    font-size: 15px;
+    line-height: 1;
+  }
+
+  .category-name {
+    font-weight: 500;
+    color: #333;
+  }
+
+  /* A cell with nothing in it: a heading's own product count, a shelf nothing sits under. */
+  .none {
+    color: #adb5bd;
+  }
+}
+
+.row-note {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #b26a00;
+}
+
+/* Modal (the same shape the other admin screens use) */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 560px;
+  max-height: 92vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #eee;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 2;
+
+  h2 {
+    margin: 0;
+    font-size: 20px;
+    color: #1a1a2e;
+  }
+
+  .btn-close {
+    background: none;
+    border: none;
+    font-size: 28px;
+    cursor: pointer;
+    color: #999;
+    padding: 0;
+    line-height: 1;
+
+    &:hover { color: #333; }
+  }
+}
+
+.modal-body {
+  padding: 24px;
+
+  p {
+    margin: 0;
+    font-size: 14px;
+    color: #555;
+    line-height: 1.6;
+  }
+}
+
+.modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  position: sticky;
+  bottom: 0;
+  background: #fff;
+}
+
+.form-group {
+  margin-bottom: 16px;
+
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 6px;
+
+    .req {
+      color: #dc3545;
+    }
+  }
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease;
+  font-family: inherit;
+  background: #fff;
+
+  &:focus {
+    border-color: #4a6cf7;
+    box-shadow: 0 0 0 2px rgba(74, 108, 247, 0.1);
+  }
+}
+
+.field-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #6c757d;
+  line-height: 1.5;
+}
+
+.form-message {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  background: #d4edda;
+  color: #155724;
+
+  &.error {
+    background: #f8d7da;
+    color: #721c24;
+  }
+}
+
+/* What is in the way of a delete, said before the admin asks rather than after a refusal. */
+.delete-blocker {
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffe69c;
+}
+
+.btn-danger {
+  padding: 10px 20px;
+  background: #dc3545;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: #c82333;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}

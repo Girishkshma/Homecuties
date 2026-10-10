@@ -86,6 +86,85 @@ export interface DashboardStats {
 }
 
 /**
+ * The dashboard's 'Stock by category' cards ('GET stock-by-category'): the shop's stock cut by the catalogue's own
+ * headings, so the business can decide what to restock shelf by shelf - one card per heading, with the categories
+ * beneath it and what each of them can still sell (see HC.Business.CategoryStock for the rules behind every figure).
+ *
+ * Every figure counts what the storefront can sell and nothing else: a suspended product and a category link the
+ * shop has switched off are left out before the counting starts, and a unit a cancelled order gave back is in stock
+ * again. The cards deliberately answer 'what does this shelf need' rather than 'how many units does the shop hold':
+ * a product filed under two sub-categories is stock under both, so a card's rows do not add up to its heading.
+ */
+export interface AdminStockByCategory {
+  /** The cards, one per heading of the catalogue, in the tree's own order. */
+  headings: AdminCategoryStock[];
+
+  /**
+   * How few sellable units a product has left for a card to call it low (HC.Business.CategoryStock.LowStockUnits).
+   * Sent with the figures so the wording on the cards and the counting on the server cannot drift apart.
+   */
+  lowStockUnits: number;
+
+  /**
+   * What the figures cannot say by themselves: stock the shop holds that no card can show (a product filed under
+   * no category, or under categories no heading leads into) and the units of products the shop has suspended.
+   */
+  messages: string[];
+}
+
+/** One heading of the catalogue as a card: its own figures, and the categories beneath it. */
+export interface AdminCategoryStock {
+  categoryId: number;
+  categoryName: string;
+
+  /** How many products are filed under the heading, including under the categories beneath it. */
+  productCount: number;
+
+  /** The units those products can still sell, each product counted once - not the sum of the rows below. */
+  unitsInStock: number;
+
+  /** How many of them have no sellable unit left. */
+  outOfStockProducts: number;
+
+  /** How many of them are left with 'lowStockUnits' units or fewer. */
+  lowStockProducts: number;
+
+  /**
+   * How many products are filed right on the heading rather than under a category of it - the rows of older days,
+   * before the product form stopped offering a heading as a place to file a product. They are in the figures above
+   * and under no sub-category.
+   */
+  productsOnTheHeading: number;
+
+  /** The categories beneath the heading, depth first - a category always before the ones below it. */
+  subCategories: AdminCategoryStockLine[];
+}
+
+/**
+ * One category under a heading. Its figures are everything filed under it as well, so a card's rows do not add up
+ * to its heading (a product filed under two sub-categories is stock under both).
+ */
+export interface AdminCategoryStockLine {
+  categoryId: number;
+  categoryName: string;
+
+  /** How deep the category sits under its heading: 0 for the heading's own child, 1 for one below that. */
+  depth: number;
+
+  /** How many products are filed under the category, including under the categories below it. */
+  productCount: number;
+
+  /** The units those products can still sell, each product counted once. */
+  unitsInStock: number;
+
+  /** How many of them have no sellable unit left. */
+  outOfStockProducts: number;
+
+  /** How many of them are left with 'lowStockUnits' units or fewer. */
+  lowStockProducts: number;
+}
+
+/**
  * The days a settlement pull covers ('POST settlements/sync'), which is the one action that brings the money
  * tiles up to date with what the gateway really settled to the shop's bank account.
  *
@@ -1080,8 +1159,40 @@ export interface AdminUserFormRequest {
 export interface AdminCategory {
   categoryId: number;
   categoryName: string;
-  parentCategoryId?: number;
+  /**
+   * The category this one sits beneath. It is absent - and the API spells that 'null' - on one of the shop's own
+   * categories, which is a heading: a product is filed under a category that names a parent, never under a heading.
+   */
+  parentCategoryId?: number | null;
   parentCategoryName?: string;
+}
+
+/**
+ * One row of the Categories screen (see AdminService.getManagedCategories): a category, where it sits in the
+ * catalogue, and the two figures that decide whether it can be taken out - the products filed on it and the
+ * categories sitting directly under it. The server refuses a delete while either is not zero (see its
+ * HC.Business.CategoryCatalog), so the screen shows the two figures rather than working them out again, and what a
+ * refusal would take with it stays visible before the admin asks.
+ */
+export interface AdminManagedCategory {
+  categoryId: number;
+  categoryName: string;
+  /** The category it sits under; absent ('null') on a heading, which is a top of the tree. */
+  parentCategoryId?: number | null;
+  /** The name of that category, as the server read it from the row itself - absent when the row it names is gone. */
+  parentCategoryName?: string | null;
+  /** How many steps it sits below the top of its tree: 0 for a heading, 1 for a shelf of one, and so on down. */
+  depth: number;
+  /** Every product filed on it, switched on or off - every row a delete would carry with it. */
+  productCount: number;
+  /** The categories directly under it: anything but zero is what makes it a heading of the shop's. */
+  childCount: number;
+}
+
+/** Body of 'add a category' and of 'save this category': what it is called and where it sits ('null' = a heading). */
+export interface CategoryFormRequest {
+  categoryName: string;
+  parentCategoryId?: number | null;
 }
 
 export interface AdminResult {

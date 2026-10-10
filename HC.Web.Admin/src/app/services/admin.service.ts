@@ -47,6 +47,9 @@ import {
   AdminUserDetail,
   AdminUserFormRequest,
   AdminCategory,
+  AdminManagedCategory,
+  CategoryFormRequest,
+  AdminStockByCategory,
   AdminResult,
   AdminSettlementSyncRequest,
   AdminFinanceSummary
@@ -100,6 +103,21 @@ export class AdminService {
   // Dashboard
   getDashboardStats(): Observable<DashboardStats> {
     return this.http.get<DashboardStats>(`${this.apiUrl}/dashboard/stats`, {
+      headers: this.getAuthHeaders()
+    });
+  }
+
+  /**
+   * The dashboard's 'Stock by category' cards: the shop's stock cut by the catalogue's headings, so the business can
+   * see which shelf needs restocking rather than which single product does. Every figure is counted on the server by
+   * the shop's one sellable rule and the one low-stock mark it sends back ('lowStockUnits'), so the wording on the
+   * cards and the counting behind them cannot drift apart (see HC.Business.CategoryStock).
+   *
+   * It is a read of the whole shop and takes no admin. 'messages' carries what the figures cannot say by themselves:
+   * stock filed where no card can show it, and the units of products the shop has suspended.
+   */
+  getStockByCategory(): Observable<AdminStockByCategory> {
+    return this.http.get<AdminStockByCategory>(`${this.apiUrl}/stock-by-category`, {
       headers: this.getAuthHeaders()
     });
   }
@@ -174,7 +192,9 @@ export class AdminService {
    * one size is ticked). 'productId' is the product the photo belongs to and is required: every file is named after it,
    * exactly as the shop's other photos are, so the form offers no photo picker until the product has been saved and has
    * an id to name one after. 'imageIndex' is which photo of the product this is: a photo's several sizes share it, and
-   * uploading the same index again replaces that photo rather than adding another one.
+   * uploading the same index again replaces that photo rather than adding another one. It is also the photo's place in
+   * the order: the storefront draws the photos by their image indices (see ProductGallery in HC.Business), and the form
+   * numbers a photo again when the admin moves it, so an upload lands at the index the form gives it.
    */
   uploadProductImage(
     file: File,
@@ -518,6 +538,44 @@ export class AdminService {
   // Categories
   getCategories(): Observable<AdminCategory[]> {
     return this.http.get<AdminCategory[]>(`${this.apiUrl}/categories`, {
+      headers: this.getAuthHeaders()
+    });
+  }
+
+  /**
+   * The catalogue as the Categories screen manages it: every category in the order that screen lists it, with where
+   * it sits and what is filed on it (see the server's AdminDashboardService.GetManagedCategoriesAsync).
+   */
+  getManagedCategories(): Observable<AdminManagedCategory[]> {
+    return this.http.get<AdminManagedCategory[]>(`${this.apiUrl}/categories/manage`, {
+      headers: this.getAuthHeaders()
+    });
+  }
+
+  /**
+   * Adds a category - a heading, or a shelf of one when it names a parent. What comes back is the server's answer
+   * either way: a refusal is its own sentence ('result' 0), which the form shows as it is rather than re-worded here
+   * (the rules live in the server's HC.Business.CategoryCatalog).
+   */
+  createCategory(request: CategoryFormRequest, userId: number): Observable<AdminResult> {
+    return this.http.post<AdminResult>(`${this.apiUrl}/categories?userId=${userId}`, request, {
+      headers: this.getAuthHeaders()
+    });
+  }
+
+  /** Renames a category and moves it, the same rules and the same answer as adding one. */
+  updateCategory(id: number, request: CategoryFormRequest, userId: number): Observable<AdminResult> {
+    return this.http.put<AdminResult>(`${this.apiUrl}/categories/${id}?userId=${userId}`, request, {
+      headers: this.getAuthHeaders()
+    });
+  }
+
+  /**
+   * Takes a category out. The server refuses it while anything sits under the category or is filed on it, and that
+   * refusal is an answer ('result' 0) with the reason in it, not a failed call.
+   */
+  deleteCategory(id: number, userId: number): Observable<AdminResult> {
+    return this.http.delete<AdminResult>(`${this.apiUrl}/categories/${id}?userId=${userId}`, {
       headers: this.getAuthHeaders()
     });
   }

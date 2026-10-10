@@ -1,0 +1,170 @@
+<div class="page-container">
+  <div class="page-header">
+    <h1>Categories</h1>
+    <div class="header-actions">
+      <button class="btn-primary" (click)="openAddModal()">+ Add Category</button>
+    </div>
+  </div>
+
+  <!-- Definition -->
+  <div class="definition-card">
+    <p>
+      The <strong>catalogue</strong> of the shop. A <strong>heading</strong> names a collection ('Decoratives') and the
+      <strong>shelves</strong> beneath it ('Vases', 'Pot Houses') are what products are filed under: nothing is filed on
+      a heading itself, because a customer who opens one browses everything filed beneath it - which is what the
+      storefront's menus are built from.
+    </p>
+    <p>
+      Renaming a category changes it wherever it is read (the menus, the product form, a product's own 'Decoratives /
+      Vases' label). Moving one carries its shelves with it. Taking one out is refused while anything still sits under
+      it or is filed on it.
+    </p>
+  </div>
+
+  <div *ngIf="isLoading" class="loading">Reading the catalogue...</div>
+
+  <div *ngIf="loadError" class="form-message error page-error">{{ loadError }}</div>
+
+  <!-- List View -->
+  <div *ngIf="hasCatalogue" class="table-container">
+    <div class="catalogue-summary" *ngIf="categories.length > 0">
+      {{ headings.length }} headings, {{ shelves.length }} categories filed beneath them.
+    </div>
+
+    <!-- The key to the two kinds of row below. A heading names a collection and never holds a product itself, so every
+         row read under one is a shelf: the words are the shop's (see ./catalogue). -->
+    <div class="catalogue-key" *ngIf="categories.length > 0">
+      <span class="key-item">
+        <span class="type-pill type-pill-heading">Heading</span>
+        <span>a collection - nothing is filed on it</span>
+      </span>
+      <span class="key-item">
+        <span class="type-pill type-pill-shelf">Shelf</span>
+        <span>a category products are filed under, stepped in beneath its heading</span>
+      </span>
+    </div>
+
+    <table class="data-table catalogue-table">
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th>Type</th>
+          <th>Sits under</th>
+          <th>Products filed</th>
+          <th>Shelves under it</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let category of categories" [class.heading-row]="isHeading(category)"
+          [class.shelf-row]="!isHeading(category)">
+          <td class="category-cell">
+            <div class="name-wrap" [style.padding-left.px]="indentOf(category)">
+              <span class="branch" *ngIf="!isHeading(category)" aria-hidden="true">└</span>
+              <span class="category-name">{{ category.categoryName }}</span>
+            </div>
+            <span class="row-note" *ngIf="noteOf(category) as note">{{ note }}</span>
+          </td>
+          <td>
+            <span class="type-pill" [class.type-pill-heading]="isHeading(category)"
+              [class.type-pill-shelf]="!isHeading(category)">{{ typeOf(category) }}</span>
+          </td>
+          <td>
+            <span *ngIf="category.parentCategoryName; else noParent">{{ category.parentCategoryName }}</span>
+            <ng-template #noParent>
+              <span class="none" title="This row is a heading: it names a collection and sits under nothing.">—</span>
+            </ng-template>
+          </td>
+          <td>
+            <span *ngIf="isHeading(category); else productsFiled" class="none"
+              title="Nothing is filed on a heading - products are filed on the shelves read beneath it.">—</span>
+            <ng-template #productsFiled>{{ category.productCount }}</ng-template>
+          </td>
+          <td>
+            <span *ngIf="category.childCount > 0; else noShelves">{{ category.childCount }}</span>
+            <ng-template #noShelves><span class="none">—</span></ng-template>
+          </td>
+          <td class="actions">
+            <button class="btn-sm btn-view" (click)="openAddShelfModal(category)"
+              title="Add a category under this one">+ Shelf</button>
+            <button class="btn-sm btn-edit" (click)="openEditModal(category.categoryId)">✏️ Edit</button>
+            <button class="btn-sm btn-delete" (click)="askToDelete(category)">🗑 Delete</button>
+          </td>
+        </tr>
+        <tr *ngIf="categories.length === 0">
+          <td colspan="6" class="empty">The catalogue has no categories yet. Add one to start filing products under it.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Add / Edit Category Modal -->
+<div class="modal-overlay" *ngIf="showFormModal" (click)="closeFormModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>{{ isEditMode ? 'Edit Category' : (isAddingShelf ? 'Add Shelf' : 'Add Heading') }}</h2>
+      <button class="btn-close" (click)="closeFormModal()">&times;</button>
+    </div>
+
+    <form (ngSubmit)="saveCategory()">
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="categoryName">Category Name <span class="req">*</span></label>
+          <input id="categoryName" type="text" [maxlength]="nameMaxLength" placeholder="e.g. Vases"
+            [(ngModel)]="categoryForm.categoryName" name="categoryName" class="form-input">
+        </div>
+
+        <div class="form-group">
+          <label for="parentCategoryId">Sits Under</label>
+          <select id="parentCategoryId" [(ngModel)]="categoryForm.parentCategoryId" name="parentCategoryId"
+            class="form-input">
+            <option [ngValue]="null">— Nothing: this category is a heading —</option>
+            <option *ngFor="let choice of parentOptions" [ngValue]="choice.categoryId">{{ choice.label }}</option>
+          </select>
+          <p class="field-hint">
+            A heading starts a new collection; a category chosen here is filed under it, at whatever depth the catalogue
+            already goes. While editing, the category itself and everything beneath it are left out of the list - a
+            category cannot sit under itself or under one of its own shelves.
+          </p>
+        </div>
+
+        <div *ngIf="formMessage" class="form-message" [class.error]="formError">{{ formMessage }}</div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" (click)="closeFormModal()">Cancel</button>
+        <button type="submit" class="btn-primary" [disabled]="isSaving">
+          {{ isSaving ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Add Category') }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Delete Category Modal -->
+<div class="modal-overlay" *ngIf="deletingCategory" (click)="cancelDelete()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Delete '{{ deletingCategory.categoryName }}'?</h2>
+      <button class="btn-close" (click)="cancelDelete()">&times;</button>
+    </div>
+
+    <div class="modal-body">
+      <p *ngIf="!deleteBlockers">
+        The category is taken out of the catalogue. Nothing else moves: no product is deleted and no product's filing
+        changes, because nothing sits under this category and no product is filed on it.
+      </p>
+      <p *ngIf="deleteBlockers" class="delete-blocker">{{ deleteBlockers }}</p>
+
+      <div *ngIf="deleteMessage" class="form-message" [class.error]="deleteError">{{ deleteMessage }}</div>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn-secondary" (click)="cancelDelete()">Cancel</button>
+      <button type="button" class="btn-danger" [disabled]="isDeleting || !!deleteBlockers" (click)="deleteCategory()">
+        {{ isDeleting ? 'Deleting...' : 'Delete Category' }}
+      </button>
+    </div>
+  </div>
+</div>

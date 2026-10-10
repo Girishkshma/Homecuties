@@ -69,6 +69,104 @@
       </div>
     </section>
 
+    <!-- Stock by category: the shop's stock cut by the catalogue's own headings - one card per heading, with the
+         categories beneath it and what each of them can still sell - so what is ordered is a shelf rather than a
+         single product. Every figure is what the storefront can sell (a suspended product and a switched-off
+         category link are out of it before the counting starts, a unit a cancelled order gave back is stock
+         again), and a product filed under two sub-categories is stock under both, so a card's rows do not add up
+         to its heading. What the figures cannot say on their own is said above the cards, from the answer's own
+         'messages'. -->
+    <section class="stats-section">
+      <h2 class="section-title">Stock by category</h2>
+
+      <!-- The cards are a read of the whole catalogue: the section says so while it runs, and says so itself when
+           it fails - the tiles above are already on screen by then. -->
+      <div *ngIf="isLoadingStock" class="loading">Reading the shop's stock...</div>
+
+      <div *ngIf="!isLoadingStock && stockError" class="form-message error">{{ stockError }}</div>
+
+      <ng-container *ngIf="!isLoadingStock && !stockError">
+        <ng-container *ngIf="stockByCategory as stock">
+          <p class="stock-empty" *ngIf="!stock.headings.length">
+            No headings in the catalogue yet, so there is nothing to count shelf by shelf. A card appears here as
+            soon as a heading has products filed under it.
+          </p>
+
+          <ng-container *ngIf="stock.headings.length">
+            <p class="stock-intro">
+              What each heading can still sell, counted from the units the storefront is offering - a unit a
+              cancelled order gave back is stock again. A product with none left is out of stock, and one with
+              {{ stock.lowStockUnits }} units or fewer is low: those are the two marks the ordering is decided
+              from.
+            </p>
+
+            <!-- Stock the shop holds that no card reaches (filed under no category a heading leads into), and the
+                 units of products the shop has suspended: real stock, in none of the figures below. -->
+            <div class="stock-notes" *ngIf="stock.messages.length">
+              <p *ngFor="let message of stock.messages">{{ message }}</p>
+            </div>
+
+            <div class="stock-cards">
+              <article class="stock-card" *ngFor="let heading of stock.headings">
+                <header class="stock-card-head">
+                  <h3>{{ heading.categoryName }}</h3>
+                  <p class="stock-card-total">
+                    {{ count(heading.productCount, 'product') }} &middot;
+                    {{ count(heading.unitsInStock, 'unit') }} in stock
+                  </p>
+                </header>
+
+                <p class="stock-card-flags">
+                  <span class="stock-flag out" [class.quiet]="!heading.outOfStockProducts">
+                    {{ heading.outOfStockProducts }} out of stock
+                  </span>
+                  <span class="stock-flag low" [class.quiet]="!heading.lowStockProducts">
+                    {{ heading.lowStockProducts }} low
+                  </span>
+                </p>
+
+                <!-- The rows of older days, before the form stopped offering a heading as a place to file a
+                     product: they are in the figures above and under no row below. -->
+                <p class="stock-on-heading" *ngIf="heading.productsOnTheHeading">
+                  {{ count(heading.productsOnTheHeading, 'product') }} filed right on the heading - in the figures
+                  above, in none of the rows below.
+                </p>
+
+                <table class="stock-table" *ngIf="heading.subCategories.length">
+                  <thead>
+                    <tr>
+                      <th>Category</th>
+                      <th class="num">Products</th>
+                      <th class="num">Units</th>
+                      <th class="num">Out of stock</th>
+                      <th class="num">Low</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let row of heading.subCategories">
+                      <td class="stock-category" [style.paddingLeft.px]="12 + row.depth * 18">
+                        {{ row.categoryName }}
+                      </td>
+                      <td class="num">{{ row.productCount }}</td>
+                      <td class="num">{{ row.unitsInStock }}</td>
+                      <td class="num" [class.danger]="row.outOfStockProducts">{{ row.outOfStockProducts }}</td>
+                      <td class="num" [class.warn]="row.lowStockProducts">{{ row.lowStockProducts }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </article>
+            </div>
+
+            <p class="hint">
+              A card's rows do not add up to its heading: a product filed under two categories is stock under both,
+              so the heading - the shelf to order for - is everything filed under it, counted once each, while a
+              row is where to look.
+            </p>
+          </ng-container>
+        </ng-container>
+      </ng-container>
+    </section>
+
     <!-- Orders and their parcels: what the shop has to do and what is out with a courier right now. -->
     <section class="stats-section">
       <h2 class="section-title">Orders &amp; Shipments</h2>

@@ -15,6 +15,7 @@ import { PartnersComponent } from './partners/partners.component';
 import { VendorsComponent } from './vendors/vendors.component';
 import { PurchasesComponent } from './purchases/purchases.component';
 import { AdminUsersComponent } from './admin-users/admin-users.component';
+import { CategoriesComponent } from './categories/categories.component';
 import { AuthGuard } from './guards/auth.guard';
 import { MenuAccessGuard } from './guards/menu-access.guard';
 
@@ -48,6 +49,11 @@ const routes: Routes = [
       { path: 'vendors', component: VendorsComponent, canActivate: [MenuAccessGuard], data: { section: '/vendors' } },
       { path: 'purchases', component: PurchasesComponent, canActivate: [MenuAccessGuard], data: { section: '/purchases' } },
       { path: 'users', component: AdminUsersComponent, canActivate: [MenuAccessGuard], data: { section: '/users' } },
+
+      // The catalogue itself - headings and the shelves beneath them. Its own section ('/categories', seeded by
+      // HC.Data/Scripts/AddCategoriesMenu.sql), because reshaping the catalogue is a different job from filing a
+      // product under it: the API checks the same section, and a role granted one need not be granted the other.
+      { path: 'categories', component: CategoriesComponent, canActivate: [MenuAccessGuard], data: { section: '/categories' } },
       { path: '', redirectTo: '/dashboard', pathMatch: 'full' }
     ]
   },

@@ -44,8 +44,78 @@
   }
 }
 
-/* ===== Categories Section ===== */
+/* ===== Categories Section =====
+   One block per heading of the catalogue, with the shelves the shop sells from read under it as tiles: the heading
+   is the name of the collection (and its own way into everything filed beneath it), and the tiles are the shelves
+   themselves. The catalogue is one self-referencing table and nothing is filed on a heading, so the tiles on their
+   own would say which shelves exist but not whose collection each one is. */
 .categories-section {
+  /* A block is a heading and the tiles under it. The headings are separated, so a shopper reads where one collects
+     ends and the next begins. */
+  .category-group + .category-group {
+    margin-top: 2.75rem;
+  }
+
+  /* The heading of a block: the collection the cards below are read under. Barred and set in the catalogue's own ink -
+     the same reading the admin's catalogue screen gives a heading - so the cards beneath it are read as its shelves and
+     not as one flat grid of names. */
+  .category-group-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-left: 0.85rem;
+    padding-bottom: 0.75rem;
+    margin-bottom: 1.5rem;
+    border-left: 3px solid var(--primary);
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .category-group-title {
+    font-size: 1.0625rem;
+    font-weight: 700;
+    color: var(--heading-color);
+    margin: 0;
+
+    a {
+      color: inherit;
+      text-decoration: none;
+
+      &:hover {
+        color: var(--primary);
+        text-decoration: none;
+      }
+    }
+  }
+
+  /* The heading's own way into everything filed beneath it: a shelf's listing is reached from its tile, and a
+     collection's from here. */
+  .category-group-link {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    text-decoration: none;
+    white-space: nowrap;
+    transition: var(--transition-fast);
+
+    &:hover {
+      color: var(--heading-color);
+      text-decoration: none;
+
+      i {
+        transform: translateX(3px);
+      }
+    }
+
+    i {
+      font-size: 0.7rem;
+      margin-left: 0.25rem;
+      transition: var(--transition-fast);
+    }
+  }
+
   .category-card {
     display: block;
     background: var(--white);

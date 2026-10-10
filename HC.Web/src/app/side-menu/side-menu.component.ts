@@ -5,7 +5,7 @@ import { ProductService } from '../services/product.service';
 import { CartService } from '../services/cart.service';
 import { FavoritesService } from '../services/favorites.service';
 import { AuthService, CustomerInfo } from '../services/auth.service';
-import { Category } from '../models/product.model';
+import { CategoryHeading, CategoryRow, groupedByHeading } from '../models/category-tree';
 
 @Component({
   selector: 'app-side-menu',
@@ -14,7 +14,17 @@ import { Category } from '../models/product.model';
   styleUrl: './side-menu.component.scss'
 })
 export class SideMenuComponent implements OnInit, OnDestroy {
-  categories: Category[] = [];
+  /**
+   * The catalogue's headings and the shelves read under each of them, in the shop's own order - one group per
+   * heading, with the rows of a heading stepped in beneath it (see groupedByHeading). The catalogue is one
+   * self-referencing table and a heading is not a place a product sits, so a menu of the shelves alone would say
+   * nothing about which collection each belongs to.
+   */
+  headings: CategoryHeading[] = [];
+
+  /** The rows no heading leads into, if the catalogue holds any (a loop in the table): listed plainly, never dropped. */
+  ungrouped: CategoryRow[] = [];
+
   isMenuOpen = false;
   cartItemCount = 0;
   favoritesCount = 0;
@@ -68,9 +78,18 @@ export class SideMenuComponent implements OnInit, OnDestroy {
     this.closeMenu();
   }
 
+  /**
+   * The menu is the catalogue's tree, not its table: the API sends the rows the shop sells from together with the
+   * headings above them (see ProductService.GetCategoriesAsync), and they are grouped here so the two parts of the
+   * menu - the desktop dropdown and the phone menu - read the same rows the same way.
+   */
   private loadCategories(): void {
     this.productService.getCategories().subscribe({
-      next: (data) => this.categories = data,
+      next: (data) => {
+        const tree = groupedByHeading(data);
+        this.headings = tree.headings;
+        this.ungrouped = tree.ungrouped;
+      },
       error: () => console.error('Failed to load categories')
     });
   }

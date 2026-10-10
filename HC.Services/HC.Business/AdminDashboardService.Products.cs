@@ -97,6 +97,19 @@ public partial class AdminDashboardService : IAdminDashboardService
             };
         }
 
+        // A top-level category is a heading rather than a place a product sits (see CategoryTree), so a product that
+        // names one is refused before anything is written. The product form draws the headings with no tick to give and
+        // leaves them out of the save; this is the rule behind that, so no other caller can file a product under one.
+        var topLevel = await TopLevelCategoriesAsync(request.CategoryIds);
+        if (topLevel.Count > 0)
+        {
+            return new CreateProductResultDto
+            {
+                Result = 0,
+                Messages = new[] { TopLevelCategoryMessage(topLevel) }
+            };
+        }
+
         var product = new Product
         {
             ProductName = request.ProductName,
@@ -172,6 +185,19 @@ public partial class AdminDashboardService : IAdminDashboardService
             {
                 Result = 0,
                 Messages = new[] { "Product not found." }
+            };
+        }
+
+        // The same rule a create is held to: a heading is not a place a product sits (see CreateProductAsync). The
+        // categories are written from the request on every save, so a product saved before this rule that still carries
+        // a heading is left with the categories beneath it the next time it is saved.
+        var topLevel = await TopLevelCategoriesAsync(request.CategoryIds);
+        if (topLevel.Count > 0)
+        {
+            return new AdminResultDto
+            {
+                Result = 0,
+                Messages = new[] { TopLevelCategoryMessage(topLevel) }
             };
         }
 
@@ -323,5 +349,44 @@ public partial class AdminDashboardService : IAdminDashboardService
 
         return options;
     }
+
+    /// <summary>
+    /// The headings among the categories a product's save named, if any: the tops of the tree (see
+    /// <see cref="CategoryTree.TopsOfTree"/>).
+    ///
+    /// The whole 'Categories' table is read rather than the named rows alone, because whether a row is a top of the tree
+    /// is a fact about the table: a category whose parent row is gone is a heading too, and a query narrowed to the
+    /// named ids would not know that. The table is a shop's handful of rows, so reading it whole costs nothing.
+    /// </summary>
+    private async Task<List<AdminCategoryDto>> TopLevelCategoriesAsync(List<short> categoryIds)
+    {
+        if (categoryIds.Count == 0)
+        {
+            return new List<AdminCategoryDto>();
+        }
+
+        var categories = await _context.Categories
+            .Select(c => new AdminCategoryDto
+            {
+                CategoryId = c.CategoryId,
+                CategoryName = c.CategoryName,
+                ParentCategoryId = c.ParentCategoryId
+            })
+            .ToListAsync();
+
+        var named = categoryIds.ToHashSet();
+
+        return CategoryTree.TopsOfTree(categories)
+            .Where(category => named.Contains(category.CategoryId))
+            .ToList();
+    }
+
+    /// <summary>
+    /// What the admin is told when a product's save names a heading: which categories, and what to tick instead.
+    /// </summary>
+    private static string TopLevelCategoryMessage(List<AdminCategoryDto> topLevel)
+        => $"A product is filed under a category beneath a heading, so "
+         + $"{string.Join(", ", topLevel.Select(category => category.CategoryName))} "
+         + "cannot hold one: tick a sub-category.";
 
 }

@@ -95,8 +95,10 @@
   </div>
 </section>
 
-<!-- Categories Section -->
-<section class="section categories-section" *ngIf="categories.length > 0">
+<!-- Categories Section: the catalogue's headings, each with the shelves the shop sells from read under it.
+     A heading is not a place a product sits, so the heading names the collection and opens everything filed beneath
+     it, while the tiles below it are the shelves themselves. -->
+<section class="section categories-section" *ngIf="blocks.length > 0">
   <div class="container">
     <div class="section-header text-center">
       <div>
@@ -105,20 +107,33 @@
         <p class="section-description">Browse our curated collection of home decor categories</p>
       </div>
     </div>
-    <div class="row g-4">
-      <div *ngFor="let category of categories" class="col-lg-3 col-md-4 col-6">
-        <a [routerLink]="['/shop', category.CategoryID]" class="category-card">
-          <div class="category-image-wrapper">
-            <img [src]="getCategoryImage(category)" alt="{{ category.CategoryName }}" class="category-img" loading="lazy">
-            <div class="category-overlay"></div>
-          </div>
-          <div class="category-info">
-            <h4>{{ category.CategoryName }}</h4>
-            <span class="category-link">
-              Browse <i class="bi bi-arrow-right"></i>
-            </span>
-          </div>
+
+    <div class="category-group" *ngFor="let block of blocks">
+      <div class="category-group-head">
+        <h3 class="category-group-title">
+          <a *ngIf="block.heading; else noHeading" [routerLink]="['/shop', block.heading.CategoryID]">{{ block.heading.CategoryName }}</a>
+          <ng-template #noHeading>More from the shop</ng-template>
+        </h3>
+        <a *ngIf="block.heading" class="category-group-link" [routerLink]="['/shop', block.heading.CategoryID]">
+          View all <i class="bi bi-arrow-right"></i>
         </a>
+      </div>
+
+      <div class="row g-4">
+        <div *ngFor="let tile of block.tiles" class="col-lg-3 col-md-4 col-6">
+          <a [routerLink]="['/shop', tile.category.CategoryID]" class="category-card">
+            <div class="category-image-wrapper">
+              <img [src]="getCategoryImage(tile.category)" alt="{{ tile.category.CategoryName }}" class="category-img" loading="lazy">
+              <div class="category-overlay"></div>
+            </div>
+            <div class="category-info">
+              <h4>{{ tile.category.CategoryName }}</h4>
+              <span class="category-link">
+                Browse <i class="bi bi-arrow-right"></i>
+              </span>
+            </div>
+          </a>
+        </div>
       </div>
     </div>
   </div>
@@ -155,7 +170,7 @@
           </div>
           <div class="product-body">
             <div class="product-category" *ngIf="product.Categories && product.Categories.length > 0">
-              {{ product.Categories[0].CategoryName }}
+              {{ categoryPath(product.Categories[0]) }}
             </div>
             <h3 class="product-name">
               <a [routerLink]="['/product', product.ProductID]">{{ product.ProductTitle }}</a>

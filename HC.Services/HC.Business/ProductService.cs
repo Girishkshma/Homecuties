@@ -70,10 +70,29 @@ public class ProductService : IProductService
         return product;
     }
 
+    /// <summary>
+    /// The products a category listing shows: everything filed under the category and under every category beneath
+    /// it, at any depth (see <see cref="CategoryBranch.Beneath"/>, where that rule and its reasons live).
+    ///
+    /// It is what makes the headings the storefront's menus offer into real browsings. A heading has no products
+    /// filed on it - the shop files its pieces on the shelves under it - so a query for the heading itself would
+    /// answer with nothing and a shopper who opened 'Decoratives' would be shown an empty page.
+    /// </summary>
     public async Task<IEnumerable<ProductDto>> GetProductsByCategoryAsync(short categoryId)
     {
+        var categories = await _context.Categories
+            .Select(c => new CategoryDto
+            {
+                CategoryID = c.CategoryId,
+                CategoryName = c.CategoryName,
+                ParentCategoryID = c.ParentCategoryId
+            })
+            .ToListAsync();
+
+        var branch = CategoryBranch.Beneath(categories, categoryId);
+
         var products = await _context.Products
-            .Where(p => p.ProductCategories.Any(pc => pc.CategoryId == categoryId && pc.IsActive)
+            .Where(p => p.ProductCategories.Any(pc => pc.IsActive && branch.Contains(pc.CategoryId))
                 && p.ProductStatusId != 2) // 2 = Suspended (disabled)
             .Include(p => p.ProductCategories)
                 .ThenInclude(pc => pc.Category)
@@ -88,10 +107,18 @@ public class ProductService : IProductService
         return products;
     }
 
+    /// <summary>
+    /// The rows the storefront's menus, filters and category pages list: every category the shop sells from and the
+    /// rows above each of them, so a shelf can be drawn under the heading it belongs to (see
+    /// <see cref="CategoryBranch.ForBrowsing"/>, where that rule and its reasons live).
+    ///
+    /// The reading of 'sells from' is the query below: the category has a product link the shop has switched on. A
+    /// category with nothing filed on it is not listed at all - a menu item that opens an empty page is worse than no
+    /// item - which is why the headings come from the shelves rather than from the table.
+    /// </summary>
     public async Task<IEnumerable<CategoryDto>> GetCategoriesAsync()
     {
-        return await _context.Categories
-            .Where(c => c.ProductCategories.Any(pc => pc.IsActive))
+        var categories = await _context.Categories
             .Select(c => new CategoryDto
             {
                 CategoryID = c.CategoryId,
@@ -99,6 +126,14 @@ public class ProductService : IProductService
                 ParentCategoryID = c.ParentCategoryId
             })
             .ToListAsync();
+
+        var withProducts = await _context.ProductCategories
+            .Where(pc => pc.IsActive)
+            .Select(pc => pc.CategoryId)
+            .Distinct()
+            .ToListAsync();
+
+        return CategoryBranch.ForBrowsing(categories, withProducts);
     }
 
     /// <summary>Live counts for the storefront hero section, read straight from the database.</summary>

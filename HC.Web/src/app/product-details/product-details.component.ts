@@ -1,10 +1,12 @@
-import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, Inject, PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { ProductService } from '../services/product.service';
 import { FavoritesService } from '../services/favorites.service';
 import { AuthService } from '../services/auth.service';
 import { CartService } from '../services/cart.service';
 import { Product, Category, ProductPicture } from '../models/product.model';
+import { pathOf } from '../models/category-tree';
 import { UtilityService } from '../services/utility.service';
 
 @Component({
@@ -30,21 +32,33 @@ export class ProductDetailsComponent implements OnInit, OnDestroy {
    */
   fromCategoryId: number | null = null;
 
+  /**
+   * The rows the storefront lists, flat (see ProductService.GetCategoriesAsync): what the category the shopper came
+   * from is named by, and what the product's own categories are read through. It is the same list every page's menu
+   * is built from, so a category is named the same way everywhere.
+   */
+  categories: Category[] = [];
+
   // Image carousel
   currentIndex = 0;
   private autoSlideTimer: any = null;
   private readonly autoSlideInterval = 3000;
   isHovering = false;
+  private isBrowser: boolean;
 
   constructor(
     private route: ActivatedRoute,
     private productService: ProductService,
     private favoritesService: FavoritesService,
     private authService: AuthService,
-    private cartService: CartService
-  ) {}
+    private cartService: CartService,
+    @Inject(PLATFORM_ID) private platformId: Object
+  ) {
+    this.isBrowser = isPlatformBrowser(this.platformId);
+  }
 
   ngOnInit(): void {
+    this.loadCategories();
     this.route.params.subscribe(params => {
       const productId = params['id'];
       if (productId) {
@@ -90,13 +104,41 @@ export class ProductDetailsComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * The category step of the breadcrumb: the category the shopper came from, resolved to its name through the
-   * product's own categories (the list the page already holds). Null when nothing was carried, or the product is not
-   * filed under that category - in which case the trail has no category step at all.
+   * The category step of the breadcrumb: the category the shopper came from, named through the rows the page holds.
+   *
+   * A shopper who opened the product out of a heading's listing ('Decoratives', a category the product itself is not
+   * filed under - the shop files its pieces on the shelves beneath a heading) keeps that step, and the step goes back
+   * to the heading's own listing. Null when nothing was carried, so no category is invented for a walk that never had
+   * one.
    */
   get breadcrumbCategory(): Category | null {
-    if (!this.fromCategoryId || !this.product) return null;
-    return (this.product.Categories || []).find(c => c.CategoryID === this.fromCategoryId) ?? null;
+    if (!this.fromCategoryId) return null;
+
+    const browsed = this.categories.find(category => category.CategoryID === this.fromCategoryId);
+    if (browsed) return browsed;
+
+    // The list has not arrived yet, or the row is one the storefront does not list: the product's own categories are
+    // then the only name the page can put on the step.
+    return (this.product?.Categories || []).find(category => category.CategoryID === this.fromCategoryId) ?? null;
+  }
+
+  /**
+   * Where a category the product is filed under sits in the catalogue, heading first: 'Decoratives / Vases'. The chip
+   * says which collection a piece belongs to and not only the shelf it is on.
+   */
+  categoryPath(category: Category): string {
+    return pathOf(category, this.categories);
+  }
+
+  /**
+   * The rows the storefront lists, for naming the categories this page shows. The page never lists them itself, so
+   * the read failing leaves the page as it was rather than stopping it.
+   */
+  private loadCategories(): void {
+    this.productService.getCategories().subscribe({
+      next: (data) => this.categories = data,
+      error: () => console.error('Failed to load categories')
+    });
   }
 
   private loadProduct(productId: string): void {
@@ -216,9 +258,13 @@ export class ProductDetailsComponent implements OnInit, OnDestroy {
   /**
    * The photos walk by themselves while the shopper is not on the gallery, one photo every few seconds. Nothing is
    * remembered between steps: the main frame draws whichever photo the index points at.
+   *
+   * The walk is started in a browser only. On the server the page is written out once the application has settled, and
+   * a clock that ticks forever never settles: every product with more than one photo held its render open until the
+   * server gave up on the request, so no product page was served.
    */
   private startAutoSlide(): void {
-    if (this.autoSlideTimer || !this.hasMultipleImages) return;
+    if (!this.isBrowser || this.autoSlideTimer || !this.hasMultipleImages) return;
     this.autoSlideTimer = setInterval(() => {
       if (!this.isHovering) {
         this.currentIndex = (this.currentIndex + 1) % this.pictures.length;

@@ -25,14 +25,40 @@
         <a routerLink="/shop" class="nav-item" routerLinkActive="active">
           <i class="bi bi-grid me-1"></i> Shop
         </a>
-        <div class="nav-dropdown" *ngIf="categories.length > 0">
+        <div class="nav-dropdown" *ngIf="headings.length > 0 || ungrouped.length > 0">
           <a class="nav-item nav-dropdown-toggle">
             <i class="bi bi-tags me-1"></i> Categories
           </a>
           <div class="nav-dropdown-menu">
-            <a *ngFor="let category of categories" [routerLink]="['/shop', category.CategoryID]" class="nav-dropdown-item" (click)="closeMenu()">
-              {{ category.CategoryName }}
-            </a>
+            <!-- The catalogue's headings, each with the shelves the shop sells from under it. A heading opens
+                 everything filed beneath it, because nothing is filed on the heading itself (see CategoryBranch on
+                 the API side). A heading and its shelves are kept in one group so the menu reads as a handful of
+                 collections rather than as one long list of names, and only the heading carries the arrow - it is
+                 the one link that opens the whole collection rather than a shelf of it. -->
+            <div class="nav-dropdown-group" *ngFor="let heading of headings">
+              <a class="nav-dropdown-heading" [routerLink]="['/shop', heading.heading.CategoryID]" (click)="closeMenu()">
+                {{ heading.heading.CategoryName }}
+                <i class="bi bi-arrow-right"></i>
+              </a>
+              <div class="nav-dropdown-rows">
+                <a *ngFor="let row of heading.rows" class="nav-dropdown-item"
+                   [class.sub]="row.depth > 0" [class.sub-deep]="row.depth > 1"
+                   [routerLink]="['/shop', row.category.CategoryID]" (click)="closeMenu()">
+                  {{ row.category.CategoryName }}
+                </a>
+              </div>
+            </div>
+
+            <!-- A row no heading leads into - a pair of rows each naming the other as parent - is listed plainly
+                 rather than left out: the products filed under it are on sale, and this menu is the only way to them. -->
+            <div class="nav-dropdown-group" *ngIf="ungrouped.length > 0">
+              <span class="nav-dropdown-heading nav-dropdown-heading-plain">More from the shop</span>
+              <div class="nav-dropdown-rows">
+                <a *ngFor="let row of ungrouped" class="nav-dropdown-item" [routerLink]="['/shop', row.category.CategoryID]" (click)="closeMenu()">
+                  {{ row.category.CategoryName }}
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       </nav>
@@ -91,9 +117,20 @@
         <i class="bi bi-grid"></i> Shop
       </a>
 
+      <!-- Categories, read the same way as the desktop dropdown: each heading with the shelves under it stepped in. -->
       <div class="mobile-nav-divider">Categories</div>
-      <a *ngFor="let category of categories" [routerLink]="['/shop', category.CategoryID]" class="mobile-nav-item mobile-category" (click)="closeMenu()">
-        <i class="bi bi-chevron-right"></i> {{ category.CategoryName }}
+      <ng-container *ngFor="let heading of headings">
+        <a class="mobile-nav-item mobile-heading" [routerLink]="['/shop', heading.heading.CategoryID]" (click)="closeMenu()">
+          <i class="bi bi-tags"></i> {{ heading.heading.CategoryName }}
+        </a>
+        <a *ngFor="let row of heading.rows" class="mobile-nav-item mobile-category"
+           [class.sub]="row.depth > 0" [class.sub-deep]="row.depth > 1"
+           [routerLink]="['/shop', row.category.CategoryID]" (click)="closeMenu()">
+          <i class="bi bi-chevron-right"></i> {{ row.category.CategoryName }}
+        </a>
+      </ng-container>
+      <a *ngFor="let row of ungrouped" class="mobile-nav-item mobile-category" [routerLink]="['/shop', row.category.CategoryID]" (click)="closeMenu()">
+        <i class="bi bi-chevron-right"></i> {{ row.category.CategoryName }}
       </a>
 
       <div class="mobile-nav-divider">Account</div>

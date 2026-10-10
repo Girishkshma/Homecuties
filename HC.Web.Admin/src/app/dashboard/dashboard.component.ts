@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { AdminService } from '../services/admin.service';
 import { AuthService } from '../services/auth.service';
 import { PermissionsService } from '../services/permissions.service';
-import { DashboardStats, AdminUser } from '../models/admin.model';
+import { DashboardStats, AdminUser, AdminStockByCategory } from '../models/admin.model';
 
 @Component({
   selector: 'app-dashboard',
@@ -36,6 +36,20 @@ export class DashboardComponent implements OnInit {
   isLoading = true;
 
   /**
+   * The 'Stock by category' cards (see 'AdminService.getStockByCategory'): one card per heading of the catalogue,
+   * with the categories beneath it and what each of them can still sell - the shelf-by-shelf answer to 'what do we
+   * restock', which is a different question from 'how many units does the shop hold' (a product filed under two
+   * sub-categories is stock under both, so a card's rows do not add up to its heading).
+   *
+   * It is read on its own so a slow catalogue read cannot hold up the tiles, and its failure is shown as its own
+   * message: 'we could not read the stock' and 'there is no stock' must not look the same on a screen the shop
+   * restocks from.
+   */
+  stockByCategory: AdminStockByCategory | null = null;
+  isLoadingStock = true;
+  stockError = '';
+
+  /**
    * The settlement pull - the one action on this screen that brings the money tiles up to date, so it is offered
    * only to an admin whose role covers the orders section ('canPullSettlements'): that is what the endpoint checks,
    * because payments and refunds are read and acted on from the order screens.
@@ -64,6 +78,7 @@ export class DashboardComponent implements OnInit {
   ngOnInit(): void {
     this.user = this.authService.getUser();
     this.loadStats();
+    this.loadStockByCategory();
     this.offerMoneyActions();
   }
 
@@ -87,6 +102,36 @@ export class DashboardComponent implements OnInit {
         this.isLoading = false;
       }
     });
+  }
+
+  /**
+   * Reads the stock cards. Nothing else on the screen depends on them, so a failure says so in the section itself
+   * rather than blanking the dashboard: the figures are what the shop orders against, and an empty screen would
+   * read as 'nothing to restock'.
+   */
+  loadStockByCategory(): void {
+    this.isLoadingStock = true;
+    this.stockError = '';
+
+    this.adminService.getStockByCategory().subscribe({
+      next: (stock) => {
+        this.stockByCategory = stock;
+        this.isLoadingStock = false;
+      },
+      error: (err) => {
+        console.error('Failed to load stock by category:', err);
+        this.isLoadingStock = false;
+        this.stockError = 'The stock cards could not be read. Nothing was changed - reload the dashboard to try again.';
+      }
+    });
+  }
+
+  /**
+   * '1 product' / '3 products' and '1 unit' / '9 units', so a figure on a card reads as a sentence rather than as
+   * a bare number.
+   */
+  count(value: number, noun: string): string {
+    return `${value} ${noun}${value === 1 ? '' : 's'}`;
   }
 
   /**

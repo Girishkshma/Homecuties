@@ -7,17 +7,56 @@
     </div>
   </div>
 
-  <!-- Category Filter -->
-  <div class="category-filter">
-    <button class="filter-btn" [class.active]="!selectedCategoryId" routerLink="/shop">
-      All Products
-    </button>
-    <button *ngFor="let category of categories" class="filter-btn"
-            [class.active]="selectedCategoryId === category.CategoryID"
-            [routerLink]="['/shop', category.CategoryID]">
-      {{ category.CategoryName }}
-    </button>
-  </div>
+  <!-- Category Filter: the catalogue read as one card of columns - a column per heading, with the shelves the shop
+       sells from filed under it as chips. A heading is the name of a collection and its own way into everything filed
+       beneath it, because nothing is filed on it (see CategoryBranch on the API side), so a column is what says whose
+       collection a shelf belongs to: without it 'Vases' read as one more chip in a flat row, no different from
+       'Decoratives', and the shopper could not tell a collection from a shelf. -->
+  <section class="category-filter" aria-label="Browse by collection">
+    <!-- What is being browsed, and the way back out of it. The chips below sit in columns rather than running as one
+         row, so the shopper needs to be told which collection the columns are holding them in. -->
+    <div class="filter-bar">
+      <span class="filter-bar-label">
+        <ng-container *ngIf="browsedPath; else browsingAll">Browsing {{ browsedPath }}</ng-container>
+        <ng-template #browsingAll>Browse by collection</ng-template>
+      </span>
+
+      <button class="filter-all" [class.active]="selectedCategoryId === null" routerLink="/shop">
+        All Products
+      </button>
+    </div>
+
+    <div class="filter-columns">
+      <div class="filter-column" *ngFor="let heading of headings" [class.active]="headingIsBrowsed(heading)">
+        <button class="filter-heading"
+                [attr.title]="'Everything filed under ' + heading.heading.CategoryName"
+                [routerLink]="['/shop', heading.heading.CategoryID]">
+          <span>{{ heading.heading.CategoryName }}</span>
+          <i class="bi bi-arrow-right"></i>
+        </button>
+
+        <div class="filter-shelves">
+          <button *ngFor="let row of heading.rows" class="filter-chip"
+                  [class.active]="selectedCategoryId === row.category.CategoryID"
+                  [routerLink]="['/shop', row.category.CategoryID]">
+            {{ row.category.CategoryName }}
+          </button>
+        </div>
+      </div>
+
+      <!-- A row no heading leads into is offered plainly rather than left out: its products are on sale. -->
+      <div class="filter-column" *ngIf="ungrouped.length > 0">
+        <span class="filter-heading filter-heading-plain">More from the shop</span>
+        <div class="filter-shelves">
+          <button *ngFor="let row of ungrouped" class="filter-chip"
+                  [class.active]="selectedCategoryId === row.category.CategoryID"
+                  [routerLink]="['/shop', row.category.CategoryID]">
+            {{ row.category.CategoryName }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <!-- Loading State -->
   <div *ngIf="loading" class="loading-state">
@@ -47,7 +86,7 @@
         </div>
         <div class="product-body">
           <div class="product-category" *ngIf="product.Categories && product.Categories.length > 0">
-            {{ product.Categories[0].CategoryName }}
+            {{ categoryPath(product.Categories[0]) }}
           </div>
           <h3 class="product-name">
             <a [routerLink]="['/product', product.ProductID]" [queryParams]="productLinkQueryParams">{{ product.ProductTitle }}</a>

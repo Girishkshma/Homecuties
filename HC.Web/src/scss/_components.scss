@@ -288,34 +288,174 @@
   }
 }
 
-/* ===== Category Filter ===== */
+/* ===== Category Filter =====
+   The catalogue read as one card of columns: a column per heading, the shelves the shop sells from filed under it as
+   chips. A heading is the name of a collection and its own way into everything filed beneath it - nothing is filed on
+   it (see CategoryBranch on the API side) - so the column is what says whose collection a shelf belongs to: without it
+   'Vases' read as one more chip in the row, no different from 'Decoratives'. */
 .category-filter {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-card);
+  background: var(--white);
+  padding: 1.25rem 1.5rem 1.5rem;
   margin-bottom: 2rem;
 
-  .filter-btn {
-    padding: 0.5rem 1.1rem;
-    border-radius: var(--radius-button);
+  /* What is being browsed, and the way back out of it, above the columns. */
+  .filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+    padding-bottom: 1rem;
+    margin-bottom: 1.35rem;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  /* The trail of the category being browsed ('Decoratives / Vases'), or the invitation to browse at all: tracked ink
+     rather than a heading, so it reads as a label on the filter and not as one more collection in it. */
+  .filter-bar-label {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: var(--letter-label);
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  /* One column per heading, as many as the width takes: a catalogue of two collections and one of eight both read as a
+     grid rather than as a row that trails off the page. */
+  .filter-columns {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13.5rem, 1fr));
+    gap: 1.5rem 2rem;
+  }
+
+  /* One heading's column: its name, then the shelves read under it. The left rule is the reading the home page already
+     gives a heading (see .category-group-head in _sections.scss). It is drawn on every column, in the lightest ink, so
+     marking the browsed one changes its colour and moves nothing. */
+  .filter-column {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    padding-left: 1rem;
+    border-left: 3px solid var(--gray-200);
+    transition: var(--transition-fast);
+
+    &.active {
+      border-left-color: var(--primary);
+    }
+  }
+
+  /* The heading of a column: a collection, and never one of the chips in it. It carries the arrow because it is its own
+     way into everything filed beneath it, which a shopper would otherwise have to guess from the name alone. */
+  .filter-heading {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.4rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--heading-color);
+    font-family: var(--font-heading);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: var(--letter-label);
+    text-transform: uppercase;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+    transition: var(--transition-fast);
+
+    i {
+      font-size: 0.7rem;
+      color: var(--gray-400);
+      transition: var(--transition-fast);
+    }
+
+    &:hover {
+      color: var(--primary);
+      text-decoration: none;
+
+      i {
+        color: var(--primary);
+        transform: translateX(3px);
+      }
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 3px;
+    }
+  }
+
+  /* The column with no heading of its own: the ending one, for the rows no heading leads into. */
+  .filter-heading-plain {
+    cursor: default;
+
+    &:hover {
+      color: var(--heading-color);
+    }
+  }
+
+  .filter-shelves {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  /* A chip: a shelf of the collection named above it, and the one thing on the filter a shopper clicks to narrow the
+     listing. 'All Products' is drawn as one too, because that is what it is - the shop read whole. */
+  .filter-all,
+  .filter-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.4rem 0.8rem;
     border: 1px solid var(--gray-300);
+    border-radius: var(--radius-button);
     background: var(--white);
     color: var(--gray-800);
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
+    font-family: var(--font-family);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: var(--letter-label);
     text-transform: uppercase;
     cursor: pointer;
+    text-decoration: none;
     transition: var(--transition-fast);
 
     &:hover {
       border-color: var(--heading-color);
       color: var(--heading-color);
+      text-decoration: none;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
     }
 
     &.active {
       background: var(--primary);
       border-color: var(--primary);
+      color: var(--white);
+    }
+  }
+
+  /* 'All Products' is the whole shop rather than a shelf: filled with the light surface and free of a border, so it
+     stands apart from the shelves instead of reading as one more of them. */
+  .filter-all {
+    border-color: transparent;
+    background: var(--surface);
+
+    &:hover {
+      border-color: transparent;
+      background: var(--gray-200);
+      color: var(--heading-color);
+    }
+
+    &.active {
+      background: var(--primary);
       color: var(--white);
     }
   }

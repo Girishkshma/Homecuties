@@ -21,6 +21,7 @@ import { PartnersComponent } from './partners/partners.component';
 import { VendorsComponent } from './vendors/vendors.component';
 import { PurchasesComponent } from './purchases/purchases.component';
 import { AdminUsersComponent } from './admin-users/admin-users.component';
+import { CategoriesComponent } from './categories/categories.component';
 import { AdminTokenInterceptor } from './interceptors/admin-token.interceptor';
 
 @NgModule({
@@ -41,7 +42,8 @@ import { AdminTokenInterceptor } from './interceptors/admin-token.interceptor';
     PartnersComponent,
     VendorsComponent,
     PurchasesComponent,
-    AdminUsersComponent
+    AdminUsersComponent,
+    CategoriesComponent
   ],
   imports: [
     BrowserModule,

@@ -73,10 +73,42 @@ textarea.form-input {
   align-items: center;
 }
 
+// One card to a heading of the shop's catalogue, with the categories beneath it listed inside: the same reading as the
+// dashboard's 'Stock by category', because it is the same tree.
+.category-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.category-card {
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: #fbfbfd;
+}
+
+.category-card-head {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #212529;
+}
+
+// Said where a card would otherwise show nothing: a heading the shop has just named, and the last card, whose rows are
+// in a loop of the table.
+.category-card-note {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: #6c757d;
+  line-height: 1.5;
+}
+
+// The categories beneath a heading, with a tick to each: one to a line, so the card reads as the heading's shelves.
 .checkbox-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 10px;
+  grid-template-columns: 1fr;
+  gap: 8px;
 }
 
 .checkbox-item {
@@ -241,6 +273,31 @@ textarea.form-input {
   font-size: 13px;
   font-weight: 600;
   color: #333;
+}
+
+// Which photo the product page opens on: said beside the first one rather than left to the number to imply.
+.photo-flag {
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 11px;
+  color: #4a6cf7;
+  background: #eef1fe;
+}
+
+// The controls that put a photo earlier or later in the order. Each is inert at the end it points away from - there is
+// nowhere for the first photo to go up, or the last to go down - which is what the greyed button says.
+.photo-order {
+  display: flex;
+  gap: 6px;
+
+  button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.photo-order-note {
+  margin: 10px 0 4px;
 }
 
 .image-upload-row {

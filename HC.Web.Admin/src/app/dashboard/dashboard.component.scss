@@ -303,3 +303,158 @@
   }
 }
 
+/* The 'Stock by category' cards: the shop's stock shelf by shelf. Each card is a heading with a small table of the
+   categories beneath it, because what is ordered is a shelf and what is looked up is a category in it. */
+.stock-intro {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: #888;
+  max-width: 820px;
+}
+
+.stock-empty {
+  margin: 0;
+  font-size: 13px;
+  color: #888;
+  max-width: 820px;
+}
+
+/* What the figures cannot say on their own - stock no card reaches, and stock the shop has taken off sale. Kept
+   just above the cards, because it is a fact about the figures themselves rather than another figure. */
+.stock-notes {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #fff8e6;
+  border-left: 4px solid #f39c12;
+
+  p {
+    margin: 0;
+    font-size: 13px;
+    color: #7a5c14;
+
+    & + p {
+      margin-top: 6px;
+    }
+  }
+}
+
+/* Wide enough for the five columns of a card, and as many cards to a row as the screen really fits. */
+.stock-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(520px, 1fr));
+  gap: 20px;
+}
+
+.stock-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.stock-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+
+  h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+  }
+}
+
+.stock-card-total {
+  margin: 0;
+  font-size: 13px;
+  color: #888;
+}
+
+.stock-card-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 0;
+}
+
+/* Out of stock and low: the two figures the ordering is decided from. A card with none of either still shows both
+   flags - every card then reads the same way, and a flag that is quiet is a fact ('nothing has run out here'). */
+.stock-flag {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 12px;
+
+  &.out {
+    background: #fdecea;
+    color: #c0392b;
+  }
+
+  &.low {
+    background: #fef9e7;
+    color: #b9770e;
+  }
+
+  &.quiet {
+    background: #f3f4f6;
+    color: #9aa0a6;
+    font-weight: 500;
+  }
+}
+
+.stock-on-heading {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: #999;
+}
+
+.stock-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 14px;
+
+  th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #888;
+    padding: 0 6px 6px;
+    border-bottom: 1px solid #eee;
+  }
+
+  td {
+    font-size: 13px;
+    color: #444;
+    padding: 7px 6px;
+    border-bottom: 1px solid #f3f4f6;
+  }
+
+  .num {
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  /* Only the two figures the ordering is decided from are coloured, so a card is read at a glance. */
+  td.danger {
+    color: #c0392b;
+    font-weight: 600;
+  }
+
+  td.warn {
+    color: #b9770e;
+    font-weight: 600;
+  }
+}
+
+/* The category names carry the tree: each depth is stepped in under the row it belongs to (see the card's own
+   inline padding, which is what sets the step). */
+.stock-category {
+  color: #333;
+}
+

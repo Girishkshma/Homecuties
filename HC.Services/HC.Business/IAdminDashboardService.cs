@@ -104,6 +104,60 @@ public interface IAdminDashboardService
     Task<List<AdminCategoryDto>> GetCategoryTreeAsync();
 
     /// <summary>
+    /// The catalogue as the admin manages it: every category in the order the screens list it, with where each one
+    /// sits and what is filed on it (see <see cref="CategoryTree.RowsInDisplayOrder"/> for the walk and depth, and
+    /// AdminDashboardService.Categories.cs for the reads).
+    ///
+    /// Everything is listed, including the rows a heading leads into and the rows inside a loop the table has been
+    /// left in - a category an admin cannot see is one they cannot repair. The two figures on each row, the products
+    /// filed on it and the categories sitting directly under it, are what say why it cannot be taken out yet (see
+    /// <see cref="CategoryCatalog.DeleteProblem"/>); the screen shows them rather than working them out again.
+    /// </summary>
+    Task<List<AdminCategoryListDto>> GetManagedCategoriesAsync();
+
+    /// <summary>
+    /// Adds a category to the catalogue: a heading when it names no parent, a shelf of one when it does.
+    ///
+    /// The name and the place are put to <see cref="CategoryCatalog"/> first, and a refusal comes back as that rule's
+    /// own sentence in an <see cref="AdminResultDto"/> rather than as a failure - an admin who is told why can fix it,
+    /// and the row that would have been written is not written. Nothing else moves: no product is filed by adding a
+    /// category, and a shelf of a heading sits last among its parent's shelves, in the order the table answers.
+    /// </summary>
+    Task<AdminResultDto> CreateCategoryAsync(CategoryFormRequest request, long currentUserId);
+
+    /// <summary>
+    /// Renames a category and moves it: the same body as <see cref="CreateCategoryAsync"/>, so a shelf can become a
+    /// heading and a heading a shelf of another. The category's own shelves travel with it, which is exactly what
+    /// makes the move worth refusing when the parent chosen is one of them: the branch would then be one no heading
+    /// leads into, and the products filed anywhere in it would drop out of the shop's menus while still sitting in the
+    /// table (see <see cref="CategoryCatalog.ParentProblem"/>).
+    /// </summary>
+    Task<AdminResultDto> UpdateCategoryAsync(short categoryId, CategoryFormRequest request, long currentUserId);
+
+    /// <summary>
+    /// Takes a category out of the catalogue, and nothing else.
+    ///
+    /// It is refused while the category still holds something the delete would leave behind - a category sitting under
+    /// it, which would be left naming a parent that is gone, or a product filed on it, which would drop out of the
+    /// shop's menus with the link that filed it (see <see cref="CategoryCatalog.DeleteProblem"/>, where both rules and
+    /// their reasons live). A category that holds neither is a row nothing refers to, so the delete is exactly what it
+    /// says and takes no product, order or purchase with it.
+    /// </summary>
+    Task<AdminResultDto> DeleteCategoryAsync(short categoryId, long currentUserId);
+
+    /// <summary>
+    /// The dashboard's 'Stock by category' cards: the shop's stock cut by the catalogue's headings, so the business
+    /// can see which shelf needs restocking rather than which single product does - one card per heading, with the
+    /// categories beneath it and what each of them can still sell (see HC.Business.CategoryStock for the rules behind
+    /// every figure and AdminDashboardService.StockByCategory.cs for the reads).
+    ///
+    /// Like the tiles above it, this is a read of the whole shop: it takes no acting admin, and what a partner may
+    /// see is not a question it answers - the figures are the shop's own stock, which is what the people who restock
+    /// shelves work from.
+    /// </summary>
+    Task<AdminStockByCategoryDto> GetStockByCategoryAsync();
+
+    /// <summary>
     /// The gateway's own books (see HC.Business.RazorpaySettlements): reads what Razorpay settled to the shop's
     /// bank account over a window - the rolling one when no window is given - and writes down what it settled it
     /// on, correcting each settled payment's charge with the figure the bank was actually paid on.

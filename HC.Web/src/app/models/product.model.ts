@@ -15,8 +15,8 @@ export interface Product {
   PromoImage: string;
 
   /**
-   * The product's photos as this page draws them, in the order they were uploaded: for each one the file the main
-   * frame takes and the file the strip of thumbnails takes.
+   * The product's photos as this page draws them, in the order the shop set on the admin's product form: for each one
+   * the file the main frame takes and the file the strip of thumbnails takes.
    *
    * The API resolves these against the shop's image folder (see ProductGallery in HC.Business), so a file that is not
    * really there is never drawn - the product's own image rows cannot say that, and drawing them as they stood is

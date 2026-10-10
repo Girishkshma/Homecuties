@@ -66,8 +66,12 @@ public static class ProductGallery
     public sealed record Picture(string Large, string Thumbnail);
 
     /// <summary>
-    /// The pictures of a product, in the order its photos were uploaded (the admin's image index), each with the file
-    /// a big frame draws and the file the strip draws.
+    /// The pictures of a product, in the order the shop put them in, each with the file a big frame draws and the file
+    /// the strip draws.
+    ///
+    /// That order is the photos' image indices: the admin's product form shows the photos in the order of their indices
+    /// and its move controls number them again to change it (see <c>ProductFormComponent.movePhoto</c> in
+    /// HC.Web.Admin), so the order the shop sees on the form is the order the storefront draws.
     ///
     /// <paramref name="fileIsThere"/> is asked whether a row's file is really in the shop's image folder - the one
     /// thing the rows cannot be trusted about. When it answers 'no' for every file of the product - which is what a
@@ -94,7 +98,8 @@ public static class ProductGallery
         var pictures = new List<Picture>();
 
         // A photo is one index: its sizes share it, so they are drawn together and the storefront can show one photo
-        // big and small at once. The photos keep the order the rows are given in - the product's own image index.
+        // big and small at once. The photos are drawn in the order of their indices, which is the order the admin's
+        // product form shows them in and the shop's own choice of order.
         foreach (var photo in storedImages.GroupBy(image => image.ImageIndex).OrderBy(group => group.Key))
         {
             var large = Choose(photo, largePreference, fileIsThere);

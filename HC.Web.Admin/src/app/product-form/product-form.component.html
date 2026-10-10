@@ -115,13 +115,21 @@
 <!-- Categories -->
     <div class="form-section">
       <h2>Categories</h2>
-      <div *ngIf="categories.length === 0" class="no-data">No categories available.</div>
-      <div class="checkbox-grid">
-        <label class="checkbox-item" *ngFor="let cat of categories">
-          <input type="checkbox" [checked]="isCategorySelected(cat.categoryId)"
-            (change)="toggleCategory(cat.categoryId, $event)">
-          <span>{{ categoryLabel(cat) }}</span>
-        </label>
+      <p class="section-note">A product is filed under a category beneath a heading: find the card headed by the
+        category it belongs to, and tick the categories under it that the product sits on.</p>
+      <div *ngIf="categoryCards.length === 0" class="no-data">No categories available.</div>
+      <div class="category-cards">
+        <article class="category-card" *ngFor="let card of categoryCards">
+          <h3 class="category-card-head">{{ card.title }}</h3>
+          <p class="category-card-note" *ngIf="card.note">{{ card.note }}</p>
+          <div class="checkbox-grid">
+            <label class="checkbox-item" *ngFor="let cat of card.shelves">
+              <input type="checkbox" [checked]="isCategorySelected(cat.categoryId)"
+                (change)="toggleCategory(cat.categoryId, $event)">
+              <span>{{ cat.categoryName }}</span>
+            </label>
+          </div>
+        </article>
       </div>
     </div>
 
@@ -189,17 +197,34 @@
         <span *ngIf="photoUploadError" class="upload-status error">{{ photoUploadError }}</span>
       </div>
 
+      <!-- The order the photos are drawn in is the shop's to choose, and it is the order the product page draws them in:
+           the first photo is the frame the page opens on, with the strip of thumbnails following it. -->
+      <p class="section-note photo-order-note" *ngIf="photos.length > 0">
+        These are the photos in the order the product page draws them: the first one is the frame the page opens on, and
+        the strip of thumbnails follows it. 'Move up' and 'Move down' put a photo where the shop wants it seen; the
+        order is written when the product is saved, like every other change on this page.
+      </p>
+
       <div *ngIf="photos.length === 0 && !photoUploading" class="no-data">No photos uploaded yet.</div>
 
-      <div class="image-card" *ngFor="let photo of photos; trackBy: trackPhoto">
+      <div class="image-card" *ngFor="let photo of photos; trackBy: trackPhoto; let position = index">
         <div class="image-upload-row">
           <div class="image-preview-box">
             <img *ngIf="photo.previewUrl" [src]="photo.previewUrl" class="image-preview"
-              [alt]="'Photo ' + photo.imageIndex">
+              [alt]="'Photo ' + (position + 1)">
             <span *ngIf="!photo.previewUrl" class="preview-note">No preview</span>
           </div>
           <div class="upload-actions">
-            <span class="photo-title">Photo {{ photo.imageIndex }}</span>
+            <span class="photo-title">Photo {{ position + 1 }} of {{ photos.length }}</span>
+            <span class="photo-flag" *ngIf="position === 0">Shown first</span>
+            <div class="photo-order">
+              <button type="button" class="btn-sm btn-view" [disabled]="position === 0"
+                (click)="movePhotoUp(photo.imageIndex)"
+                title="Show this photo one place earlier">&#8593; Move up</button>
+              <button type="button" class="btn-sm btn-view" [disabled]="position === photos.length - 1"
+                (click)="movePhotoDown(photo.imageIndex)"
+                title="Show this photo one place later">&#8595; Move down</button>
+            </div>
             <button type="button" class="btn-sm btn-delete" (click)="removePhoto(photo.imageIndex)"
               title="Remove this photo, every size of it">✕ Remove Photo</button>
           </div>

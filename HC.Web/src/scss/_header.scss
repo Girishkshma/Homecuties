@@ -129,27 +129,92 @@
     position: absolute;
     top: 100%;
     left: 0;
-    min-width: 220px;
+    min-width: 268px;
     background: var(--white);
     border-radius: var(--radius-sm);
     border: 1px solid var(--border-color);
     box-shadow: var(--shadow-md);
-    padding: 0.5rem 0;
+    padding: 0.5rem 0.4rem;
     margin-top: 0;
     opacity: 0;
     visibility: hidden;
     transform: translateY(-4px);
     transition: all 0.2s ease;
     z-index: 100;
+    /* The catalogue's headings and their shelves together are longer than an old flat list of shelves was, so a long
+       menu scrolls rather than running off the page. The bar is drawn by hand and kept hairline thin: the browser's
+       own is wide enough to read as a second column of the menu. */
+    max-height: min(70vh, 32rem);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--gray-300) transparent;
 
-    .nav-dropdown-item {
-      display: block;
-      padding: 0.55rem 1.1rem;
-      font-size: 0.8125rem;
-      font-weight: 500;
-      color: var(--gray-800);
+    &::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: var(--gray-300);
+      border-radius: 4px;
+
+      &:hover {
+        background: var(--gray-400);
+      }
+    }
+
+    /* One collection: the band that names it and the shelves read under it. The hairline between one group and the
+       next is what keeps a heading from reading as one more row of the group above it. */
+    .nav-dropdown-group + .nav-dropdown-group {
+      margin-top: 0.45rem;
+      padding-top: 0.45rem;
+      border-top: 1px solid var(--border-color);
+    }
+
+    /* The heading of a group of rows: the name its shelves are read under, and its own way into everything filed
+       beneath it. It is set on the shop's light surface as a full band - tracked uppercase ink on the light grey the
+       reference uses for base-background-2 - so the eye lands on the collection before its shelves and the two can
+       never be mistaken for each other. The arrow marks the band as the one link that opens the whole collection. */
+    .nav-dropdown-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.5rem 0.65rem;
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--heading-color);
       text-decoration: none;
       transition: var(--transition-fast);
+
+      i {
+        font-size: 0.65rem;
+        color: var(--gray-500);
+        transition: var(--transition-fast);
+      }
+
+      &:hover {
+        background: var(--primary);
+        color: var(--white);
+        text-decoration: none;
+
+        i {
+          color: var(--white);
+          transform: translateX(3px);
+        }
+      }
+    }
+
+    /* The ending group, for the rows no heading leads into: a label, not a way anywhere. */
+    .nav-dropdown-heading-plain {
+      cursor: default;
 
       &:hover {
         background: var(--surface);
@@ -157,9 +222,46 @@
       }
     }
 
+    /* The shelves of a collection, read under the band that names it. The rule down their left is the reading the
+       shop's filter already gives a collection (see .category-filter in _components.scss), so a shelf plainly sits
+       inside the heading above it instead of beside it. */
+    .nav-dropdown-rows {
+      display: flex;
+      flex-direction: column;
+      margin: 0.4rem 0 0 0.55rem;
+      padding-left: 0.55rem;
+      border-left: 2px solid var(--gray-300);
+    }
+
+    .nav-dropdown-item {
+      display: block;
+      padding: 0.45rem 0.65rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--gray-800);
+      text-decoration: none;
+      transition: var(--transition-fast);
+
+      /* A shelf steps in under the heading it belongs to, and a shelf of a shelf steps in once more. */
+      &.sub {
+        padding-left: 1.4rem;
+      }
+
+      &.sub-deep {
+        padding-left: 2.1rem;
+      }
+
+      &:hover {
+        background: var(--gray-100);
+        color: var(--heading-color);
+        text-decoration: none;
+      }
+    }
+
     .nav-dropdown-divider {
       height: 1px;
-      margin: 0.4rem 0;
+      margin: 0.4rem 0.65rem;
       background: var(--border-color);
     }
   }
@@ -415,14 +517,44 @@
       }
     }
 
+    /* A heading of the catalogue in the phone menu: the name its shelves are read under, and its own way into
+       everything filed beneath it. Drawn as the same band the desktop dropdown gives it, so the collection is met
+       before its shelves and never reads as one more of them. */
+    &.mobile-heading {
+      padding: 0.7rem 0.75rem;
+      margin-top: 0.25rem;
+      border-bottom: 0;
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      font-weight: 700;
+      color: var(--heading-color);
+
+      i {
+        color: var(--heading-color);
+      }
+    }
+
     &.mobile-category {
       padding-left: 2.25rem;
       font-size: 0.875rem;
       color: var(--gray-600);
+      /* The shelves hang off a rule down their left - the reading the desktop dropdown gives a heading and the shop's
+         filter gives a collection - so a shelf plainly belongs to the heading above it. */
+      margin-left: 0.75rem;
+      border-left: 2px solid var(--gray-300);
 
       i {
         font-size: 0.7rem;
         color: var(--gray-400);
+      }
+
+      /* A shelf steps in under its heading, and a shelf of a shelf steps in once more. */
+      &.sub {
+        padding-left: 3rem;
+      }
+
+      &.sub-deep {
+        padding-left: 3.75rem;
       }
     }
   }

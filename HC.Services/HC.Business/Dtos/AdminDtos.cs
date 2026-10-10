@@ -203,6 +203,120 @@ public class DashboardStatsDto
     public int ReturnedOrders { get; set; }
 }
 
+// Stock by category - the dashboard's restocking cards
+/// <summary>
+/// The shop's stock, cut by the catalogue's own headings: one card per heading, with the categories beneath it and
+/// what each of them can still sell - the shape a restocking decision is taken from (see HC.Business.CategoryStock
+/// for the rules behind every figure, and AdminDashboardService.StockByCategory.cs for how it is read).
+///
+/// Every figure counts what the storefront can sell, and nothing else: a suspended product is shown to nobody, and a
+/// category link the shop has switched off is a category the product is out of, so both are left out before the
+/// counting starts. Units come from the shop's own sellable rule (HC.Business.SkuAvailability), which is why a unit
+/// a cancelled order gave back is in stock here too.
+///
+/// The cards deliberately answer 'what does this shelf need' and not 'how many units does the shop hold': a product
+/// filed under two sub-categories is stock under both, so adding the rows of a card up would count it twice. The
+/// heading's own figures are everything filed under it, counted once each (see HC.Business.CategoryStock).
+/// </summary>
+public class AdminStockByCategoryDto
+{
+    /// <summary>The cards, one per heading of the catalogue, in the tree's own order.</summary>
+    [JsonPropertyName("headings")]
+    public List<AdminCategoryStockDto> Headings { get; set; } = new();
+
+    /// <summary>
+    /// How few sellable units a product has left for a card to call it low (HC.Business.CategoryStock.LowStockUnits).
+    /// Sent with the figures so the wording on the screen and the counting on the server cannot drift apart.
+    /// </summary>
+    [JsonPropertyName("lowStockUnits")]
+    public int LowStockUnits { get; set; }
+
+    /// <summary>
+    /// What the figures cannot say by themselves: stock the shop holds that no card can show (a product filed under
+    /// no category, or under categories no heading leads into) and the units of products the shop has disabled -
+    /// said in a sentence rather than left out silently.
+    /// </summary>
+    [JsonPropertyName("messages")]
+    public string[] Messages { get; set; } = Array.Empty<string>();
+}
+
+/// <summary>
+/// One heading of the catalogue as a card: the heading, its own figures, and the categories beneath it.
+/// </summary>
+public class AdminCategoryStockDto
+{
+    [JsonPropertyName("categoryId")]
+    public short CategoryId { get; set; }
+
+    [JsonPropertyName("categoryName")]
+    public string CategoryName { get; set; } = "";
+
+    /// <summary>How many products are filed under the heading, including under the categories beneath it.</summary>
+    [JsonPropertyName("productCount")]
+    public int ProductCount { get; set; }
+
+    /// <summary>The units those products can still sell, each product counted once.</summary>
+    [JsonPropertyName("unitsInStock")]
+    public int UnitsInStock { get; set; }
+
+    /// <summary>How many of them have no sellable unit left.</summary>
+    [JsonPropertyName("outOfStockProducts")]
+    public int OutOfStockProducts { get; set; }
+
+    /// <summary>How many of them are left with <see cref="AdminStockByCategoryDto.LowStockUnits"/> units or fewer.</summary>
+    [JsonPropertyName("lowStockProducts")]
+    public int LowStockProducts { get; set; }
+
+    /// <summary>
+    /// How many products are filed right on the heading rather than under a category of it - the rows of older
+    /// days, before the product form stopped offering a heading as a place to file a product (see
+    /// HC.Business.CategoryTree.TopsOfTree). They are in the figures above and under no sub-category, so the card
+    /// says how many they are rather than leaving the figures unexplained.
+    /// </summary>
+    [JsonPropertyName("productsOnTheHeading")]
+    public int ProductsOnTheHeading { get; set; }
+
+    /// <summary>The categories beneath the heading, depth first - a category always before the ones below it.</summary>
+    [JsonPropertyName("subCategories")]
+    public List<AdminCategoryStockLineDto> SubCategories { get; set; } = new();
+}
+
+/// <summary>
+/// One category under a heading. Its figures are everything filed under it as well, so a card's rows do not add up
+/// to its heading (see <see cref="AdminStockByCategoryDto"/>).
+/// </summary>
+public class AdminCategoryStockLineDto
+{
+    [JsonPropertyName("categoryId")]
+    public short CategoryId { get; set; }
+
+    [JsonPropertyName("categoryName")]
+    public string CategoryName { get; set; } = "";
+
+    /// <summary>
+    /// How deep the category sits under its heading: 0 for the heading's own child, 1 for a sub-category of one of
+    /// those, and so on down. The card steps each one in, so the screen shows the same tree the product form draws.
+    /// </summary>
+    [JsonPropertyName("depth")]
+    public int Depth { get; set; }
+
+    /// <summary>How many products are filed under the category, including under the categories below it.</summary>
+    [JsonPropertyName("productCount")]
+    public int ProductCount { get; set; }
+
+    /// <summary>The units those products can still sell, each product counted once.</summary>
+    [JsonPropertyName("unitsInStock")]
+    public int UnitsInStock { get; set; }
+
+    /// <summary>How many of them have no sellable unit left.</summary>
+    [JsonPropertyName("outOfStockProducts")]
+    public int OutOfStockProducts { get; set; }
+
+    /// <summary>How many of them are left with <see cref="AdminStockByCategoryDto.LowStockUnits"/> units or fewer.</summary>
+    [JsonPropertyName("lowStockProducts")]
+    public int LowStockProducts { get; set; }
+}
+
 // Products
 public class AdminProductListDto
 {
@@ -1589,6 +1703,67 @@ public class AdminCategoryDto
     public short? ParentCategoryId { get; set; }
     [JsonPropertyName("parentCategoryName")]
     public string? ParentCategoryName { get; set; }
+}
+
+/// <summary>
+/// One row of the admin's Categories screen: what a category is called, where it sits in the catalogue, and the two
+/// figures that decide whether it can be taken out at all - the products filed on it and the categories sitting
+/// directly under it (see HC.Business.CategoryCatalog.DeleteProblem, which refuses a delete that would leave a shelf
+/// without the heading it is read under or drop products out of the shop's menus and filters).
+///
+/// It is not the list the product form reads: that one is <see cref="AdminCategoryDto"/>, names and parents only, in
+/// the order the form draws its checkboxes.
+/// </summary>
+public class AdminCategoryListDto
+{
+    [JsonPropertyName("categoryId")]
+    public short CategoryId { get; set; }
+
+    [JsonPropertyName("categoryName")]
+    public string CategoryName { get; set; } = "";
+
+    /// <summary>The category it sits under - absent ('null') on a heading, which is a top of the tree.</summary>
+    [JsonPropertyName("parentCategoryId")]
+    public short? ParentCategoryId { get; set; }
+
+    /// <summary>The name of that category, read from the row itself so the screen names the parent without a second read.</summary>
+    [JsonPropertyName("parentCategoryName")]
+    public string? ParentCategoryName { get; set; }
+
+    /// <summary>
+    /// How many steps the row sits below the top of the tree it belongs to: 0 for a heading, 1 for a shelf of one, and
+    /// so on down. It is what the screen indents the row by (see CategoryTree.RowsInDisplayOrder).
+    /// </summary>
+    [JsonPropertyName("depth")]
+    public int Depth { get; set; }
+
+    /// <summary>
+    /// Every product filed on the category, switched on or off - the rows a delete would carry with it.
+    /// </summary>
+    [JsonPropertyName("productCount")]
+    public int ProductCount { get; set; }
+
+    /// <summary>The categories sitting directly under it: anything but zero is what makes it a heading of the shop's.</summary>
+    [JsonPropertyName("childCount")]
+    public int ChildCount { get; set; }
+}
+
+/// <summary>
+/// Body of 'add a category' and of 'save this category' in the admin's Categories screen: what the category is called
+/// and where it sits. A parent that is absent ('null') is a heading - the top of its own branch, which is exactly what
+/// a category with nothing above it is.
+///
+/// The rules behind it - a name the column takes, no two categories of one parent sharing a name, and a parent that is
+/// neither the category itself nor one of its own shelves - live in HC.Business.CategoryCatalog, and what the API
+/// answers with when it refuses one of these is that rule's own sentence (see AdminResultDto).
+/// </summary>
+public class CategoryFormRequest
+{
+    [JsonPropertyName("categoryName")]
+    public string CategoryName { get; set; } = "";
+
+    [JsonPropertyName("parentCategoryId")]
+    public short? ParentCategoryId { get; set; }
 }
 
 // Forgot Password

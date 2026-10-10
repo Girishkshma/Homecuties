@@ -5,7 +5,20 @@ import { FavoritesService } from '../services/favorites.service';
 import { AuthService } from '../services/auth.service';
 import { CartService, CartItem } from '../services/cart.service';
 import { Product, Category, HomeStats } from '../models/product.model';
+import { CategoryRow, groupedByHeading, pathOf } from '../models/category-tree';
 import { UtilityService } from '../services/utility.service';
+
+/**
+ * One block of the 'Shop by Category' section: the heading the tiles below it are read under, and the tiles
+ * themselves - the shelves the shop actually sells from.
+ *
+ * A block with no heading is the ending one, drawn only when the catalogue holds rows no heading leads into (a loop
+ * in the table). Those tiles are shown plainly rather than left out: their products are on sale.
+ */
+interface CategoryBlock {
+  heading: Category | null;
+  tiles: CategoryRow[];
+}
 
 @Component({
   selector: 'app-home',
@@ -15,7 +28,17 @@ import { UtilityService } from '../services/utility.service';
 })
 export class HomeComponent implements OnInit, OnDestroy {
   products: Product[] = [];
+
+  /** The rows the API lists, flat: what a product's own category is named by (see categoryPath). */
   categories: Category[] = [];
+
+  /**
+   * The section as it is drawn: one block per heading of the catalogue, with the shelves under it. The catalogue is
+   * one self-referencing table and a heading is not a place a product sits, so a row of tiles on its own would leave
+   * a shopper unable to tell whose collection 'Vases' or 'Pot Houses' is (see groupedByHeading).
+   */
+  blocks: CategoryBlock[] = [];
+
   stats: HomeStats | null = null;
   loading = true;
   error = '';
@@ -41,7 +64,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     'Show Pieces': '/images/channapatna/show-pieces.svg',
     'Pen Stands': '/images/channapatna/pen-stands.svg',
     'Calendars': '/images/channapatna/calendars.svg',
-    'Costers': '/images/channapatna/costers.svg',
+    'Coasters': '/images/channapatna/coasters.svg',
     'Center Tables': '/images/channapatna/center-tables.svg',
     'For Kids': '/images/channapatna/for-kids.svg',
     'Mobile Stands': '/images/channapatna/mobile-stands.svg',
@@ -132,11 +155,32 @@ export class HomeComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * The section is built from the catalogue's tree, not its table: the API sends the rows the shop sells from
+   * together with the headings above them (see ProductService.GetCategoriesAsync), and each heading becomes the name
+   * its shelves are read under. A row no heading leads into is put in a block of its own tiles rather than dropped.
+   */
   private loadCategories(): void {
     this.productService.getCategories().subscribe({
-      next: (data) => this.categories = data,
+      next: (data) => {
+        const tree = groupedByHeading(data);
+        this.categories = data;
+        this.blocks = tree.headings.map(heading => ({ heading: heading.heading, tiles: heading.rows }));
+
+        if (tree.ungrouped.length > 0) {
+          this.blocks.push({ heading: null, tiles: tree.ungrouped });
+        }
+      },
       error: () => console.error('Failed to load categories')
     });
+  }
+
+  /**
+   * Where a product is filed, heading first: 'Decoratives / Vases'. A card that named the shelf alone would leave the
+   * shopper without the collection the piece belongs to.
+   */
+  categoryPath(category: Category): string {
+    return pathOf(category, this.categories);
   }
 
   /** Hero counters come from the database (products / registered customers / categories). */

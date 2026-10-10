@@ -36,11 +36,27 @@ export interface ProductImageRow {
  * A photo is a set of rows - one index at four or six sizes - because the main frame of the product page and the
  * strip of thumbnails under it are two sizes of the same photograph. Keeping them together is what makes the form
  * show a photo rather than a list of files, and what lets a photo be removed as the one thing it is.
+ *
+ * 'imageIndex' is also the photo's place in the order: the product page draws the photos in the order of their image
+ * indices (see ProductGallery in HC.Business), so putting the photos in the order the shop wants them seen is a
+ * matter of numbering them again - which is what the move controls on each card do (see movePhoto).
  */
 export interface ProductPhotoRow {
   imageIndex: number;
   rows: ProductImageRow[];
   previewUrl?: string;
+}
+
+/** One card of the product form's categories: one of the shop's own categories, and the shelves listed beneath it. */
+export interface CategoryCard {
+  /** What the card is headed with: a category's own name, or - for rows no heading reaches - what is wrong with them. */
+  title: string;
+
+  /** What the card says where its shelves need a word, and nothing where the shelves speak for themselves. */
+  note: string;
+
+  /** The rows listed beneath it, each with a tick to give: the rows a product may be filed under. */
+  shelves: AdminCategory[];
 }
 
 @Component({
@@ -51,6 +67,9 @@ export interface ProductPhotoRow {
 })
 export class ProductFormComponent implements OnInit {
   categories: AdminCategory[] = [];
+
+  /** The same categories drawn as cards, one to a heading: see setCategories and buildCategoryCards. */
+  categoryCards: CategoryCard[] = [];
   options: ProductFormOptions = { statuses: [], imageTypes: [] };
   productId: number | null = null;
   isEditMode = false;
@@ -122,8 +141,8 @@ export class ProductFormComponent implements OnInit {
       }
     });
     this.adminService.getCategories().subscribe({
-      next: (data) => this.categories = data,
-      error: () => this.categories = []
+      next: (data) => this.setCategories(data),
+      error: () => this.setCategories([])
     });
   }
 
@@ -168,6 +187,21 @@ export class ProductFormComponent implements OnInit {
             previewUrl: `${this.imageBaseUrl}/images/products/${i.imageUrl}`
           }))
         };
+
+        // A product saved before headings were ruled out can still carry one. The form draws a heading as the card over
+        // its shelves and not as a tick (see buildCategoryCards), and the save below leaves it out, so the admin is told
+        // here rather than finding it gone afterwards.
+        const headings = p.categoryIds.filter(categoryId => this.isTopLevelCategory(categoryId));
+        if (headings.length > 0) {
+          const names = this.categories
+            .filter(category => headings.includes(category.categoryId))
+            .map(category => category.categoryName);
+          this.message =
+            `A product is filed under a category beneath a heading, so ${names.join(', ')} will be cleared from this ` +
+            'product when it is saved: tick a category beneath a heading.';
+          this.isError = false;
+        }
+
         this.isLoading = false;
       },
       error: () => {
@@ -183,10 +217,105 @@ export class ProductFormComponent implements OnInit {
   }
 
   // Categories
-  categoryLabel(category: AdminCategory): string {
-    return category.parentCategoryName
-      ? `${category.parentCategoryName} / ${category.categoryName}`
-      : category.categoryName;
+
+  /**
+   * The categories the form draws: the list itself, and the cards built from it (see buildCategoryCards). The two
+   * arrive together from the one call, so nothing here reads one without the other - an empty list means no cards, and
+   * no cards is the form saying it has nothing to file a product under.
+   */
+  setCategories(categories: AdminCategory[]): void {
+    this.categories = categories;
+    this.categoryCards = this.buildCategoryCards();
+  }
+
+  /**
+   * The form's category cards: one card per one of the shop's own categories, with everything beneath it listed inside
+   * - the shape the dashboard's 'Stock by category' cards are drawn in, and the shape a product's own filing has: the
+   * heading is what says which shelves belong together, and the shelf is where the product sits.
+   *
+   * A heading with nothing beneath it yet keeps its card and says so rather than going unlisted: the shop may name a
+   * heading before the shelves under it exist, and a category an admin cannot see is one they can neither file against
+   * nor ask about.
+   *
+   * Anything no heading reaches is a row that names a parent naming it back - a loop in the table, which is what
+   * CategoryTree leaves to the end of its own list. It is listed in one last card that says what is wrong with it,
+   * rather than dropped: it is a row in the table all the same, and one a product may still name.
+   */
+  private buildCategoryCards(): CategoryCard[] {
+    const cards: CategoryCard[] = [];
+    const placed = new Set<number>();
+
+    /**
+     * Everything beneath a category, however deep, each row once. A row is marked as listed as it is walked, which is
+     * what ends a loop in the table rather than following it round and round.
+     */
+    const beneath = (categoryId: number): AdminCategory[] => {
+      const shelves: AdminCategory[] = [];
+
+      for (const row of this.categories) {
+        if (row.parentCategoryId !== categoryId || placed.has(row.categoryId)) {
+          continue;
+        }
+
+        placed.add(row.categoryId);
+        shelves.push(row, ...beneath(row.categoryId));
+      }
+
+      return shelves;
+    };
+
+    for (const heading of this.categories.filter(category => this.isTopLevelCategory(category.categoryId))) {
+      placed.add(heading.categoryId);
+
+      const shelves = beneath(heading.categoryId);
+      cards.push({
+        title: heading.categoryName,
+        note: shelves.length === 0
+          ? 'Nothing is filed under this category yet, so it is here for the shape of the shop and cannot hold a product.'
+          : '',
+        shelves
+      });
+    }
+
+    const unreached = this.categories.filter(category => !placed.has(category.categoryId));
+    if (unreached.length > 0) {
+      cards.push({
+        title: 'Not under a heading',
+        note: 'These categories name each other as parent, so no category above them reaches them: repair the ' +
+          'Categories table, then file products under the categories that hold them.',
+        shelves: unreached
+      });
+    }
+
+    return cards;
+  }
+
+  /**
+   * Whether a category is a heading: a top of the tree, which is a row that names no parent - or one whose parent is
+   * not in this list at all. That is the question the API's own save asks of a product that names a category (see
+   * CategoryTree.TopsOfTree), so this is the question that has to be asked here: a row read the other way round would
+   * grey out the shelves under a heading - the only rows a product may be filed under - and offer ticks on the headings
+   * the API refuses, which is a screen that cannot file a product at all.
+   *
+   * The parent decides it, and not what sits beneath the row. The rows that name no parent are the shop's own
+   * categories, and every row that names one is a shelf: 'nothing is filed under it' is true of a heading and of a
+   * shelf alike, so it cannot tell the two apart.
+   *
+   * A category this list does not hold is not a heading. The categories and the product's own details are two calls, and
+   * while the first has not answered yet, nothing here may read a product's categories as headings and leave them out of
+   * the save.
+   */
+  isTopLevelCategory(categoryId: number): boolean {
+    const category = this.categories.find(row => row.categoryId === categoryId);
+
+    if (!category) {
+      return false;
+    }
+
+    // 'parentCategoryId' is absent on a heading the API sent, which JSON spells as null - hence the == and not a
+    // comparison with undefined alone.
+    return category.parentCategoryId == null
+      || !this.categories.some(row => row.categoryId === category.parentCategoryId);
   }
 
   isCategorySelected(categoryId: number): boolean {
@@ -229,14 +358,16 @@ export class ProductFormComponent implements OnInit {
   selectedImageTypeIds: number[] = [];
 
   /**
-   * The product's photos, in the order the admin uploaded them, each with the sizes the API wrote for it. This is
-   * what the form shows - a photo, not a list of files - and what it removes, so a photograph cannot be left behind
-   * at one size and gone at another.
+   * The product's photos, in the order the shop shows them, each with the sizes the API wrote for it. This is what the
+   * form shows - a photo, not a list of files - and what it removes, so a photograph cannot be left behind at one size
+   * and gone at another.
+   *
+   * The order is the photos' image indices (see ProductGallery in HC.Business): the product page draws the photos in
+   * the order of their indices, so the form draws them in that order too, and the two screens cannot disagree about
+   * which photo comes first.
    */
   get photos(): ProductPhotoRow[] {
-    const indices = Array.from(new Set(this.form.images.map(i => i.imageIndex))).sort((a, b) => a - b);
-
-    return indices.map(imageIndex => {
+    return this.photoOrder().map(imageIndex => {
       const rows = this.form.images.filter(i => i.imageIndex === imageIndex);
 
       return {
@@ -249,9 +380,60 @@ export class ProductFormComponent implements OnInit {
     });
   }
 
-  /** The index the next uploaded photo is written as: photos are numbered from 1 and never reused. */
+  /** The image indices of the product's photos, one per photo, in the order the form shows them. */
+  private photoOrder(): number[] {
+    return Array.from(new Set(this.form.images.map(row => row.imageIndex))).sort((a, b) => a - b);
+  }
+
+  /**
+   * The index the next uploaded photo is written as: past every index in use, so a new photo never lands on a number
+   * one of the photos already on the page is written with.
+   */
   nextImageIndex(): number {
     return this.form.images.reduce((highest, row) => Math.max(highest, row.imageIndex), 0) + 1;
+  }
+
+  /** Shows a photo one place earlier. Nothing happens to the first photo, which has no earlier place to go. */
+  movePhotoUp(imageIndex: number): void {
+    this.movePhoto(imageIndex, -1);
+  }
+
+  /** The same, one place later. Nothing happens to the last photo. */
+  movePhotoDown(imageIndex: number): void {
+    this.movePhoto(imageIndex, 1);
+  }
+
+  /**
+   * Moves one photo by one place in the order the form shows them, and leaves the other photos where they are.
+   *
+   * The order is the photos' image indices, so a move numbers the photos again - and it numbers them PAST every index
+   * in use rather than reusing the numbers the photos already carry. That is what keeps a later upload from writing
+   * over a photo the shop still shows: a photo's files are named after the index it was uploaded at ('I10045_L_01.jpg',
+   * see ProductImageVariants.FileName in HC.Business), and an upload writes the index the form gives it - so a photo
+   * holding row index 1 while its file is named '_02' would be overwritten by the next upload at index 2. Numbering
+   * past every index in use means the next upload writes a name nothing points at. The numbers are only ever the
+   * order: no screen shows them, and the storefront reads the order alone (see ProductGallery).
+   *
+   * Every row of a photo moves with it, so a photograph is never left behind at one size and gone at another, and the
+   * new order is written when the product is saved, exactly like every other change on this page.
+   */
+  private movePhoto(imageIndex: number, step: number): void {
+    const order = this.photoOrder();
+    const from = order.indexOf(imageIndex);
+    const to = from + step;
+
+    if (from < 0 || to < 0 || to >= order.length) return;
+
+    [order[from], order[to]] = [order[to], order[from]];
+
+    const highest = order.reduce((max, index) => Math.max(max, index), 0);
+    const renumbered = new Map<number, number>();
+    order.forEach((index, position) => renumbered.set(index, highest + position + 1));
+
+    this.form.images = this.form.images.map(row => ({
+      ...row,
+      imageIndex: renumbered.get(row.imageIndex) ?? row.imageIndex
+    }));
   }
 
   /**
@@ -416,7 +598,10 @@ export class ProductFormComponent implements OnInit {
       cgstpercent: this.num(this.form.cgstpercent),
       sgstpercent: this.num(this.form.sgstpercent),
       igstpercent: this.num(this.form.igstpercent),
-      categoryIds: this.form.categoryIds,
+      // Only the categories a product can be filed under: a heading is drawn as the card over its shelves and not as a
+      // tick (see buildCategoryCards), and the API refuses a product that names one, so a heading a product still
+      // carries - one saved before this rule - is left out of the save rather than refusing the whole product.
+      categoryIds: this.form.categoryIds.filter(id => !this.isTopLevelCategory(id)),
       features: this.form.features
         .filter(f => f.feature && f.feature.trim())
         .map(f => ({ feature: f.feature.trim(), isActive: f.isActive })),

@@ -90,6 +90,17 @@
   .newsletter-cta .newsletter-cta-card {
     padding: 2rem;
   }
+
+  /* The filter card comes down in step with the page, and its columns with it: a narrower track keeps the shelves
+     beside each other for as long as the width allows instead of dropping to one column of half-empty ones. */
+  .category-filter {
+    padding: 1rem 1.15rem 1.25rem;
+
+    .filter-columns {
+      grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+      gap: 1.25rem 1.5rem;
+    }
+  }
 }
 
 @media (max-width: 768px) {
@@ -205,6 +216,17 @@
 
   .product-detail .product-gallery .main-image-square {
     max-width: 240px;
+  }
+
+  /* One collection under another on a phone, each keeping its own rule: the columns stack, so the rule that stood
+     beside the shelves now stands above them, and the browsed collection is still the one in solid ink. */
+  .category-filter {
+    padding: 1rem;
+
+    .filter-columns {
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+    }
   }
 }
 

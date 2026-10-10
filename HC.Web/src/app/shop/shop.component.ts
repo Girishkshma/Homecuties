@@ -6,6 +6,7 @@ import { FavoritesService } from '../services/favorites.service';
 import { AuthService } from '../services/auth.service';
 import { CartService, CartItem } from '../services/cart.service';
 import { Product, Category } from '../models/product.model';
+import { CategoryHeading, CategoryRow, groupedByHeading, pathOf } from '../models/category-tree';
 import { UtilityService } from '../services/utility.service';
 
 @Component({
@@ -16,7 +17,20 @@ import { UtilityService } from '../services/utility.service';
 })
 export class ShopComponent implements OnInit, OnDestroy {
   products: Product[] = [];
+
+  /** The rows the API lists, flat: what a product's own category is named by (see categoryPath). */
   categories: Category[] = [];
+
+  /**
+   * The catalogue's headings and the shelves under each of them: what the filter draws. The shop's heading is not a
+   * place a product sits, so a filter of the shelves alone would give a shopper no way of browsing a collection -
+   * opening a heading lists everything filed beneath it (see CategoryBranch on the API side).
+   */
+  headings: CategoryHeading[] = [];
+
+  /** The rows no heading leads into, if the catalogue holds any (a loop in the table): listed plainly, never dropped. */
+  ungrouped: CategoryRow[] = [];
+
   selectedCategoryId: number | null = null;
   loading = true;
   error = '';
@@ -113,11 +127,53 @@ export class ShopComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * The filter is the catalogue's tree, not its table: the API sends the rows the shop sells from together with the
+   * headings above them (see ProductService.GetCategoriesAsync), and they are grouped here so the shelves are
+   * offered under the heading each one belongs to. The flat list is kept as well, because a product's own category is
+   * named through it (see categoryPath).
+   */
   private loadCategories(): void {
     this.productService.getCategories().subscribe({
-      next: (data) => this.categories = data,
+      next: (data) => {
+        const tree = groupedByHeading(data);
+        this.categories = data;
+        this.headings = tree.headings;
+        this.ungrouped = tree.ungrouped;
+      },
       error: () => console.error('Failed to load categories')
     });
+  }
+
+  /**
+   * Where a product is filed, heading first: 'Decoratives / Vases'. A card that named the shelf alone would leave the
+   * shopper without the collection the piece belongs to, and that is the half of the hierarchy a listing can say.
+   */
+  categoryPath(category: Category): string {
+    return pathOf(category, this.categories);
+  }
+
+  /**
+   * The trail of the category being browsed, heading first ('Decoratives / Vases'), or '' for the whole shop. The
+   * filter bar names it, so a shopper who stepped into a shelf can read where they are - and what 'All Products' would
+   * take them back out of - without working it out from the cards below.
+   */
+  get browsedPath(): string {
+    const row = this.categories.find(category => category.CategoryID === this.selectedCategoryId);
+    return row ? this.categoryPath(row) : '';
+  }
+
+  /**
+   * Whether a heading's column is the one being browsed: the heading itself, or any shelf read under it. The column is
+   * marked so the collection a shopper is inside of is said on the filter as well as in the listing.
+   */
+  headingIsBrowsed(heading: CategoryHeading): boolean {
+    if (this.selectedCategoryId === null) {
+      return false;
+    }
+
+    return this.selectedCategoryId === heading.heading.CategoryID
+      || heading.rows.some(row => row.category.CategoryID === this.selectedCategoryId);
   }
 
   filterByCategory(categoryId: number | null): void {

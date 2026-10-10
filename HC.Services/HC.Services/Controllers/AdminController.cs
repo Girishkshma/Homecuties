@@ -202,7 +202,9 @@ public class AdminController : ControllerBase
     /// saves the product, lands on its edit page and adds the photos there (see
     /// <see cref="ProductImageVariants.FileName"/>). 'imageIndex' is which photo of the product this is (the admin's
     /// 'Image Index'): a photo's several sizes share it, which is what lets a screen show one photo big and small at
-    /// once, and uploading the same index again replaces that photo rather than adding a row.
+    /// once, and uploading the same index again replaces that photo rather than adding a row. It is also the photo's
+    /// place in the order the storefront draws a product's photos in (see <see cref="ProductGallery"/>), which the
+    /// admin's product form changes by numbering the photos again (see <c>ProductFormComponent.movePhoto</c>).
     /// </summary>
     [Authorize(Policy = AdminPolicies.Products)]
     [HttpPost("upload-product-image")]
@@ -875,6 +877,73 @@ public class AdminController : ControllerBase
     {
         var categories = await _adminDashboardService.GetCategoryTreeAsync();
         return Ok(categories);
+    }
+
+    /// <summary>
+    /// The catalogue as the Categories screen manages it: every category in the order that screen lists it, with where
+    /// it sits and what is filed on it (see AdminDashboardService.GetManagedCategoriesAsync).
+    /// </summary>
+    [Authorize(Policy = AdminPolicies.Categories)]
+    [HttpGet("categories/manage")]
+    public async Task<ActionResult> GetManagedCategories()
+    {
+        var categories = await _adminDashboardService.GetManagedCategoriesAsync();
+        return Ok(categories);
+    }
+
+    /// <summary>
+    /// Adds a category - a heading, or a shelf of one when it names a parent. The rules the body has to satisfy
+    /// (HC.Business.CategoryCatalog) answer as a sentence in the result rather than as a failure, so the screen can
+    /// show the admin what is wrong with what they typed.
+    /// </summary>
+    [Authorize(Policy = AdminPolicies.Categories)]
+    [HttpPost("categories")]
+    public async Task<ActionResult> CreateCategory([FromBody] CategoryFormRequest request)
+    {
+        var userId = CurrentAdminUserId;
+        if (userId <= 0)
+            return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
+
+        var result = await _adminDashboardService.CreateCategoryAsync(request, userId);
+        return Ok(result);
+    }
+
+    /// <summary>Renames a category and moves it, the same rules as adding one.</summary>
+    [Authorize(Policy = AdminPolicies.Categories)]
+    [HttpPut("categories/{id}")]
+    public async Task<ActionResult> UpdateCategory(short id, [FromBody] CategoryFormRequest request)
+    {
+        var userId = CurrentAdminUserId;
+        if (userId <= 0)
+            return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
+
+        var result = await _adminDashboardService.UpdateCategoryAsync(id, request, userId);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Takes a category out, refused while a category sits under it or a product is filed on it - with the reason as
+    /// the message, which is what the screen shows instead of deleting anything.
+    /// </summary>
+    [Authorize(Policy = AdminPolicies.Categories)]
+    [HttpDelete("categories/{id}")]
+    public async Task<ActionResult> DeleteCategory(short id)
+    {
+        var userId = CurrentAdminUserId;
+        if (userId <= 0)
+            return BadRequest(new { result = 0, messages = new[] { "Current user id is required." } });
+
+        var result = await _adminDashboardService.DeleteCategoryAsync(id, userId);
+        return Ok(result);
+    }
+
+    /// <summary>The dashboard's 'Stock by category' cards: the same people that reach the tiles.</summary>
+    [Authorize(Policy = AdminPolicies.AdminArea)]
+    [HttpGet("stock-by-category")]
+    public async Task<ActionResult> GetStockByCategory()
+    {
+        var stock = await _adminDashboardService.GetStockByCategoryAsync();
+        return Ok(stock);
     }
 
     #endregion
