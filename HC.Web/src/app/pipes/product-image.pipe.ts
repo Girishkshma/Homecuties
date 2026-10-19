@@ -10,8 +10,8 @@ import { environment } from '../../environments/environment';
  * host in production, and the storefront's dev server locally, which serves the same folder while the shop is being
  * developed. One folder, one host serving it - a file written to a folder nobody serves is a photograph nobody sees.
  *
- * The artwork that belongs to the storefront itself - the category tiles under '/images/channapatna' - keeps its own
- * path: it ships with the storefront and has nothing to do with the shop's products.
+ * The artwork that belongs to the storefront itself - the hand-drawn pieces under '/images/channapatna' - keeps its
+ * own path: it ships with the storefront and has nothing to do with the shop's products.
  */
 @Pipe({
   name: 'productImage',

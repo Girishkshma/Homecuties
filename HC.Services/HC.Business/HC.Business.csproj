@@ -1,6 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <!-- The SMS adapter (Twilio today). Business code asks for ISmsSender and never sees the provider,
+         so the adapter is loaded here - by the layer that decides when a customer is texted - and not
+         by the host: HC.Services references HC.Business, and the provider arrives with it. -->
+    <ProjectReference Include="..\HC.Adapters\HC.Adapters.csproj" />
     <ProjectReference Include="..\HC.Data\HC.Data.csproj" />
   </ItemGroup>
 
@@ -9,6 +13,12 @@
          The version matches the one Microsoft.AspNetCore.Authentication.JwtBearer (HC.Services) depends on. -->
     <PackageReference Include="SkiaSharp" Version="3.119.4" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.19.2" />
+    <!-- AddBusinessMessaging is an IServiceCollection extension and the startup line about the SMS
+         sender is logged through ILogger, so this layer compiles against those two contracts. The host
+         supplies the container and the logger; nothing here reads a configuration file. -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.7" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.7" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
   </ItemGroup>
 
   <PropertyGroup>

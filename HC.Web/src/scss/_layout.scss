@@ -13,9 +13,13 @@
    The shop page, the categories and the featured grid all open with one of these, so the top
    padding here is the first thing a visitor sees after the header. It used to reach its 6.5rem
    cap above ~1730px and stacked on the 106px fixed header to leave ~210px of white above the
-   first heading; capped at 4rem the page opens as one block with the header instead of two. */
+   first heading; capped at 4rem the page opens as one block with the header instead of two.
+
+   `padding-block`, not the `padding` shorthand: three pages read `class="container section"` on
+   one element, and a shorthand ending in `0` cancelled the container's own inline padding, which
+   left their Bootstrap rows hanging their negative gutter past the edge of the page. */
 .section {
-  padding: clamp(2.5rem, 4vw, 4rem) 0;
+  padding-block: clamp(2.5rem, 4vw, 4rem);
 }
 
 .section-title {

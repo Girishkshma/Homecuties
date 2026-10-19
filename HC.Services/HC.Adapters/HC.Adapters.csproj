@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Twilio's official .NET helper library - the same one the integration sample uses. Pinned
+         here, in the adapter, so no other project ever has to know the provider's SDK. -->
+    <PackageReference Include="Twilio" Version="8.1.0" />
+    <!-- The adapter reads its own configuration section and logs what it did; these are the
+         abstractions a plain class library compiles against (the host supplies the implementations). -->
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.7" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.7" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.7" />
+  </ItemGroup>
+
+</Project>

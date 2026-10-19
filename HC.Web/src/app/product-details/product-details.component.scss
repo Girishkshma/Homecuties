@@ -1,6 +1,8 @@
 /* ===== Product Detail Page ===== */
 .product-detail {
-  padding: 2rem 0;
+  /* Block padding only: this class is on the page's container element, so a shorthand would
+     cancel the container's inline padding and let the g-5 row overflow a phone's width. */
+  padding-block: 2rem;
 }
 
 /* ===== Image Gallery ===== */
@@ -172,6 +174,21 @@
   padding: 1rem 0;
   border-top: 1px solid var(--gray-200);
   border-bottom: 1px solid var(--gray-200);
+}
+
+/* The buy block: the stock line, the quantity control and the two buttons stand together directly under the price, so
+   the thing the shopper came to the page for is on the first screen instead of under the description, the features and
+   the tags. A column with one gap rather than the children's own bottom margins, which would otherwise stack up. */
+.product-buy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+
+  .stock-availability,
+  .product-actions {
+    margin-bottom: 0;
+  }
 }
 
 .price-badges {

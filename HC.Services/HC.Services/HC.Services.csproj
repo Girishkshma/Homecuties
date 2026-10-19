@@ -16,11 +16,29 @@
          NuGet resolves 2.0.0, which is inside the vulnerable range of GHSA-v5pm-xwqc-g5wc
          (>= 2.0.0-preview.11, <= 2.7.4) and raises NU1903. -->
     <PackageReference Include="Microsoft.OpenApi" Version="2.12.2" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
   </ItemGroup>
 
   <ItemGroup>
+    <!-- No provider adapter is referenced here on purpose. HC.Business loads the shop's adapters
+         (Twilio today) and this host loads HC.Business, so the provider - and its SDK - arrives through
+         the layer that sends the message (see BusinessMessagingServiceCollectionExtensions). What this
+         host owns is the configuration the adapter reads: the 'Twilio' section in appsettings.json and
+         appsettings.Local.json, or the environment variables. -->
     <ProjectReference Include="..\HC.Data\HC.Data.csproj" />
     <ProjectReference Include="..\HC.Business\HC.Business.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The configuration files are copied into the publish output by the Web SDK, which is what puts
+         'appsettings.Production.json' - and the live credentials in it - on the server. The one
+         exception is 'appsettings.Local.json': it is the DEVELOPER's machine-local file (it is
+         git-ignored and holds whatever a development machine was last pointed at), and Program.cs
+         layers it after the environment file, so publishing one would let a development machine's
+         values override production - an empty 'Twilio:FromNumber' in it, for one, would blank out the
+         number the server sends from. The server keeps its own overrides in
+         'appsettings.Production.json' (or the environment variables), never in this file. -->
+    <Content Update="appsettings.Local.json" CopyToPublishDirectory="Never" />
   </ItemGroup>
 
   <ItemGroup>
@@ -31,9 +49,7 @@
          uploaded from now on. The storefront's asset folder is just where they are read from at build time: a
          photography re-uploaded in the admin area replaces the file in the published folder, not this one.
          Nothing else of the storefront is taken - its artwork is served by the storefront itself. -->
-    <Content Include="..\..\HC.Web\src\assets\images\products\**\*"
-             Link="wwwroot\images\products\%(RecursiveDir)%(Filename)%(Extension)"
-             CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\HC.Web\src\assets\images\products\**\*" Link="wwwroot\images\products\%(RecursiveDir)%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

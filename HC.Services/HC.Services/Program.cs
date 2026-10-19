@@ -1,4 +1,5 @@
 using HC.Business;
+using HC.Business.Messaging;
 using HC.Business.Security;
 using HC.Business.Shipping;
 using HC.Data;
@@ -120,6 +121,16 @@ builder.Services.AddHttpClient<IShipmentProvider, ShiprocketShipmentProvider>(cl
 builder.Services.AddSingleton<IShipmentProvider, CustomShipmentProvider>();
 builder.Services.AddScoped<IShipmentProviderRegistry, ShipmentProviderRegistry>();
 builder.Services.AddScoped<IShipmentTrackingService, ShipmentTrackingService>();
+
+// Text messages: the sender the shop's orders, dispatches and reminders go out through. The choice of
+// provider lives with the business layer that decides when a customer is texted - it loads the adapter
+// (Twilio today) and everything that sends asks it for ISmsSender - so this host adds the layer instead
+// of an adapter, and supplies the one thing the layer cannot know: the settings. They are the 'Twilio'
+// section of this host's appsettings.json (and appsettings.Local.json, or the environment variables),
+// and leaving them empty is a working machine, not a broken one. A send never throws (Twilio being down
+// or unconfigured comes back as a failed SmsSendResult), which is what lets the action that caused it -
+// a booking, a dispatch - carry on and report the message separately.
+builder.Services.AddBusinessMessaging();
 
 // The rolling settlement pull: the shop's books are exactly as old as the last time Razorpay was asked what it
 // settled to the bank account, so this asks by itself - the same pull the admin area can ask for by hand
@@ -317,6 +328,12 @@ else
 {
     app.Logger.LogInformation("Razorpay webhook endpoint: POST /api/Order/Webhook (signature validation on)");
 }
+
+// Log which sender the shop's text messages go out through and whether it can actually send: an
+// adapter that is registered but not set up is a silent failure otherwise - the booking succeeds,
+// nothing arrives, and nobody knows until a customer says so. The wording belongs with messaging, so
+// it is asked from the business layer: this host never names the provider or its settings keys.
+app.Services.LogSmsSenderStatus(app.Logger);
 
 // Log which shipping providers the shop's parcels go out with and whether they can actually be used:
 // without credentials no screen can track a parcel, and that has to be visible at startup rather than

@@ -639,6 +639,18 @@ public static class RazorpaySettlements
         line.IsPayment && line.AmountInPaise != 0 && payment.AmountInPaise != line.AmountInPaise;
 
     /// <summary>
+    /// The request a day's reconciliation report is asked with: <c>year</c>, <c>month</c> and <c>day</c> as plain
+    /// numbers, then the page being read. Its own method so the shape of the question is pinned by a test rather
+    /// than discovered against the live gateway - Razorpay answers a request that names no year and no month with
+    /// 400 ('The year field is required'), which a pull can only report as a day that could not be read. The
+    /// settlement list beside it speaks differently, in an epoch window (see <see cref="EpochSeconds"/>), and the
+    /// two are not interchangeable.
+    /// </summary>
+    public static string ReconRequestPath(DateOnly day, int count, int skip) =>
+        $"/settlements/recon/combined?year={day.Year}&month={day.Month}&day={day.Day}" +
+        $"&count={count}&skip={skip}";
+
+    /// <summary>
     /// The reconciliation report Razorpay keeps for one day: <c>GET /v1/settlements/recon/combined</c>, which
     /// is the day's settlements broken down into the payments, refunds and adjustments they were made of.
     /// Returns the lines read, an empty list for a day the gateway answered with nothing (a genuinely quiet
@@ -647,7 +659,12 @@ public static class RazorpaySettlements
     ///
     /// The report is read in pages: Razorpay caps what one answer carries, so a day is asked for again from
     /// where the last answer stopped until one comes back shorter than the page (or repeats itself, which a
-    /// gateway that ignores the offset would do - stopped rather than looped).
+    /// gateway that ignores the offset would do - stopped rather than looped). What a day is asked with - and
+    /// therefore what a day must not be asked with - is <see cref="ReconRequestPath"/>.
+    ///
+    /// A refusal is not an exception: it reads as a day that could not be read, so a question of the wrong shape
+    /// and a gateway that would not answer look the same to the caller until the message is followed back here
+    /// (see <see cref="GetAsync"/>).
     /// </summary>
     public static async Task<List<SettlementReconLine>?> FetchReconAsync(
         string keyId,
@@ -661,8 +678,7 @@ public static class RazorpaySettlements
         for (var page = 0; page < maxPages; page++)
         {
             var payload = await GetAsync(keyId, keySecret,
-                $"/settlements/recon/combined?from={EpochSeconds(day, false)}&to={EpochSeconds(day, true)}" +
-                $"&count={PageSize}&skip={lines.Count}");
+                ReconRequestPath(day, PageSize, lines.Count));
 
             // A page that failed after a good one keeps what was already read: half a day is worth more than
             // no day, and the next pull asks for the day again anyway.
@@ -781,8 +797,12 @@ public static class RazorpaySettlements
 
     /// <summary>
     /// A day as Razorpay speaks it - seconds since the epoch, the UTC convention every timestamp in this
-    /// system is kept in. A report is asked for as a window, so both ends of the day are named and a reply can
-    /// never straddle a midnight the question did not mean to include.
+    /// system is kept in. The settlement list is asked for as a window, so both ends of the day are named and a
+    /// reply can never straddle a midnight the question did not mean to include.
+    ///
+    /// Only the settlement list speaks this way: the day-by-day recon report takes a year, a month and a day as
+    /// plain numbers instead (see <see cref="FetchReconAsync"/>), and handing it a window is a request it
+    /// refuses.
     /// </summary>
     private static long EpochSeconds(DateOnly day, bool endOfDay) =>
         ((DateTimeOffset)day.ToDateTime(

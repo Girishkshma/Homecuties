@@ -21,56 +21,44 @@
       font-size: 2.5rem;
     }
 
-    .hero-stats {
-      gap: 1.5rem;
-    }
-
     .hero-visual {
+      /* The artwork is no longer beside the copy, so the column's own indent goes and the band
+         gets its air back as a top margin instead. */
       padding-left: 0;
-      margin-top: 2.5rem;
+      padding-right: 0;
+      margin-top: 3rem;
     }
 
     .hero-image-showcase {
-      max-width: 100%;
-      margin-left: 0;
+      /* Once stacked the picture would otherwise run the full width of a tablet and stand 750px
+         tall; it is centred at a print's width instead. */
+      max-width: 560px;
+      margin-left: auto;
+      margin-right: auto;
     }
 
-    .showcase-card-main {
-      /* The card goes full-width once the hero stacks; a fixed 320px height then made it far
-         wider than the 640x512 art and object-fit: cover sliced ~50% of the scene off the top
-         and bottom. Matching the art's own aspect keeps the frame honest at every width. */
-      height: auto;
-      aspect-ratio: 640 / 512;
-
-      img {
-        height: 100%;
-      }
-    }
-
-    .showcase-card-sm {
-      /* Kept square to match the 240x240 mini-card art (see _hero.scss). */
+    /* The two square miniatures come down with the frame; the landscape print sets its own width as
+       a share of the frame, so it needs no override here. */
+    .showcase-card-top,
+    .showcase-card-bottom {
       width: 130px;
       height: 130px;
     }
 
     .showcase-card-top {
-      top: -15px;
-      right: -15px;
+      top: -1.25rem;
+      right: -1rem;
     }
 
     .showcase-card-bottom {
-      bottom: -15px;
-      right: -10px;
+      bottom: -1.25rem;
+      right: -0.5rem;
     }
 
     .hero-floating-badge {
-      &.badge-1 {
-        left: 0;
-      }
-
       &.badge-2 {
-        top: 20px;
-        right: 5px;
+        top: 1rem;
+        left: 1rem;
       }
     }
   }
@@ -103,6 +91,20 @@
   }
 }
 
+/* Bootstrap's 3rem gutter (.row.g-5) hangs 24px outside each edge of the row, and the page's own
+   gutter (--container-pad) is 16px on a phone and never more than 24px below the lg breakpoint.
+   The row therefore reached past the viewport, which widened the layout viewport and put a
+   horizontal scrollbar under the page - mobile Chrome then shrank the whole page to fit, so the
+   type came out smaller on any screen that touched a g-5 row. Capping the horizontal half-gutter
+   to 2rem here keeps the columns' content inset exactly on the container's padding line (the
+   stacked columns sit at --container-pad either way) while the row itself stops at the page edge.
+   The gutter is untouched from lg up, where the columns actually stand side by side. */
+@media (max-width: 991.98px) {
+  .row.g-5 {
+    --bs-gutter-x: 2rem;
+  }
+}
+
 @media (max-width: 768px) {
   /* The bar loses 14px and the strip 4px on a phone, and the page offset follows the same total
      because body padding reads --navbar-height. */
@@ -127,14 +129,21 @@
       font-size: 1rem;
     }
 
-    .btn-hero {
-      padding: 0.6rem 1.5rem;
+    .btn-hero,
+    .btn-hero-outline {
+      padding: 0.7rem 1.5rem;
       font-size: 0.9375rem;
+    }
+
+    /* The frame fills the column between these two widths, so the landscape print only needs a small
+       tuck at the left edge to stay on the page. */
+    .showcase-card-left {
+      left: -0.75rem;
     }
   }
 
   .section {
-    padding: 2rem 0;
+    padding-block: 2rem;
   }
 
   .product-card .product-image {
@@ -197,10 +206,76 @@
 
 @media (max-width: 576px) {
   .hero-banner {
-    padding: 2rem 0;
+    padding: 2rem 0 2.5rem;
 
     h1 {
       font-size: 1.75rem;
+    }
+
+    /* Two buttons cannot sit side by side at this width without shrinking their labels to the
+       point of reading as an afterthought, so they stack and take the full column - which also
+       gives them a thumb-sized target each. */
+    .hero-actions {
+      gap: 0.6rem;
+      margin-bottom: 1rem;
+
+      > a {
+        flex: 1 1 100%;
+      }
+    }
+
+    .hero-chips {
+      gap: 0.35rem;
+      margin-bottom: 1.75rem;
+    }
+
+    .hero-chip {
+      gap: 0.35rem;
+      padding: 0.45rem 0.55rem;
+      font-size: 0.72rem;
+
+      i {
+        font-size: 0.82rem;
+      }
+    }
+
+    /* Three cards still fit a phone's column, but only with their padding and figures brought down;
+       the labels are allowed to wrap rather than shrinking the type past reading size. */
+    .hero-stats {
+      gap: 0.4rem;
+
+      .stat-item {
+        padding: 0.65rem 0.55rem;
+      }
+
+      .stat-number {
+        font-size: 1.25rem;
+      }
+    }
+
+    /* The miniatures hang off the picture's right edge; on a phone that edge is the edge of the
+       page, so they come back inside it and come down in size. */
+    .showcase-card-top,
+    .showcase-card-bottom {
+      width: 118px;
+      height: 118px;
+    }
+
+    .showcase-card-top {
+      top: -1rem;
+      right: 0.25rem;
+    }
+
+    .showcase-card-bottom {
+      bottom: -1rem;
+      right: 0;
+    }
+
+    /* The landscape print goes on a phone: at this width the frame is only ~358px wide, and a third
+       card hung on its left edge lands straight on the horse and under the secure chip. The two
+       square miniatures are the cluster the band was designed around at this size. */
+    .showcase-card-left {
+      display: none;
     }
   }
 

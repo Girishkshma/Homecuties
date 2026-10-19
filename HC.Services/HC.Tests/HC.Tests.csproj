@@ -2,6 +2,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\HC.Business\HC.Business.csproj" />
+    <!-- The Twilio SMS adapter, for the rules that decide whether a number can be texted and whether
+         the adapter is ready - both are pure decisions that must not need a Twilio account to test. -->
+    <ProjectReference Include="..\HC.Adapters\HC.Adapters.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -12,6 +15,12 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.0" />
+    <!-- The SMS adapter reads its settings through IConfiguration, so a test builds a section in memory
+         rather than standing a configuration file up. -->
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.7" />
+    <!-- One test builds a real container, because who registers the sender - the business layer, not the
+         host - is what keeps the provider out of HC.Services; the abstraction alone cannot show that. -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.7" />
   </ItemGroup>
 
   <PropertyGroup>

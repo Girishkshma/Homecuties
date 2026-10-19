@@ -1,10 +1,36 @@
-/* ===== Hero Banner ===== */
+/* ===== Hero Banner =====
+   The opening band is the one place on the storefront where the palette is allowed to speak. The
+   colours are the lacquers the Channapatna pieces are actually finished in - vermilion, saffron and
+   leaf green, read off the artwork in assets/images/channapatna - mixed into the washes behind the
+   type, the eyebrow, the two buttons, the three counters and the mount behind the picture.
+   Everything outside this band keeps the theme's ink-on-white discipline, so the colour reads as
+   coming from the goods rather than from a template.
+
+   The band sits on cream rather than white, which is also what separates it from the white header
+   above without needing a rule. The artwork keeps its white mat and its white-framed miniatures;
+   only the mount behind it and the tag on the main frame are coloured. A four-band lacquer stripe
+   closes the bottom edge. */
 .hero-banner {
+  /* Hero-only tokens. Declared here rather than in :root so no other band can pick them up by
+     accident - the rest of the storefront stays monochrome. */
+  --hero-cream: #fff8ee;
+  --hero-cream-deep: #fcecd8;
+  --hero-ink: #2f2117;
+  --hero-ink-soft: #6b5546;
+  --hero-red: #a83620;
+  --hero-red-bright: #d1492c;
+  --hero-saffron: #edb12d;
+  --hero-saffron-light: #f8cd55;
+  --hero-saffron-ink: #8a5b06;
+  --hero-green: #2f8353;
+  --hero-green-ink: #1b5434;
+
   position: relative;
-  /* The reference opens on white with black type and lets the photography carry the colour. */
-  background: var(--white);
+  /* Keeps the artwork's negative-z mount inside this band instead of letting it fall behind the
+     page background. */
+  isolation: isolate;
+  background: linear-gradient(180deg, var(--hero-cream) 0%, #fdf2e3 58%, var(--hero-cream-deep) 100%);
   color: var(--body-color);
-  border-bottom: 1px solid var(--border-color);
   /* The fixed header is already 106px of air above this section, so the hero's own top padding
      is deliberately the smaller of the two: two near-identical bands stacked up to ~210px of
      white above the first line of the home page. The bottom stays roomier - that is what
@@ -13,74 +39,154 @@
   padding: clamp(2.5rem, 3.5vw, 3.5rem) 0 clamp(3rem, 5.5vw, 5rem);
   overflow: hidden;
 
-  .hero-bg-overlay {
+  /* The one line of pure lacquer on the page: four equal bands, no gaps, in the colours the pieces
+     are turned in. It replaces the hairline the band used to end on. */
+  &::after {
+    content: '';
     position: absolute;
-    inset: 0;
-    /* One soft wash top-right, so the white does not read as flat. */
-    background: radial-gradient(ellipse at 85% 0%, var(--surface) 0%, transparent 60%);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 5px;
+    background: linear-gradient(
+      90deg,
+      var(--hero-red-bright) 0%,
+      var(--hero-red-bright) 25%,
+      var(--hero-saffron) 25%,
+      var(--hero-saffron) 50%,
+      var(--hero-green) 50%,
+      var(--hero-green) 75%,
+      var(--hero-ink) 75%,
+      var(--hero-ink) 100%
+    );
+    z-index: 3;
     pointer-events: none;
   }
 
-  /* ===== Particles =====
-     The reference has nothing drifting across its pages, so the decorative spans the hero
-     template renders stay in the markup but are not drawn. */
-  .hero-particles {
-    display: none;
+  > .container {
+    position: relative;
+    z-index: 2;
   }
 
+  /* Four washes, one per lacquer: a saffron sun behind the artwork where the light would fall, a
+     vermilion lift off the bottom-right corner, a leaf-green one in the top-left and a second
+     saffron low on the left. They are alphas rather than fills, so the cream still reads as the
+     paper the band is printed on and the type keeps its contrast. */
+  .hero-bg-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background:
+      radial-gradient(44% 56% at 78% 14%, rgba(248, 205, 85, 0.58) 0%, rgba(248, 205, 85, 0) 70%),
+      radial-gradient(38% 48% at 100% 78%, rgba(209, 73, 44, 0.22) 0%, rgba(209, 73, 44, 0) 70%),
+      radial-gradient(34% 44% at 6% 10%, rgba(69, 168, 108, 0.22) 0%, rgba(69, 168, 108, 0) 72%),
+      radial-gradient(30% 42% at 0% 96%, rgba(237, 177, 45, 0.28) 0%, rgba(237, 177, 45, 0) 72%);
+    pointer-events: none;
+  }
+
+  /* A field of hand-turned dots, faded out well before it reaches the type: texture for the empty
+     cream on the right, nothing where the words are. */
+  .hero-bg-overlay::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(47, 33, 23, 0.18) 1px, transparent 1px);
+    background-size: 20px 20px;
+    -webkit-mask-image: radial-gradient(54% 62% at 82% 40%, #000 0%, rgba(0, 0, 0, 0) 72%);
+    mask-image: radial-gradient(54% 62% at 82% 40%, #000 0%, rgba(0, 0, 0, 0) 72%);
+    opacity: 0.5;
+  }
+
+  /* ===== Eyebrow =====
+     Saffron, the colour the turned beads are dipped in first, with the ink on top: the pill is the
+     first thing that tells a visitor this band is not the grey one it used to be. */
   .hero-badge {
+    position: relative;
     display: inline-flex;
     align-items: center;
-    background: var(--white);
-    color: var(--heading-color);
+    gap: 0.65rem;
+    background: linear-gradient(135deg, #fdecc4 0%, var(--hero-saffron-light) 100%);
+    color: var(--hero-ink);
     font-size: 0.6875rem;
     font-weight: 700;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
-    padding: 0.45rem 0.9rem;
+    padding: 0.5rem 1rem 0.5rem 0.9rem;
     border-radius: var(--radius-badge);
-    border: 1px solid var(--gray-300);
-    margin-bottom: 1.5rem;
+    border: 1px solid rgba(168, 54, 32, 0.28);
+    margin-bottom: 1.75rem;
+    animation: fadeInUp 0.7s ease both;
 
-    i {
-      color: var(--heading-color);
+    /* A length of rule trailing the pill. On its own in the middle of the page the badge read as
+       a label on nothing; the rule ties it back to the margin the way an editorial kicker does. It
+       is drawn outside the border, so the pill keeps the width of its words. */
+    &::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 100%;
+      width: 3rem;
+      height: 1px;
+      margin-left: 0.75rem;
+      background: linear-gradient(to right, rgba(168, 54, 32, 0.45), rgba(168, 54, 32, 0));
+    }
+
+    .hero-badge-dot {
+      position: relative;
+      flex: 0 0 auto;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--hero-red-bright);
+      animation: badgePulse 2.6s ease-out infinite;
     }
   }
 
   h1 {
-    font-size: clamp(2.25rem, 1.4rem + 3.2vw, 3.75rem);
+    font-size: clamp(2.5rem, 1.35rem + 3.6vw, 4rem);
     font-weight: 800;
-    margin-bottom: 1.25rem;
-    color: var(--heading-color);
-    line-height: 1.08;
-    letter-spacing: -0.03em;
-    animation: fadeInUp 0.8s ease;
+    margin-bottom: 1.5rem;
+    color: var(--hero-ink);
+    line-height: 1.02;
+    letter-spacing: -0.035em;
+    animation: fadeInUp 0.8s ease 0.05s both;
 
-    /* The emphasised words stay ink: the stress is the rule under them. The reference never
-       reaches for a second colour in a headline. */
+    /* The emphasised words are the colour moment of the headline: a lacquer gradient cut into the
+       glyphs, from vermilion to a deep saffron. Both ends stay darker than 3:1 against the cream,
+       which is the bar for type this size, and the swash beneath them is the highlighter stroke a
+       marker would leave - thick, a shade out of true, and stroked in once the line has landed. */
     .text-accent {
-      color: var(--heading-color);
+      color: transparent;
+      background-image: linear-gradient(96deg, #a83620 0%, #c4471f 52%, #b8730a 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
       position: relative;
       display: inline-block;
+      white-space: nowrap;
 
       &::after {
         content: '';
         position: absolute;
-        bottom: 0.08em;
-        left: 0;
-        width: 100%;
-        height: 3px;
-        background: var(--heading-color);
+        left: -0.04em;
+        right: -0.04em;
+        bottom: 0;
+        height: 0.11em;
+        min-height: 4px;
+        border-radius: 2px;
+        background: linear-gradient(90deg, rgba(209, 73, 44, 0.9) 0%, rgba(237, 177, 45, 0.95) 100%);
+        transform: rotate(-0.7deg);
+        transform-origin: left center;
+        animation: underlineIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.55s both;
       }
     }
   }
 
   .hero-description {
-    font-size: 1.0625rem;
-    color: var(--gray-700);
-    margin-bottom: 2.25rem;
+    font-size: clamp(1rem, 0.96rem + 0.2vw, 1.125rem);
+    color: var(--hero-ink-soft);
+    margin-bottom: 2rem;
     max-width: 46ch;
-    line-height: 1.7;
+    line-height: 1.75;
     animation: fadeInUp 0.8s ease 0.15s both;
   }
 
@@ -89,116 +195,264 @@
     to { opacity: 1; transform: translateY(0); }
   }
 
+  /* The rule under the emphasised words strokes in from the left once the headline has settled. */
+  @keyframes underlineIn {
+    from { transform: scaleX(0) rotate(-0.7deg); }
+    to { transform: scaleX(1) rotate(-0.7deg); }
+  }
+
+  /* A ring off the eyebrow dot, in the dot's own colour: the only motion in the band that repeats,
+     and it stops itself. */
+  @keyframes badgePulse {
+    0% { box-shadow: 0 0 0 0 rgba(209, 73, 44, 0.35); }
+    70% { box-shadow: 0 0 0 7px rgba(209, 73, 44, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(209, 73, 44, 0); }
+  }
+
   .hero-actions {
     display: flex;
-    gap: 1rem;
-    margin-bottom: 2.5rem;
+    gap: 0.85rem;
+    margin-bottom: 1.15rem;
     flex-wrap: wrap;
     animation: fadeInUp 0.8s ease 0.3s both;
   }
 
-  /* Solid ink, then a hairline that fills on hover - the reference's two shop buttons. */
-  .btn-hero {
+  /* ===== Quick links =====
+     Three tinted tags, one per lacquer, each a way into the shop. They carry the same words as the
+     collection band further down the page, so the vocabulary is consistent, and they fill the strip
+     between the buttons and the counters with something a visitor can act on. */
+  .hero-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+    animation: fadeInUp 0.8s ease 0.38s both;
+  }
+
+  .hero-chip {
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
-    background: var(--primary);
-    color: var(--white);
-    padding: 0.95rem 2.25rem;
+    gap: 0.45rem;
+    padding: 0.5rem 0.9rem;
+    border-radius: var(--radius-badge);
+    border: 1px solid transparent;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-decoration: none;
+    transition: var(--transition-base);
+
+    i {
+      font-size: 0.9rem;
+    }
+
+    &:hover,
+    &:focus-visible {
+      text-decoration: none;
+      transform: translateY(-1px);
+    }
+
+    &.chip-pots {
+      background: rgba(209, 73, 44, 0.1);
+      border-color: rgba(209, 73, 44, 0.28);
+      color: #8f2b1a;
+
+      &:hover,
+      &:focus-visible {
+        background: rgba(209, 73, 44, 0.18);
+        color: #8f2b1a;
+      }
+    }
+
+    &.chip-vases {
+      background: rgba(47, 131, 83, 0.1);
+      border-color: rgba(47, 131, 83, 0.28);
+      color: var(--hero-green-ink);
+
+      &:hover,
+      &:focus-visible {
+        background: rgba(47, 131, 83, 0.18);
+        color: var(--hero-green-ink);
+      }
+    }
+
+    &.chip-toys {
+      background: rgba(237, 177, 45, 0.18);
+      border-color: rgba(237, 177, 45, 0.45);
+      color: var(--hero-saffron-ink);
+
+      &:hover,
+      &:focus-visible {
+        background: rgba(237, 177, 45, 0.3);
+        color: var(--hero-saffron-ink);
+      }
+    }
+  }
+
+  /* The primary is the lacquer itself - vermilion going darker into its own shadow, with a warm
+     glow under it. The second is a cream card with an ink label and its arrow in vermilion, so the
+     two do not fight for the same attention. Both lift a hair and walk their icon forward. */
+  .btn-hero,
+  .btn-hero-outline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    padding: 1rem 2.25rem;
     border-radius: var(--radius-button);
-    border: 1px solid var(--primary);
     font-weight: 700;
     font-size: 0.78rem;
     letter-spacing: var(--letter-label);
     text-transform: uppercase;
     transition: var(--transition-base);
-    cursor: pointer;
+
+    i {
+      font-size: 1rem;
+      transition: transform var(--transition-base);
+    }
 
     &:hover {
-      background: var(--primary-dark);
-      border-color: var(--primary-dark);
-      color: var(--white);
       text-decoration: none;
+      transform: translateY(-1px);
+
+      i {
+        transform: translateX(3px);
+      }
+    }
+  }
+
+  .btn-hero {
+    background: linear-gradient(135deg, #c2401f 0%, var(--hero-red) 58%, #8f2b1a 100%);
+    border: 1px solid #8f2b1a;
+    color: var(--white);
+    box-shadow: 0 12px 24px -14px rgba(143, 43, 26, 0.85);
+
+    &:hover {
+      background: linear-gradient(135deg, var(--hero-red) 0%, #8f2b1a 100%);
+      border-color: #75220f;
+      color: var(--white);
+      box-shadow: 0 16px 30px -14px rgba(143, 43, 26, 0.95);
     }
   }
 
   .btn-hero-outline {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: transparent;
-    color: var(--heading-color);
-    padding: 0.95rem 2.25rem;
-    border-radius: var(--radius-button);
-    border: 1px solid var(--gray-300);
-    font-weight: 700;
-    font-size: 0.78rem;
-    letter-spacing: var(--letter-label);
-    text-transform: uppercase;
-    transition: var(--transition-base);
+    background: rgba(255, 255, 255, 0.72);
+    color: var(--hero-ink);
+    border: 1px solid rgba(47, 33, 23, 0.22);
+
+    i {
+      color: var(--hero-red);
+    }
 
     &:hover {
-      background: var(--heading-color);
-      border-color: var(--heading-color);
-      color: var(--white);
-      text-decoration: none;
+      background: var(--white);
+      border-color: var(--hero-red);
+      color: var(--hero-red);
+
+      i {
+        color: var(--hero-red);
+      }
     }
   }
 
+  /* ===== Numbers =====
+     Three tinted counters instead of a ruled row: red, green and saffron - the same three colours as
+     the chips above and the stripe below - each on a card of its own tint, so the row reads as part
+     of the band rather than as small print under it. The figures stay tabular so the live counts do
+     not shiver sideways as they arrive. */
   .hero-stats {
     display: flex;
-    gap: 2.5rem;
-    margin-top: 2.5rem;
-    padding-top: 1.75rem;
-    border-top: 1px solid var(--border-color);
+    gap: 0.6rem;
     animation: fadeInUp 0.8s ease 0.45s both;
 
     .stat-item {
       display: flex;
       flex-direction: column;
-      position: relative;
-
-      &::after {
-        content: '';
-        position: absolute;
-        right: -1.25rem;
-        top: 10%;
-        height: 80%;
-        width: 1px;
-        background: var(--border-color);
-      }
-
-      &:last-child::after {
-        display: none;
-      }
+      gap: 0.3rem;
+      flex: 1 1 0;
+      min-width: 0;
+      padding: 0.8rem 0.95rem;
+      border-radius: var(--radius-card);
+      background: rgba(255, 255, 255, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      box-shadow: 0 12px 26px -24px rgba(47, 33, 23, 0.6);
 
       .stat-number {
-        font-size: 1.5rem;
+        font-size: clamp(1.35rem, 1.2rem + 0.6vw, 1.75rem);
         font-weight: 800;
+        line-height: 1;
         letter-spacing: var(--letter-tight);
-        color: var(--heading-color);
+        font-variant-numeric: tabular-nums;
+        color: var(--hero-red);
       }
 
       .stat-label {
         font-size: 0.6875rem;
-        font-weight: 600;
+        font-weight: 700;
         letter-spacing: 0.1em;
         text-transform: uppercase;
-        color: var(--text-muted);
+        color: var(--hero-ink-soft);
+      }
+
+      &:first-child {
+        background: rgba(209, 73, 44, 0.1);
+        border-color: rgba(209, 73, 44, 0.2);
+      }
+
+      &:nth-child(2) {
+        background: rgba(47, 131, 83, 0.12);
+        border-color: rgba(47, 131, 83, 0.22);
+
+        .stat-number {
+          color: var(--hero-green-ink);
+        }
+      }
+
+      &:nth-child(3) {
+        background: rgba(237, 177, 45, 0.22);
+        border-color: rgba(237, 177, 45, 0.42);
+
+        .stat-number {
+          color: var(--hero-saffron-ink);
+        }
       }
     }
   }
 
-  /* ===== Hero Visual / Image Showcase ===== */
+  /* ===== Artwork =====
+     The picture is mounted, not floated: a lacquer panel sits under the white frame, offset down and
+     to the right and turned slightly out of true, so the page reads a print on a coloured board. Two
+     square miniatures hang over the right edge at a slight angle, as if they had been laid down by
+     hand, a landscape print leans on the left edge, and the secure chip sits in the quiet top-left
+     corner of the scene, where the artwork is only sky. */
   .hero-visual {
     position: relative;
-    padding-left: 2rem;
+    /* The indent on the left is the gutter against the copy, and it is what the landscape miniature
+       hangs into; the one on the right keeps the two square miniatures off the edge of the page,
+       which they were reaching for at 1440. Both came in by half a rem when the mount was added. */
+    padding-left: 1.5rem;
+    padding-right: 1rem;
+    animation: fadeInUp 0.9s ease 0.2s both;
   }
 
   .hero-image-showcase {
     position: relative;
-    max-width: 500px;
+    max-width: 540px;
     margin-left: auto;
+    z-index: 1;
+
+    /* The mount: a lacquer panel laid under the white frame, offset down and to the right and turned
+       a degree out of true, so the artwork reads as a print mounted on a coloured board rather than
+       as a picture floating on the page. It is the only large area of pure colour in the band. */
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 18px -16px -20px 16px;
+      background: linear-gradient(145deg, rgba(248, 205, 85, 0.85) 0%, rgba(209, 73, 44, 0.6) 54%, rgba(47, 131, 83, 0.5) 100%);
+      border-radius: var(--radius-md);
+      transform: rotate(-1.6deg);
+      z-index: -1;
+    }
   }
 
   .showcase-card {
@@ -206,7 +460,7 @@
     border-radius: var(--radius-media);
     overflow: hidden;
     background: var(--surface);
-    transition: transform 0.5s ease;
+    transition: var(--transition-base);
 
     img {
       width: 100%;
@@ -217,27 +471,35 @@
     }
 
     &:hover img {
-      transform: scale(1.08);
+      transform: scale(1.06);
     }
   }
 
   .showcase-card-main {
-    width: 100%;
-    height: 400px;
     position: relative;
+    width: 100%;
+    /* The art is drawn in a 640 x 512 box, so holding the frame to that ratio means object-fit
+       never crops the shelf the pieces stand on, at any column width. The hairline and the shadow
+       do the mounting: the artwork already carries a white margin of its own, so a second mount
+       here only made the picture smaller inside its frame. */
+    aspect-ratio: 640 / 512;
+    background: var(--white);
+    border: 1px solid rgba(47, 33, 23, 0.12);
+    box-shadow: 0 30px 60px -40px rgba(47, 33, 23, 0.8);
 
     img {
-      height: 400px;
+      height: 100%;
     }
 
     .showcase-tag {
       position: absolute;
       bottom: 1rem;
       left: 1rem;
-      background: var(--white);
-      color: var(--heading-color);
+      background: var(--hero-saffron-light);
+      color: var(--hero-ink);
       padding: 0.45rem 0.9rem;
       border-radius: var(--radius-badge);
+      border: 1px solid rgba(138, 91, 6, 0.28);
       font-size: 0.6875rem;
       font-weight: 700;
       letter-spacing: 0.1em;
@@ -247,7 +509,7 @@
       gap: 0.4rem;
 
       i {
-        color: var(--heading-color);
+        color: var(--hero-red);
       }
     }
   }
@@ -256,53 +518,81 @@
     position: absolute;
     /* Square frame: the mini-card art (doll.svg / top.svg) is drawn in a 240x240 box, so a
        non-square frame forced object-fit: cover to slice the hat and base rings off. The
-       base `.showcase-card img` rule (width/height 100% + cover) then fills it 1:1. */
+       base `.showcase-card img` rule (width/height 100% + cover) then fills it 1:1. The landscape
+       print below shares this frame's border and shadow, but sets its own 4:3 box. */
     width: 160px;
     height: 160px;
     border: 6px solid var(--white);
-    box-shadow: var(--shadow-md);
+    box-shadow: 0 22px 45px -24px rgba(0, 0, 0, 0.55);
+    transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+
+    /* Straightens up when pointed at - the cards are laid down at an angle, not glued there. */
+    &:hover {
+      transform: translateY(-3px) rotate(0deg);
+    }
   }
 
   .showcase-card-top {
-    top: -20px;
-    right: -30px;
+    top: -1.5rem;
+    right: -1rem;
+    transform: rotate(2.5deg);
   }
 
   .showcase-card-bottom {
-    bottom: -20px;
-    right: -20px;
+    bottom: -1.5rem;
+    right: -0.5rem;
+    transform: rotate(-2deg);
   }
 
-  /* ===== Floating Badges ===== */
+  /* A landscape print rather than a square: vases.svg is drawn in a 400 x 300 box, so a 4:3 frame
+     shows the whole turned vase and its two dried stems, while a square one would have sliced the
+     sides off with object-fit: cover. Its width is a share of the frame rather than a pixel size, so
+     it stays the same proportion of the composition at every column width. */
+  .showcase-card-wide {
+    width: 34%;
+    height: auto;
+    aspect-ratio: 4 / 3;
+  }
+
+  /* Seated on the left edge just above the rocking horse: in the artwork the horse stands from
+     y≈258 to the shelf at y≈385 (of 512), and the Secure chip sits in the top corner, so 17% down
+     is the clear band of turning rings where a third frame can hang without hiding a toy. */
+  .showcase-card-left {
+    top: 17%;
+    bottom: auto;
+    left: -3rem;
+    transform: rotate(-3.5deg);
+  }
+
+  /* ===== Secure chip =====
+     Chocolate ink on the pale end of the artwork, so the band carries one dark anchor besides the
+     vermilion button - the same #2f2117 the headline is set in, which is why it sits in the palette
+     rather than outside it. It used to sit top-right, directly on top of the doll miniature, which
+     read as a collision rather than as a badge. */
   .hero-floating-badge {
     position: absolute;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    background: var(--white);
-    border: 1px solid var(--border-color);
+    background: var(--hero-ink);
+    color: var(--white);
+    border: 1px solid var(--hero-ink);
     padding: 0.6rem 1rem;
     border-radius: var(--radius-badge);
     font-size: 0.6875rem;
     font-weight: 700;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--heading-color);
-    z-index: 3;
+    z-index: 4;
 
     i {
       font-size: 0.9rem;
-      color: var(--heading-color);
-    }
-
-    &.badge-1 {
-      bottom: 30px;
-      left: -10px;
+      color: var(--white);
     }
 
     &.badge-2 {
-      top: 30px;
-      right: 10px;
+      top: 1.5rem;
+      left: 1.5rem;
     }
   }
 }

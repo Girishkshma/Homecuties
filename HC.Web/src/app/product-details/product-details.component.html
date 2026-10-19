@@ -108,6 +108,50 @@
 
         </div>
 
+        <!-- Buy block: the stock line and the two actions stand directly under the price, so what the shopper came to
+             the page to do is on the first screen instead of under the description, the features and the tags. -->
+        <div class="product-buy">
+          <!-- Stock availability -->
+          <div class="stock-availability" [class.out]="!product.IsInStock">
+            <i class="bi" [class.bi-check-circle-fill]="product.IsInStock"
+               [class.bi-x-circle-fill]="!product.IsInStock"></i>
+            <ng-container *ngIf="product.IsInStock; else outOfStockText">
+              In Stock — <strong>{{ product.AvailableQty }}</strong> available
+            </ng-container>
+            <ng-template #outOfStockText>Out of Stock</ng-template>
+          </div>
+
+          <!-- Actions -->
+          <div class="product-actions">
+            <ng-container *ngIf="product.IsInStock; else outOfStockBlock">
+              <div class="quantity-control">
+                <button (click)="decrementQuantity()" [disabled]="quantity <= 1">−</button>
+                <input type="number" [(ngModel)]="quantity" min="1" [max]="maxQuantity" readonly>
+                <button (click)="incrementQuantity()" [disabled]="isAtMaxQuantity">+</button>
+              </div>
+              <button class="btn-add-to-cart" (click)="addToCart()" [disabled]="addedToCart">
+                <i class="bi" [class.bi-cart-plus]="!addedToCart" [class.bi-check-lg]="addedToCart"></i>
+                {{ addedToCart ? 'Added to Cart!' : 'Add to Cart' }}
+              </button>
+            </ng-container>
+            <ng-template #outOfStockBlock>
+              <div class="out-of-stock-badge">
+                <i class="bi bi-x-circle me-2"></i> Out of Stock
+              </div>
+            </ng-template>
+            <button class="btn-favorite" (click)="toggleFavorite()"
+                    [class.active]="isFavorite"
+                    title="{{ isFavorite ? 'Remove from Favorites' : 'Add to Favorites' }}">
+              <i class="bi" [class.bi-heart]="!isFavorite" [class.bi-heart-fill]="isFavorite"></i>
+              {{ isFavorite ? 'Favorited' : 'Add to Favorites' }}
+            </button>
+          </div>
+
+          <a routerLink="/cart" class="btn btn-outline-primary w-100" *ngIf="addedToCart">
+            <i class="bi bi-cart me-1"></i> View Cart
+          </a>
+        </div>
+
         <p class="product-description">{{ product.ProductDescription }}</p>
 
         <!-- Features -->
@@ -128,45 +172,6 @@
           </span>
         </div>
 
-        <!-- Stock availability -->
-        <div class="stock-availability" [class.out]="!product.IsInStock">
-          <i class="bi" [class.bi-check-circle-fill]="product.IsInStock"
-             [class.bi-x-circle-fill]="!product.IsInStock"></i>
-          <ng-container *ngIf="product.IsInStock; else outOfStockText">
-            In Stock — <strong>{{ product.AvailableQty }}</strong> available
-          </ng-container>
-          <ng-template #outOfStockText>Out of Stock</ng-template>
-        </div>
-
-        <!-- Actions -->
-        <div class="product-actions">
-          <ng-container *ngIf="product.IsInStock; else outOfStockBlock">
-            <div class="quantity-control">
-              <button (click)="decrementQuantity()" [disabled]="quantity <= 1">−</button>
-              <input type="number" [(ngModel)]="quantity" min="1" [max]="maxQuantity" readonly>
-              <button (click)="incrementQuantity()" [disabled]="isAtMaxQuantity">+</button>
-            </div>
-            <button class="btn-add-to-cart" (click)="addToCart()" [disabled]="addedToCart">
-              <i class="bi" [class.bi-cart-plus]="!addedToCart" [class.bi-check-lg]="addedToCart"></i>
-              {{ addedToCart ? 'Added to Cart!' : 'Add to Cart' }}
-            </button>
-          </ng-container>
-          <ng-template #outOfStockBlock>
-            <div class="out-of-stock-badge">
-              <i class="bi bi-x-circle me-2"></i> Out of Stock
-            </div>
-          </ng-template>
-          <button class="btn-favorite" (click)="toggleFavorite()"
-                  [class.active]="isFavorite"
-                  title="{{ isFavorite ? 'Remove from Favorites' : 'Add to Favorites' }}">
-            <i class="bi" [class.bi-heart]="!isFavorite" [class.bi-heart-fill]="isFavorite"></i>
-            {{ isFavorite ? 'Favorited' : 'Add to Favorites' }}
-          </button>
-        </div>
-
-        <a routerLink="/cart" class="btn btn-outline-primary w-100" *ngIf="addedToCart">
-          <i class="bi bi-cart me-1"></i> View Cart
-        </a>
       </div>
     </div>
   </div>

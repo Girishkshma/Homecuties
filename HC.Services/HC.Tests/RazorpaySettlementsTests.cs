@@ -318,6 +318,27 @@ public class RazorpaySettlementsTests
     }
 
     /// <summary>
+    /// A day's report is asked for the way the recon endpoint wants a day named: the year, the month and the day
+    /// as plain numbers, then the page. Never as the epoch window the settlement list beside it takes - Razorpay
+    /// answers a request that names no year and no month with 400 ('The year field is required'), which a pull can
+    /// only report as a day that could not be read, and no amount of retrying asks a differently shaped question.
+    /// </summary>
+    [Fact]
+    public void ADayIsAskedForAsAYearAMonthAndADayAndNeverAsAWindow()
+    {
+        var april = RazorpaySettlements.ReconRequestPath(new DateOnly(2025, 4, 1), 100, 0);
+
+        Assert.Equal("/settlements/recon/combined?year=2025&month=4&day=1&count=100&skip=0", april);
+        Assert.DoesNotContain("from=", april);
+        Assert.DoesNotContain("to=", april);
+
+        // A two-digit month and day are still plain numbers - the month is 10, not 010 or October.
+        var october = RazorpaySettlements.ReconRequestPath(new DateOnly(2025, 10, 5), 100, 200);
+
+        Assert.Equal("/settlements/recon/combined?year=2025&month=10&day=5&count=100&skip=200", october);
+    }
+
+    /// <summary>
     /// The settlement's own figure is what the payment row ends up with: the gateway's charge and the GST on it
     /// are the ones the bank was settled on, what the shop keeps is worked out from them, and the row is marked
     /// as carrying the recon's word (OrderPaymentCharges.FromRecon) - which nothing may put back.

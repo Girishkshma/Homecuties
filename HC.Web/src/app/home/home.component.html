@@ -1,18 +1,12 @@
 <!-- Hero Banner -->
 <section class="hero-banner">
   <div class="hero-bg-overlay"></div>
-  <div class="hero-particles">
-    <span class="particle"></span>
-    <span class="particle"></span>
-    <span class="particle"></span>
-    <span class="particle"></span>
-    <span class="particle"></span>
-  </div>
   <div class="container">
-    <div class="row align-items-center min-vh-60">
+    <div class="row align-items-center">
       <div class="col-lg-6">
         <div class="hero-badge">
-          <i class="bi bi-star-fill me-1"></i> New Collection 2026
+          <span class="hero-badge-dot" aria-hidden="true"></span>
+          New Collection 2026
         </div>
         <h1>Handcrafted <span class="text-accent">Home Decor</span><br>That Tells a Story</h1>
         <p class="hero-description">Discover exquisite woodwork and home decor pieces, each meticulously crafted to bring warmth, character, and timeless elegance to every corner of your home.</p>
@@ -21,7 +15,21 @@
             <i class="bi bi-bag-check"></i> Shop Now
           </a>
           <a routerLink="/shop" class="btn-hero-outline">
-            <i class="bi bi-play-circle me-1"></i> See Collection
+            See Collection <i class="bi bi-arrow-right"></i>
+          </a>
+        </div>
+        <!-- The three things the shelf actually holds, each a way into the shop. They sit between
+             the buttons and the counters so the column has no empty band without a purpose, and
+             they carry the lacquer palette (red / green / saffron) that the rest of the band uses. -->
+        <div class="hero-chips">
+          <a routerLink="/shop" class="hero-chip chip-pots">
+            <i class="bi bi-palette2"></i> Painted pots
+          </a>
+          <a routerLink="/shop" class="hero-chip chip-vases">
+            <i class="bi bi-flower2"></i> Bottle vases
+          </a>
+          <a routerLink="/shop" class="hero-chip chip-toys">
+            <i class="bi bi-stars"></i> Wooden toys
           </a>
         </div>
         <div class="hero-stats">
@@ -54,10 +62,16 @@
             <div class="showcase-card showcase-card-sm showcase-card-bottom">
               <img src="/images/channapatna/top.svg" alt="Channapatna spinning top" loading="lazy">
             </div>
-          </div>
-          <div class="hero-floating-badge badge-2">
-            <i class="bi bi-shield-check"></i>
-            <span>Secure</span>
+            <!-- A landscape miniature rather than a square one: vases.svg is drawn in a 400 x 300
+                 box, so a 4:3 frame shows the whole turned vase and its two dried stems, while a
+                 square one would have sliced the sides off with object-fit: cover. -->
+            <div class="showcase-card showcase-card-sm showcase-card-wide showcase-card-left">
+              <img src="/images/channapatna/vases.svg" alt="Turned wooden vase with two dried stems" loading="lazy">
+            </div>
+            <div class="hero-floating-badge badge-2">
+              <i class="bi bi-shield-check"></i>
+              <span>Secure</span>
+            </div>
           </div>
         </div>
       </div>
@@ -95,46 +109,31 @@
   </div>
 </section>
 
-<!-- Categories Section: the catalogue's headings, each with the shelves the shop sells from read under it.
-     A heading is not a place a product sits, so the heading names the collection and opens everything filed beneath
-     it, while the tiles below it are the shelves themselves. -->
-<section class="section categories-section" *ngIf="blocks.length > 0">
+<!-- Collection Banner: the shop's own photographs. The four product shots are laid in a row and cut to one band by
+     HC.Web/scripts/make-banner.ps1 - the light surface, the gaps between the photographs and the product-card corners
+     are all in the picture, so the band needs no card, border or shadow of its own. The words stay here in HTML: they
+     wrap, they are read out and they are translated, none of which a picture can do. -->
+<section class="section collection-banner-section">
   <div class="container">
-    <div class="section-header text-center">
+    <div class="section-header">
       <div>
-        <span class="section-subtitle">Categories</span>
-        <h2 class="section-title">Shop by Category</h2>
-        <p class="section-description">Browse our curated collection of home decor categories</p>
+        <span class="section-subtitle">The Collection</span>
+        <h2 class="section-title">Painted pots, bottle vases, wooden toys</h2>
+        <p class="section-description">Shot in our own studio, exactly as it arrives - no stock photography.</p>
       </div>
+      <a routerLink="/shop" class="btn btn-outline-primary btn-sm d-none d-md-inline-flex">
+        Shop the Collection <i class="bi bi-arrow-right ms-1"></i>
+      </a>
     </div>
-
-    <div class="category-group" *ngFor="let block of blocks">
-      <div class="category-group-head">
-        <h3 class="category-group-title">
-          <a *ngIf="block.heading; else noHeading" [routerLink]="['/shop', block.heading.CategoryID]">{{ block.heading.CategoryName }}</a>
-          <ng-template #noHeading>More from the shop</ng-template>
-        </h3>
-        <a *ngIf="block.heading" class="category-group-link" [routerLink]="['/shop', block.heading.CategoryID]">
-          View all <i class="bi bi-arrow-right"></i>
-        </a>
-      </div>
-
-      <div class="row g-4">
-        <div *ngFor="let tile of block.tiles" class="col-lg-3 col-md-4 col-6">
-          <a [routerLink]="['/shop', tile.category.CategoryID]" class="category-card">
-            <div class="category-image-wrapper">
-              <img [src]="getCategoryImage(tile.category)" alt="{{ tile.category.CategoryName }}" class="category-img" loading="lazy">
-              <div class="category-overlay"></div>
-            </div>
-            <div class="category-info">
-              <h4>{{ tile.category.CategoryName }}</h4>
-              <span class="category-link">
-                Browse <i class="bi bi-arrow-right"></i>
-              </span>
-            </div>
-          </a>
-        </div>
-      </div>
+    <a routerLink="/shop" class="collection-banner">
+      <img src="/images/banners/home-collection.jpg"
+           alt="A blue geometric bottle vase, a black leaf bottle vase, a house-shaped shelf of painted pots and a wooden cat toy"
+           width="1600" height="620" loading="lazy">
+    </a>
+    <div class="text-center mt-4 d-md-none">
+      <a routerLink="/shop" class="btn btn-outline-primary">
+        Shop the Collection <i class="bi bi-arrow-right ms-1"></i>
+      </a>
     </div>
   </div>
 </section>

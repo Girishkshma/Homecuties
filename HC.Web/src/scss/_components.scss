@@ -330,9 +330,9 @@
     gap: 1.5rem 2rem;
   }
 
-  /* One heading's column: its name, then the shelves read under it. The left rule is the reading the home page already
-     gives a heading (see .category-group-head in _sections.scss). It is drawn on every column, in the lightest ink, so
-     marking the browsed one changes its colour and moves nothing. */
+  /* One heading's column: its name, then the shelves read under it. The left rule marks it as a heading - a collection,
+     and never one of the chips inside it - and it is drawn on every column, in the lightest ink, so marking the browsed
+     one changes its colour and moves nothing. */
   .filter-column {
     display: flex;
     flex-direction: column;
@@ -491,7 +491,10 @@
 
 /* ===== Product Detail ===== */
 .product-detail {
-  padding: 2rem 0;
+  /* `padding-block` for the same reason as `.section`: this class sits on the container element
+     itself (`class="container product-detail"`), so a shorthand's `0` here would drop the page's
+     inline padding and let the g-5 row below push the layout wider than a phone. */
+  padding-block: 2rem;
 
   .product-gallery {
     .main-image {
