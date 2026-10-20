@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Product, Category, HomeStats } from '../models/product.model';
+import { Product, Category, HomeStats, SearchSuggestions } from '../models/product.model';
 import { ApiConfigService } from './api.service';
 
 @Injectable({
@@ -25,6 +25,26 @@ export class ProductService {
 
   getProductsByCategory(categoryId: number): Observable<Product[]> {
     return this.http.get<Product[]>(this.config.getBaseServUrl() + 'products/GetProductsByCategory/' + categoryId);
+  }
+
+  /**
+   * The products matching what a shopper typed in the header's search box. The words are read by the API (see
+   * ProductSearch in HC.Business): every one of them has to appear in the product's title, its name, its description or
+   * the name of a shelf it is filed on, so 'wooden vase' and 'vase wooden' answer with the same pieces.
+   */
+  searchProducts(query: string): Observable<Product[]> {
+    const params = new HttpParams().set('query', query);
+    return this.http.get<Product[]>(this.config.getBaseServUrl() + 'products/SearchProducts', { params });
+  }
+
+  /**
+   * What the header's search box offers while a shopper is still typing: the collections the words name and the pieces
+   * whose own names they appear in (see the API's GetSearchSuggestionsAsync). It is asked for on a pause in typing
+   * rather than on every key (see SideMenuComponent), which is why its answer is a handful of names and nothing more.
+   */
+  getSearchSuggestions(query: string): Observable<SearchSuggestions> {
+    const params = new HttpParams().set('query', query);
+    return this.http.get<SearchSuggestions>(this.config.getBaseServUrl() + 'products/SearchSuggestions', { params });
   }
 
   getCategories(): Observable<Category[]> {

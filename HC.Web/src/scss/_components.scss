@@ -461,6 +461,67 @@
   }
 }
 
+/* ===== Shop Search =====
+   A search is a place on the shop page rather than a mode of the header: the words are carried in the address (see
+   ShopComponent), so the listing can say which search it is showing - and a shopper who has just searched is not left
+   to work out why the shelves are suddenly short of pieces. */
+.search-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  padding: 0.85rem 1.25rem;
+  margin-bottom: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-card);
+
+  .search-summary-text {
+    flex: 1 1 auto;
+    margin: 0;
+    font-size: 0.9375rem;
+    color: var(--text-muted);
+
+    i {
+      color: var(--gray-500);
+    }
+
+    strong {
+      color: var(--heading-color);
+      font-weight: 600;
+    }
+  }
+
+  /* The way back out is drawn as the filter chips are, because it does the same thing they do: it puts the shopper
+     somewhere else in the shop. */
+  .search-summary-clear {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-button);
+    background: var(--white);
+    color: var(--heading-color);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: var(--letter-label);
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: var(--transition-fast);
+
+    &:hover {
+      border-color: var(--heading-color);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+  }
+}
+
 /* ===== Breadcrumb ===== */
 .breadcrumb {
   background: transparent;

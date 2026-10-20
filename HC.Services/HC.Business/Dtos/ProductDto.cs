@@ -112,3 +112,32 @@ public class HomeStatsDto
     /// <summary>Registered customers.</summary>
     public int CustomerCount { get; set; }
 }
+
+/// <summary>
+/// What the header's search box offers while a shopper is still typing: the collections the words name and the pieces
+/// whose own names they appear in (see <see cref="ProductService.GetSearchSuggestionsAsync"/>).
+///
+/// It is deliberately small - names and ids, no prices and no photos - because it is asked for while the words are
+/// still arriving rather than once they are in. Every row of it has to be a place a click can go: a collection opens
+/// the shop on it, a piece opens its page, and the shop itself is searched for the words as a whole.
+/// </summary>
+public class SearchSuggestionsDto
+{
+    /// <summary>
+    /// The collections that answer to the word being typed, in the table's own order - the rows themselves, not
+    /// everything filed beneath them (opening one shows that, and that is what the shop page does).
+    /// </summary>
+    public List<CategoryDto> Categories { get; set; } = new();
+
+    /// <summary>The pieces whose title or name the words appear in, in the order the shop page lists them.</summary>
+    public List<SearchSuggestionProductDto> Products { get; set; } = new();
+}
+
+/// <summary>One piece the header's box suggests: the name to show and the id its page is opened by.</summary>
+public class SearchSuggestionProductDto
+{
+    public int ProductID { get; set; }
+
+    /// <summary>The piece's title, which is the name the shop lists it under.</summary>
+    public string ProductTitle { get; set; } = "";
+}

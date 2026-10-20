@@ -79,6 +79,25 @@ export interface Category {
   ParentCategoryID: number | null;
 }
 
+/**
+ * What the header's search box offers while a shopper is still typing (see the API's GetSearchSuggestionsAsync): the
+ * collections the word being typed names and the pieces whose own names the words appear in.
+ *
+ * It is names and ids only - no prices and no photos - because it is asked for while the words are still arriving
+ * rather than once they are in. Every row of it is a place a click goes: a collection opens the shop on it, a piece
+ * opens its page, and the whole of the words is searched on the shop page.
+ */
+export interface SearchSuggestions {
+  Categories: Category[];
+  Products: SearchSuggestionProduct[];
+}
+
+/** One piece the box suggests: the name to show and the id its page is opened by. */
+export interface SearchSuggestionProduct {
+  ProductID: number;
+  ProductTitle: string;
+}
+
 export interface CartItem {
   ProductID: number;
   Quantity: number;

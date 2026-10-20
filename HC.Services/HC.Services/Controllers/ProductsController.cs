@@ -28,6 +28,30 @@ public class ProductsController : ControllerBase
         return Ok(products);
     }
 
+    /// <summary>
+    /// The shop searched from the storefront header's search box: the products matching the shopper's words (see
+    /// ProductService.SearchProductsAsync). A blank query answers with nothing, so a stray empty search cannot be read
+    /// as a request for the whole catalogue.
+    /// </summary>
+    [HttpGet("SearchProducts")]
+    public async Task<ActionResult<IEnumerable<object>>> SearchProducts([FromQuery] string? query)
+    {
+        var products = await _productService.SearchProductsAsync(query);
+        return Ok(products);
+    }
+
+    /// <summary>
+    /// What the storefront header's search box offers while a shopper is still typing: the collections the word names
+    /// and the pieces whose names it appears in (see ProductService.GetSearchSuggestionsAsync). It is asked for while
+    /// the words are arriving rather than once they are in, so its answer is a handful of names - no prices, no photos.
+    /// </summary>
+    [HttpGet("SearchSuggestions")]
+    public async Task<ActionResult<object>> SearchSuggestions([FromQuery] string? query)
+    {
+        var suggestions = await _productService.GetSearchSuggestionsAsync(query);
+        return Ok(suggestions);
+    }
+
     /// <summary>Live counts (products / customers / categories) for the storefront hero section.</summary>
     [HttpGet("GetHomeStats")]
     public async Task<ActionResult<object>> GetHomeStats()

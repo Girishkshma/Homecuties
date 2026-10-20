@@ -113,4 +113,68 @@ public static class CategoryBranch
 
         return branch;
     }
+
+    /// <summary>
+    /// The categories whose own name a search word appears in, in the table's own order - the rows that answer to the
+    /// word, as opposed to everything beneath them (see <see cref="Answering"/>).
+    ///
+    /// It is what the header's search box offers while a shopper is still typing: a row that answers to the word is a
+    /// row a click can open, so a shopper who types 'decor' is offered 'Decoratives' itself rather than each of the
+    /// shelves under it (which is what the search, not the suggestion, answers with).
+    ///
+    /// The word is read without regard to the case it was typed in, and part of a name is enough. A blank word names
+    /// nothing at all.
+    /// </summary>
+    public static List<CategoryDto> NamedBy(IEnumerable<CategoryDto> categories, string? word)
+    {
+        var typed = word?.Trim() ?? string.Empty;
+
+        if (typed.Length == 0)
+        {
+            return new List<CategoryDto>();
+        }
+
+        return categories
+            .Where(category => category.CategoryName.Contains(typed, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    /// <summary>
+    /// The categories a search word names: every category whose own name the word appears in (see
+    /// <see cref="NamedBy"/>), and everything beneath each of them, at any depth - what opening that category would
+    /// show (see <see cref="Beneath"/>).
+    ///
+    /// It is what lets the header's search box answer with a heading's pieces. A shopper who types 'Toys' means the
+    /// collection the menu offers under that name, but nothing is filed on 'Toys' itself - the shop files its pieces on
+    /// the shelves under it - so a search that read only the name on the row a product is filed on would answer 'Toys'
+    /// with nothing while the menu opens it with a shelf full. The branch is taken instead, exactly as browsing takes
+    /// it, so a search for a heading and opening that heading answer with the same pieces.
+    ///
+    /// The word is read without regard to the case it was typed in, and a blank one names nothing at all. A word no
+    /// category names answers with no categories, which the query reads as 'no category of the shop answers this'.
+    /// The answer is in the table's own order, each category once, and a loop in the table (two rows each naming the
+    /// other as parent) adds nothing twice - <see cref="Beneath"/> ends the walk.
+    /// </summary>
+    public static List<short> Answering(IEnumerable<CategoryDto> categories, string? word)
+    {
+        var all = categories.ToList();
+        var named = NamedBy(all, word);
+
+        if (named.Count == 0)
+        {
+            return new List<short>();
+        }
+
+        var answering = new HashSet<short>();
+
+        foreach (var category in named)
+        {
+            answering.UnionWith(Beneath(all, category.CategoryID));
+        }
+
+        return all
+            .Where(category => answering.Contains(category.CategoryID))
+            .Select(category => category.CategoryID)
+            .ToList();
+    }
 }

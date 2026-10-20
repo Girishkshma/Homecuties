@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { ActivatedRoute, Router } from '@angular/router';
+import { Subscription, combineLatest } from 'rxjs';
 import { ProductService } from '../services/product.service';
 import { FavoritesService } from '../services/favorites.service';
 import { AuthService } from '../services/auth.service';
@@ -32,27 +32,45 @@ export class ShopComponent implements OnInit, OnDestroy {
   ungrouped: CategoryRow[] = [];
 
   selectedCategoryId: number | null = null;
+
+  /**
+   * The words the shop is being searched for, as the header's search box submitted them. Kept here because the page has
+   * to say what it is listing and how to get back to browsing; the address is where it comes from (see ngOnInit).
+   */
+  searchTerm = '';
+
   loading = true;
   error = '';
   UtilityService = UtilityService;
   favoriteProductIds: Set<number> = new Set();
   cartQuantities: Map<number, number> = new Map();
   private cartSubscription?: Subscription;
+  private routeSubscription?: Subscription;
 
   constructor(
     private productService: ProductService,
     private favoritesService: FavoritesService,
     private authService: AuthService,
     private cartService: CartService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private router: Router
   ) {}
 
+  /**
+   * The shop listens to the address rather than to the header: a shelf step and a search are both carried in it (see
+   * SideMenuComponent's submitSearch and the filter links), which is what makes a listing linkable and lets a search be
+   * cleared by stepping out to 'All Products'. Both streams start with their current value, and they are read together
+   * so a shelf step and a search arriving at once load the shop once rather than twice.
+   */
   ngOnInit(): void {
     this.loadCategories();
-    this.route.params.subscribe(params => {
-      this.selectedCategoryId = params['categoryId'] ? Number(params['categoryId']) : null;
-      this.loadProducts();
-    });
+    this.routeSubscription = combineLatest([this.route.params, this.route.queryParams]).subscribe(
+      ([params, queryParams]) => {
+        this.selectedCategoryId = params['categoryId'] ? Number(params['categoryId']) : null;
+        this.searchTerm = (queryParams['q'] || '').trim();
+        this.loadProducts();
+      }
+    );
     this.cartSubscription = this.cartService.cartItems$.subscribe((items: CartItem[]) => {
       this.cartQuantities.clear();
       items.forEach(item => {
@@ -63,6 +81,7 @@ export class ShopComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.cartSubscription?.unsubscribe();
+    this.routeSubscription?.unsubscribe();
   }
 
   toggleFavorite(productId: number): void {
@@ -107,11 +126,21 @@ export class ShopComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Loads what the page lists: the search's answer if the address carries one, otherwise the shelf being browsed (or the
+   * whole shop). A search is asked of the whole catalogue rather than of the shelf, because the header's box says
+   * nothing about collections - a shopper who searched from inside a shelf is not silently narrowed to it, and one who
+   * steps into a shelf afterwards leaves the search behind (see the filter links).
+   */
   private loadProducts(): void {
     this.loading = true;
-    const obs = this.selectedCategoryId
-      ? this.productService.getProductsByCategory(this.selectedCategoryId)
-      : this.productService.getActiveProducts();
+    this.error = '';
+
+    const obs = this.searchTerm
+      ? this.productService.searchProducts(this.searchTerm)
+      : this.selectedCategoryId
+        ? this.productService.getProductsByCategory(this.selectedCategoryId)
+        : this.productService.getActiveProducts();
 
     obs.subscribe({
       next: (data) => {
@@ -120,7 +149,7 @@ export class ShopComponent implements OnInit, OnDestroy {
         this.loadFavoriteStatus();
       },
       error: (err) => {
-        this.error = 'Failed to load products.';
+        this.error = this.searchTerm ? 'Failed to search the shop.' : 'Failed to load products.';
         this.loading = false;
         console.error(err);
       }
@@ -176,9 +205,21 @@ export class ShopComponent implements OnInit, OnDestroy {
       || heading.rows.some(row => row.category.CategoryID === this.selectedCategoryId);
   }
 
+  /**
+   * Steps into a shelf, or back out to the whole shop, and leaves any search behind: the address is what says which
+   * place the page is showing, so browsing is a move to another place rather than a filter laid over a search. Kept
+   * for callers that hold a category id rather than a link; the filter chips navigate themselves.
+   */
   filterByCategory(categoryId: number | null): void {
-    this.selectedCategoryId = categoryId;
-    this.loadProducts();
+    this.router.navigate(categoryId ? ['/shop', categoryId] : ['/shop']);
+  }
+
+  /**
+   * Back to browsing the whole shop. The search is cleared off the address rather than only off the page, so the listing
+   * a shopper is left looking at is the one the address names - reloading or sharing it shows the shop again.
+   */
+  clearSearch(): void {
+    this.router.navigate(['/shop'], { queryParams: { q: null }, queryParamsHandling: 'merge' });
   }
 
   /**

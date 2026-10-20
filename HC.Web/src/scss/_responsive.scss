@@ -4,6 +4,17 @@
     display: none;
   }
 
+  /* The search panel becomes a strip under the bar rather than a dropdown hung off its button: on a phone that button
+     sits near the right edge, so a 26rem panel would reach past the left one. Its edges are the page's own gutter, so
+     it stands in the page rather than off it. */
+  .header-search-panel {
+    position: fixed;
+    top: calc(var(--navbar-height) + 0.5rem);
+    left: var(--container-pad);
+    right: var(--container-pad);
+    width: auto;
+  }
+
   .auth-buttons {
     display: none;
   }

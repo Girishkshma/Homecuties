@@ -65,6 +65,60 @@
 
       <!-- Header Actions -->
       <div class="header-actions">
+        <!-- Product search. A panel under the bar rather than a field kept in it, so the header reads the same
+             whether or not a shopper is searching. The words are submitted to the shop, which does the searching
+             (see ShopComponent), so a search is a place the shopper can be sent to and come back to. -->
+        <div class="header-search">
+          <button type="button" class="action-btn search-toggle" [class.active]="isSearchOpen"
+                  #searchToggle
+                  (click)="toggleSearch()" [attr.aria-expanded]="isSearchOpen"
+                  aria-controls="header-search-panel"
+                  [attr.aria-label]="isSearchOpen ? 'Close product search' : 'Search products'"
+                  title="Search products">
+            <i class="bi" [class.bi-search]="!isSearchOpen" [class.bi-x-lg]="isSearchOpen"></i>
+          </button>
+
+          <!-- The panel holds the box and, under it, what the shop answers the words with while they are still being
+               typed: the collections they name and the pieces whose names they appear in. Every row of the list is a
+               place a click goes, and the form is still what submits the search itself. -->
+          <div *ngIf="isSearchOpen" id="header-search-panel" class="header-search-panel">
+            <form class="header-search-row" role="search" (ngSubmit)="submitSearch()">
+              <label class="visually-hidden" for="header-search-input">Search products</label>
+              <div class="header-search-field">
+                <i class="bi bi-search" aria-hidden="true"></i>
+                <input id="header-search-input" type="search" name="headerSearch" #searchInput [(ngModel)]="searchTerm"
+                       (ngModelChange)="onSearchInput($event)" (keydown)="onSearchKeydown($event)"
+                       role="combobox" aria-autocomplete="list" aria-controls="header-suggestions"
+                       [attr.aria-expanded]="suggestionRows.length > 0"
+                       [attr.aria-activedescendant]="activeSuggestion >= 0 ? 'header-suggestion-' + activeSuggestion : null"
+                       placeholder="Search products by name or collection" autocomplete="off" />
+                <button *ngIf="searchTerm" type="button" class="search-clear" (click)="clearSearch()"
+                        aria-label="Clear search">
+                  <i class="bi bi-x-lg" aria-hidden="true"></i>
+                </button>
+              </div>
+              <button type="submit" class="btn btn-primary header-search-submit" [disabled]="!searchTerm.trim()">
+                Search
+              </button>
+            </form>
+
+            <!-- The list is walked with the arrows rather than Tab: the box and the list are one thing to a keyboard, so
+                 the rows are not in the page's tab order of their own. -->
+            <ul *ngIf="suggestionRows.length" id="header-suggestions" class="header-suggestions" role="listbox"
+                aria-label="Search suggestions">
+              <li *ngFor="let row of suggestionRows; let i = index" [id]="'header-suggestion-' + i" role="option"
+                  [attr.aria-selected]="i === activeSuggestion" [class.is-active]="i === activeSuggestion"
+                  (mouseenter)="activeSuggestion = i">
+                <button type="button" class="header-suggestion" tabindex="-1" (click)="openSuggestion(row)">
+                  <i class="bi" [ngClass]="row.icon" aria-hidden="true"></i>
+                  <span class="header-suggestion-label">{{ row.label }}</span>
+                  <span class="header-suggestion-hint">{{ row.hint }}</span>
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
+
         <a *ngIf="currentCustomer" routerLink="/my-orders" class="action-btn" title="My Orders">
           <i class="bi bi-receipt"></i>
         </a>

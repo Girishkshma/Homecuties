@@ -137,6 +137,83 @@ public class CategoryBranchTests
         Assert.Equal(
             new short[] { 70, 71 },
             CategoryBranch.Beneath(categories, 70).OrderBy(categoryId => categoryId).ToArray());
+
+        // A search ends the same way: the word names one row of the loop, and the branch behind it answers without
+        // going round.
+        Assert.Equal(new short[] { 70, 71 }, CategoryBranch.Answering(categories, "Odd"));
+    }
+
+    /// <summary>
+    /// A search word that names a category is answered the way the category itself is: the search holds what opening it
+    /// shows (see <see cref="CategoryBranch.Answering"/>). That is what makes a search for a heading - a name the menu
+    /// offers, with nothing filed on it - answer with the heading's pieces instead of with nothing: 'Decoratives' takes
+    /// in 'Vases', 'Pot Houses' and everything filed deeper still.
+    ///
+    /// The word is read without regard to the case it was typed in and a part of a name is enough; a word no category
+    /// names answers with no categories, which is the ordinary case of a search; and a blank word names nothing.
+    /// </summary>
+    [Fact]
+    public void ASearchForACategoryAnswersWithWhatOpeningItShows()
+    {
+        var categories = new[]
+        {
+            Category(2, "Decoratives", null),
+            Category(5, "Vases", 2),
+            Category(6, "Pot Houses", 2),
+            Category(18, "Tall Vases", 5),
+            Category(1, "Toys", null)
+        };
+
+        // A shelf takes in the shelves filed beneath it.
+        Assert.Equal(new short[] { 5, 18 }, CategoryBranch.Answering(categories, "Vases"));
+
+        // A heading takes in its whole branch, at any depth - and the case it was typed in means nothing.
+        Assert.Equal(new short[] { 2, 5, 6, 18 }, CategoryBranch.Answering(categories, "decoratives"));
+
+        // Part of a name is enough to name the category.
+        Assert.Equal(new short[] { 6 }, CategoryBranch.Answering(categories, "POT"));
+
+        // A heading with nothing filed under it answers with itself, as opening it would.
+        Assert.Equal(new short[] { 1 }, CategoryBranch.Answering(categories, "toys"));
+
+        // A word no category names - 'wooden' is a piece, not a collection - names no categories at all.
+        Assert.Empty(CategoryBranch.Answering(categories, "wooden"));
+        Assert.Empty(CategoryBranch.Answering(categories, "   "));
+        Assert.Empty(CategoryBranch.Answering(categories, null));
+    }
+
+    /// <summary>
+    /// The rows a word names on their own: what the header's box offers while a shopper is still typing. A suggestion
+    /// is a place a click opens, so it offers the row that answers to the word - 'Decoratives' for 'decor' - and not
+    /// the shelves beneath it, which are what the listing (not the suggestion) answers with.
+    /// </summary>
+    [Fact]
+    public void AWordNamesTheRowsThatCarryItAndNotTheRowsBeneathThem()
+    {
+        var categories = new[]
+        {
+            Category(2, "Decoratives", null),
+            Category(5, "Vases", 2),
+            Category(6, "Pot Houses", 2),
+            Category(18, "Tall Vases", 5),
+            Category(1, "Toys", null)
+        };
+
+        // The row that answers, not its branch: 'Vases' is offered once even though 'Tall Vases' answers to it too.
+        Assert.Equal(
+            new short[] { 5, 18 },
+            CategoryBranch.NamedBy(categories, "vases").Select(category => category.CategoryID).ToArray());
+
+        // A heading answers on its own name, while the search for the same word answers with its whole branch.
+        Assert.Equal(
+            new short[] { 2 },
+            CategoryBranch.NamedBy(categories, "DECOR").Select(category => category.CategoryID).ToArray());
+        Assert.Equal(new short[] { 2, 5, 6, 18 }, CategoryBranch.Answering(categories, "DECOR"));
+
+        // Nothing to go on: a word no name carries, and a blank or missing one.
+        Assert.Empty(CategoryBranch.NamedBy(categories, "wooden"));
+        Assert.Empty(CategoryBranch.NamedBy(categories, "   "));
+        Assert.Empty(CategoryBranch.NamedBy(categories, null));
     }
 
     /// <summary>The category ids of a listing, in the order the API sent them.</summary>

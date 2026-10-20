@@ -50,6 +50,155 @@ public class ProductService : IProductService
         return products;
     }
 
+    /// <summary>
+    /// The products a shopper's search answers with: every word of the search text has to appear somewhere in the
+    /// product - its title, its name, its description, or the categories it is filed on - so a search can be narrowed
+    /// word by word without the shopper having to remember the whole name of a piece.
+    ///
+    /// A word that names a category is read the way the storefront reads a category: with everything beneath it (see
+    /// <see cref="CategoryBranch.Answering"/>), because nothing is filed on a heading - the shop files its pieces on the
+    /// shelves under it. So 'Decoratives' answers with what the menu opens under 'Decoratives', and not merely with the
+    /// products whose text happens to say the word.
+    ///
+    /// Suspended products are left out, exactly as they are from every other listing. The words themselves are read by
+    /// <see cref="ProductSearch.Terms"/>, where the limits on them live.
+    /// </summary>
+    public async Task<IEnumerable<ProductDto>> SearchProductsAsync(string? query)
+    {
+        var terms = ProductSearch.Terms(query);
+
+        // Nothing was asked: answer with nothing rather than with the whole shop, which is what an empty search would
+        // otherwise look like to a screen.
+        if (terms.Count == 0)
+            return Array.Empty<ProductDto>();
+
+        // The catalogue's rows, flat: which shelves a word names is a walk of the tree, which SQL cannot do (see
+        // CategoryBranch.Answering), so it is answered here and the shelves it answers with are handed to the query.
+        var categories = await _context.Categories
+            .Select(c => new CategoryDto
+            {
+                CategoryID = c.CategoryId,
+                CategoryName = c.CategoryName,
+                ParentCategoryID = c.ParentCategoryId
+            })
+            .ToListAsync();
+
+        var matches = _context.Products
+            .Where(p => p.ProductStatusId != 2); // 2 = Suspended (disabled)
+
+        // One predicate per word, and all of them required: a second word narrows the listing. Each word may be found
+        // in any of the places a shopper would look for it, which is why the predicates are ORs inside the Where. A
+        // link to a category the shop no longer sells from ('IsActive' cleared) names nothing a shopper can browse,
+        // so it answers no word.
+        foreach (var term in terms)
+        {
+            var word = term;
+            var shelves = CategoryBranch.Answering(categories, word);
+
+            matches = matches.Where(p =>
+                p.ProductTitle.Contains(word)
+                || p.ProductName.Contains(word)
+                || p.ProductDescription.Contains(word)
+                || p.ProductCategories.Any(pc => pc.IsActive && shelves.Contains(pc.CategoryId)));
+        }
+
+        var products = await matches
+            .OrderBy(p => p.ProductTitle)
+            .Include(p => p.ProductCategories)
+                .ThenInclude(pc => pc.Category)
+            .Include(p => p.ProductImages)
+            .Include(p => p.ProductFeatures)
+            .Select(ProductProjection)
+            .ToListAsync();
+
+        AddListingPrices(products);
+        await AddStockAsync(products);
+        ResolveImages(products);
+        return products;
+    }
+
+    /// <summary>
+    /// What the header's search box offers while a shopper is still typing: the collections the word being typed names,
+    /// and the pieces whose own names the words appear in.
+    ///
+    /// It is a smaller question than <see cref="SearchProductsAsync"/>, and answers it differently on purpose, because
+    /// every row of it is a place a click goes and so has to be exactly what it says:
+    /// <list type="bullet">
+    /// <item>A collection is the row the words name (see <see cref="CategoryBranch.NamedBy"/>), not the shelves under
+    /// it: a shopper typing 'decor' is offered 'Decoratives', and opening it shows the branch - which is the shop
+    /// page's answer, not the suggestion's.</item>
+    /// <item>A collection nothing is on sale under is not offered at all: a suggestion that opens an empty page is
+    /// worse than no suggestion, and the menu answers this the same way (see <see cref="CategoryBranch.ForBrowsing"/>).</item>
+    /// <item>A piece is offered only when the words appear in its title or its name - not in its description or in the
+    /// name of a shelf it sits on: a row whose own name does not carry what was typed is a row the shopper cannot see
+    /// the reason for. The whole of what the words answer with is the shop page's to show.</item>
+    /// </list>
+    /// Both lists are capped (see <see cref="ProductSearch.MaxSuggestedProducts"/>), the collections first, and the
+    /// words are read by <see cref="ProductSearch.Terms"/> exactly as the search reads them - so a suggestion and the
+    /// listing it leads to read the shopper's text the same way.
+    /// </summary>
+    public async Task<SearchSuggestionsDto> GetSearchSuggestionsAsync(string? query)
+    {
+        var suggestions = new SearchSuggestionsDto();
+        var terms = ProductSearch.Terms(query);
+
+        // One letter names half the shop: the box offers nothing until a word is really being typed.
+        if (terms.Count == 0 || terms[0].Length < ProductSearch.ShortestSuggestedQuery)
+            return suggestions;
+
+        // The catalogue's rows, flat: which rows a word names is a reading of the tree, which SQL cannot do (see
+        // CategoryBranch.NamedBy), so it is answered here.
+        var categories = await _context.Categories
+            .Select(c => new CategoryDto
+            {
+                CategoryID = c.CategoryId,
+                CategoryName = c.CategoryName,
+                ParentCategoryID = c.ParentCategoryId
+            })
+            .ToListAsync();
+
+        // The word being typed is the last one: the words before it are the shopper's own narrowing, and collections
+        // are not named for them ('decorative vases' should still offer 'Vases').
+        var naming = terms[^1];
+
+        // The shelves the shop sells from, so a collection with nothing on sale beneath it can be left out.
+        var selling = await _context.ProductCategories
+            .Where(pc => pc.IsActive)
+            .Select(pc => pc.CategoryId)
+            .Distinct()
+            .ToListAsync();
+
+        var sellingIds = selling.ToHashSet();
+
+        suggestions.Categories = CategoryBranch.NamedBy(categories, naming)
+            .Where(category => CategoryBranch.Beneath(categories, category.CategoryID).Any(sellingIds.Contains))
+            .Take(ProductSearch.MaxSuggestedCategories)
+            .ToList();
+
+        var matches = _context.Products
+            .Where(p => p.ProductStatusId != 2); // 2 = Suspended (disabled)
+
+        // Every word has to appear in the piece's own title or name, so the row says why it is there. One predicate per
+        // word, all of them required - the same reading the search gives them.
+        foreach (var term in terms)
+        {
+            var word = term;
+            matches = matches.Where(p => p.ProductTitle.Contains(word) || p.ProductName.Contains(word));
+        }
+
+        suggestions.Products = await matches
+            .OrderBy(p => p.ProductTitle)
+            .Take(ProductSearch.MaxSuggestedProducts)
+            .Select(p => new SearchSuggestionProductDto
+            {
+                ProductID = p.ProductId,
+                ProductTitle = p.ProductTitle
+            })
+            .ToListAsync();
+
+        return suggestions;
+    }
+
     public async Task<ProductDto?> GetProductAsync(int productId)
     {
         var product = await _context.Products
