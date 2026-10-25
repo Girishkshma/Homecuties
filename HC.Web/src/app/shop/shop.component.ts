@@ -5,6 +5,7 @@ import { ProductService } from '../services/product.service';
 import { FavoritesService } from '../services/favorites.service';
 import { AuthService } from '../services/auth.service';
 import { CartService, CartItem } from '../services/cart.service';
+import { SeoService } from '../seo/seo.service';
 import { Product, Category } from '../models/product.model';
 import { CategoryHeading, CategoryRow, groupedByHeading, pathOf } from '../models/category-tree';
 import { UtilityService } from '../services/utility.service';
@@ -53,7 +54,8 @@ export class ShopComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private cartService: CartService,
     private route: ActivatedRoute,
-    private router: Router
+    private router: Router,
+    private seo: SeoService
   ) {}
 
   /**
@@ -147,11 +149,13 @@ export class ShopComponent implements OnInit, OnDestroy {
         this.products = data;
         this.loading = false;
         this.loadFavoriteStatus();
+        this.updateSeo();
       },
       error: (err) => {
         this.error = this.searchTerm ? 'Failed to search the shop.' : 'Failed to load products.';
         this.loading = false;
         console.error(err);
+        this.updateSeo();
       }
     });
   }
@@ -169,8 +173,46 @@ export class ShopComponent implements OnInit, OnDestroy {
         this.categories = data;
         this.headings = tree.headings;
         this.ungrouped = tree.ungrouped;
+        // A collection is only named once its row is here, so this is the first moment the head can say which one.
+        this.updateSeo();
       },
       error: () => console.error('Failed to load categories')
+    });
+  }
+
+  /**
+   * What the head says about the listing on screen: the words being searched, or the collection being browsed.
+   *
+   * It is written after the answer from the API, never while the page is being activated, and that is deliberate: the
+   * router writes the route's own title and description at the END of a navigation (see PageTitleStrategy), so a title
+   * written before that would be replaced by the generic one. Both places this is called from are API callbacks, which
+   * always arrive afterwards. Browsing the whole shop is left to the route: it says 'Shop Handcrafted Home Decor'
+   * itself, and there is nothing more specific to say.
+   */
+  private updateSeo(): void {
+    if (this.searchTerm) {
+      this.seo.apply({
+        title: `Search: ${this.searchTerm}`,
+        description: `Handcrafted pieces from the Homecuties collection that match “${this.searchTerm}”.`,
+        path: '/shop',
+        // One shopper's words are not a page the shop wants listed: the listing is the same pieces under another term.
+        noindex: true
+      });
+      return;
+    }
+
+    const browsed = this.categories.find(category => category.CategoryID === this.selectedCategoryId);
+    if (!browsed) {
+      return;
+    }
+
+    const path = this.categoryPath(browsed);
+
+    this.seo.apply({
+      title: `${path} — Handcrafted Decor`,
+      description: `${path} from Homecuties: handcrafted pieces, photographed and priced, delivered across India.`,
+      path: `/shop/${browsed.CategoryID}`,
+      keywords: [browsed.CategoryName, 'handcrafted decor', 'home decor']
     });
   }
 

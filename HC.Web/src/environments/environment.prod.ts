@@ -1,5 +1,10 @@
 export const environment = {
   production: true,
+  // The storefront's own address, without a trailing slash. Search engines and
+  // link previews are given absolute URLs (canonical, og:url, og:image, the
+  // Product structured data), and the page that writes them runs on the server
+  // as well, where there is no window.location to ask.
+  siteUrl: 'https://homecuties.com',
   baseServUrl: 'https://serv.homecuties.com/api/',
   // Where a product's photographs are served from: the API's own host, because that is the folder the API writes an
   // upload's sizes into ('{content root}/wwwroot/images/products' - see ProductImageService in HC.Business). It has

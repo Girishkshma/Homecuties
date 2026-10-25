@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { BrowserModule, provideClientHydration, withEventReplay } from '@angular/platform-browser';
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { RouterModule, TitleStrategy } from '@angular/router';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
@@ -28,6 +28,7 @@ import { ResetPasswordComponent } from './reset-password/reset-password.componen
 import { SetPasswordComponent } from './set-password/set-password.component';
 import { ProfileComponent } from './profile/profile.component';
 import { customerTokenInterceptor } from './interceptors/customer-token.interceptor';
+import { PageTitleStrategy } from './seo/page-title.strategy';
 
 @NgModule({
   declarations: [
@@ -62,7 +63,11 @@ import { customerTokenInterceptor } from './interceptors/customer-token.intercep
   ],
   providers: [
     provideClientHydration(withEventReplay()),
-    provideHttpClient(withFetch(), withInterceptors([customerTokenInterceptor]))
+    provideHttpClient(withFetch(), withInterceptors([customerTokenInterceptor])),
+    // The head of every page is written from the route it belongs to (see PageTitleStrategy). Angular asks for
+    // TitleStrategy once per navigation; without this the router would only set the title and leave the rest of the
+    // head as the shell wrote it.
+    { provide: TitleStrategy, useClass: PageTitleStrategy }
   ],
   bootstrap: [AppComponent]
 })

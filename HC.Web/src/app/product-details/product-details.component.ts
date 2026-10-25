@@ -5,6 +5,8 @@ import { ProductService } from '../services/product.service';
 import { FavoritesService } from '../services/favorites.service';
 import { AuthService } from '../services/auth.service';
 import { CartService } from '../services/cart.service';
+import { SeoService } from '../seo/seo.service';
+import { productMetadata, productStructuredData } from '../seo/page-metadata';
 import { Product, Category, ProductPicture } from '../models/product.model';
 import { pathOf } from '../models/category-tree';
 import { UtilityService } from '../services/utility.service';
@@ -52,6 +54,7 @@ export class ProductDetailsComponent implements OnInit, OnDestroy {
     private favoritesService: FavoritesService,
     private authService: AuthService,
     private cartService: CartService,
+    private seo: SeoService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
@@ -75,6 +78,8 @@ export class ProductDetailsComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.stopAutoSlide();
+    // The piece's structured data must not be read off the page that comes next.
+    this.seo.removeStructuredData();
   }
 
   /**
@@ -150,13 +155,35 @@ export class ProductDetailsComponent implements OnInit, OnDestroy {
         this.loading = false;
         this.checkFavoriteStatus();
         this.startAutoSlide();
+        this.updateSeo();
       },
       error: (err) => {
         this.error = 'Failed to load product details.';
         this.loading = false;
+        // Whatever piece this page was showing before is not the one the address names, so nothing about it may be
+        // left in the head - the route's own title and description ('Handcrafted Home Decor Piece') are what stands.
+        this.seo.removeStructuredData();
         console.error(err);
       }
     });
+  }
+
+  /**
+   * What the head says about the piece on this page: its name, its own words about itself, its first photograph as the
+   * share card, and the Product a search engine reads so a result can show the price and whether it is in stock.
+   *
+   * This runs when the product arrives rather than when the page is opened, because the page cannot name a piece it has
+   * not been told about - until then the route's own title stands ('Handcrafted Home Decor Piece'). Reading the stored
+   * photograph and the stored description through the same helpers the page draws them with keeps the head and the
+   * page saying the same thing.
+   */
+  private updateSeo(): void {
+    if (!this.product) {
+      return;
+    }
+
+    this.seo.apply(productMetadata(this.product));
+    this.seo.setStructuredData(productStructuredData(this.product));
   }
 
   private checkFavoriteStatus(): void {

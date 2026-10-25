@@ -2,12 +2,110 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Homecuties &mdash; Handcrafted Home Decor &amp; Lifestyle</title>
   <base href="/">
+
+  <!--
+    The head below is what a crawler, a link preview and a browser tab read. It is
+    the SHELL's copy of the page metadata: on every route the running application
+    replaces the title, description, canonical, Open Graph and Twitter tags with
+    that page's own (see src/app/seo/PageTitleStrategy and SeoService), and the
+    product page adds its Product structured data. Keeping the home page's values
+    here as well means the client-side shell - and anything that reads the
+    document before Angular starts - still says something true.
+
+    /og-image.png is generated from src/assets/images/logo.png by
+    scripts/generate-icons.ps1, so it never drifts from the brand artwork.
+  -->
+  <title>Homecuties &mdash; Handcrafted Home Decor, Channapatna Toys &amp; Pots</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#000000">
-  <meta name="description" content="Homecuties curates handcrafted home decor and lifestyle pieces - woodwork, lighting, textiles and accents chosen for quality, warmth and timeless design.">
+  <meta name="description" content="Handcrafted home decor from Homecuties: Channapatna wooden toys, painted pots and bottle vases, each made by hand and delivered across India.">
+  <meta name="keywords" content="handcrafted home decor, Channapatna toys, wooden toys, painted pots, bottle vases, home decor online, home accessories, Homecuties">
+  <meta name="author" content="Homecuties">
+  <!-- max-image-preview:large lets a search result show the product photo at full size. -->
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+  <link rel="canonical" href="https://homecuties.com/">
+
+  <!-- Open Graph: what Facebook, WhatsApp, LinkedIn and Slack draw for a shared link. -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Homecuties">
+  <meta property="og:locale" content="en_IN">
+  <meta property="og:title" content="Homecuties — Handcrafted Home Decor, Channapatna Toys &amp; Pots">
+  <meta property="og:description" content="Handcrafted home decor from Homecuties: Channapatna wooden toys, painted pots and bottle vases, each made by hand and delivered across India.">
+  <meta property="og:url" content="https://homecuties.com/">
+  <meta property="og:image" content="https://homecuties.com/og-image.png">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Homecuties — handcrafted home decor">
+
+  <!-- Twitter / X falls back to Open Graph, but the card type has to be stated. -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Homecuties — Handcrafted Home Decor, Channapatna Toys &amp; Pots">
+  <meta name="twitter:description" content="Handcrafted home decor from Homecuties: Channapatna wooden toys, painted pots and bottle vases, each made by hand and delivered across India.">
+  <meta name="twitter:image" content="https://homecuties.com/og-image.png">
+  <meta name="twitter:image:alt" content="Homecuties — handcrafted home decor">
+
+  <!-- Name and colours a phone uses when the shop is added to the home screen. -->
+  <meta name="application-name" content="Homecuties">
+  <meta name="apple-mobile-web-app-title" content="Homecuties">
+  <meta name="format-detection" content="telephone=no">
+
+  <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+
+  <!--
+    What the shop is, said once for the whole site: the organisation behind it, and
+    the site itself with the search box a search engine may show under the result
+    (the shop page answers '?q='). Page-level structured data - a Product on a
+    product page - is added by the page that knows the piece.
+  -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://homecuties.com/#organization",
+        "name": "Homecuties",
+        "url": "https://homecuties.com/",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://homecuties.com/icon-512.png",
+          "width": 512,
+          "height": 512
+        },
+        "description": "Homecuties sells handcrafted home decor: Channapatna wooden toys, painted pots, bottle vases and hand-finished accents for the home.",
+        "email": "support@homecuties.com",
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "customer support",
+          "email": "support@homecuties.com",
+          "availableLanguage": "en"
+        }
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://homecuties.com/#website",
+        "url": "https://homecuties.com/",
+        "name": "Homecuties",
+        "inLanguage": "en-IN",
+        "publisher": { "@id": "https://homecuties.com/#organization" },
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": "https://homecuties.com/shop?q={search_term_string}"
+          },
+          "query-input": "required name=search_term_string"
+        }
+      }
+    ]
+  }
+  </script>
 
   <!-- Brand typeface. The reference storefront is built on Manrope, so the shop uses it too. -->
   <link rel="preconnect" href="https://fonts.googleapis.com">

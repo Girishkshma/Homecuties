@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The pages of the Homecuties storefront that exist before anything is loaded from the API.
+
+  Product and collection pages ('/product/:id', '/shop/:categoryId') are not listed here: they are written by the shop
+  itself, not by this file, and a sitemap that is not regenerated would fill up with pieces that have been renamed or
+  sold out. A crawler reaches them by following the shop's own links. Add an entry here when a static page is added to
+  app-routing.module.ts.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://homecuties.com/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://homecuties.com/shop</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://homecuties.com/privacy-policy</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  <url>
+    <loc>https://homecuties.com/terms-of-service</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.2</priority>
+  </url>
+</urlset>

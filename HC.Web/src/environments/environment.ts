@@ -1,5 +1,11 @@
 export const environment = {
   production: false,
+  // The storefront's own address, without a trailing slash - the origin the
+  // canonical, og:url, og:image and structured-data URLs are built on while
+  // developing. Canonical URLs only ever matter to a crawler, which only ever
+  // sees the deployed site, so this is the dev server's own address rather than
+  // the production one: what is on screen and what is in the head agree.
+  siteUrl: 'http://localhost:4211',
   baseServUrl: 'http://localhost:5024/api/',
   // Where a product's photographs are served from while developing: the storefront's own dev server ('ng serve' on
   // 4211), which serves 'src/assets' as '{host}/images/...'. The API is pointed at that same folder by

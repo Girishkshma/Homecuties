@@ -1,0 +1,17 @@
+# robots.txt for the Homecuties storefront (https://homecuties.com)
+#
+# Everything a shopper may open is open to a crawler: the home page, the shop and
+# every collection in it, a product page and the two policy pages. There is
+# deliberately no Disallow list here: the pages that are never worth listing - the
+# cart, the checkout, the account pages and the password forms - are served with
+# 'noindex, follow' in their heads instead (see src/app/app-routing.module.ts). A
+# page blocked here is never fetched, so its noindex is never read, and its
+# address can still be listed with nothing under it.
+#
+# The sitemap lists the pages that exist before anything is loaded from the API.
+# Product and collection pages are discovered by following the shop's own links.
+
+User-agent: *
+Allow: /
+
+Sitemap: https://homecuties.com/sitemap.xml
