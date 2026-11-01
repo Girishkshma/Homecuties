@@ -24,9 +24,9 @@
     <i class="bi bi-exclamation-circle me-2"></i>{{ error }}
   </div>
 
-  <!-- Wishlist Items -->
-  <div *ngIf="!loading && !error && wishList.length > 0" class="row g-4">
-    <div *ngFor="let item of wishList" class="col-xl-3 col-lg-4 col-md-6">
+  <!-- Wishlist Items. Two to a column on a phone, as in the shop's listing (see shop.component.html). -->
+  <div *ngIf="!loading && !error && wishList.length > 0" class="row g-3 g-md-4">
+    <div *ngFor="let item of wishList" class="col-6 col-lg-4 col-xl-3">
       <div class="product-card">
         <div class="product-image">
           <img [src]="item.PromoImage | productImage" alt="{{ item.ProductName }}">

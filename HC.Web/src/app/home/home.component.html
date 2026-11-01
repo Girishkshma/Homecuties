@@ -1,13 +1,34 @@
-<!-- Hero Banner -->
+<!-- Hero Banner: the masthead of the storefront, set the way the page under it is now set - a grey sheet,
+     ink type, small capitals and hairlines - with the shop's three best sellers mounted to the right. The
+     lacquer is let out in three places only: the words 'Home Decor' and the rule under them, the primary
+     button, and the four bands along the bottom edge.
+
+     The three pictures are the shop's own posters: the Channapatna toy musicians, the tall blue bottle
+     vase and the terracotta Ganeshas. All three are photographs of the goods, which is what this
+     storefront shows everywhere else, and each is printed with its own headline and footer, so they are
+     mounted as prints - a white mat inside a hairline - rather than framed with room to spare. They are
+     hung as a shelf: the toys poster large on the left, the vase and the terracotta ones stacked beside
+     it, all three from a common top edge to a common baseline. The comment at .hero-image-showcase in
+     _hero.scss carries the arithmetic that keeps the two columns level.
+
+     Two shapes, because the art comes in two. The toy and the Ganesha posters are portrait (5:6 and 4:5)
+     and are drawn in a 4:5 window, which crops their width and never their height - both print their
+     headline along the top edge and their footer along the bottom one, so only margin may be lost. The
+     vase poster is square, with its copy down the right-hand half, so its plate is square: any crop of
+     its width would cut into the words.
+
+     The three JPEGs are made from the print masters kept beside them in src/assets/images/banners -
+     musicians_banner.png (1145 x 1374), genesha_banner.png (1856 x 2304, misspelled in the bin, so the
+     copy takes the spelling of the poster it shows) and vase_banner.png (1254 x 1254) - with
+     scripts/make-web-image.ps1. They go out 900 px wide at 155-232 KB instead of 2.0-7.2 MB: full print
+     resolution is wasted on a plate ~410 CSS px wide. angular.json ignores the '*_banner.png' masters, so
+     they are kept without being deployed. -->
 <section class="hero-banner">
   <div class="hero-bg-overlay"></div>
   <div class="container">
     <div class="row align-items-center">
       <div class="col-lg-6">
-        <div class="hero-badge">
-          <span class="hero-badge-dot" aria-hidden="true"></span>
-          New Collection 2026
-        </div>
+        <p class="hero-eyebrow">New Collection 2026</p>
         <h1>Handcrafted <span class="text-accent">Home Decor</span><br>That Tells a Story</h1>
         <p class="hero-description">Discover exquisite woodwork and home decor pieces, each meticulously crafted to bring warmth, character, and timeless elegance to every corner of your home.</p>
         <div class="hero-actions">
@@ -18,19 +39,13 @@
             See Collection <i class="bi bi-arrow-right"></i>
           </a>
         </div>
-        <!-- The three things the shelf actually holds, each a way into the shop. They sit between
-             the buttons and the counters so the column has no empty band without a purpose, and
-             they carry the lacquer palette (red / green / saffron) that the rest of the band uses. -->
-        <div class="hero-chips">
-          <a routerLink="/shop" class="hero-chip chip-pots">
-            <i class="bi bi-palette2"></i> Painted pots
-          </a>
-          <a routerLink="/shop" class="hero-chip chip-vases">
-            <i class="bi bi-flower2"></i> Bottle vases
-          </a>
-          <a routerLink="/shop" class="hero-chip chip-toys">
-            <i class="bi bi-stars"></i> Wooden toys
-          </a>
+        <!-- The three lines the shop actually turns, as one line of small-capital links instead of three
+             tinted pills. The pills repeated in a louder voice what the collection band further down the
+             page says anyway, and the row stood 42px tall in a column that did not have it to spare. -->
+        <div class="hero-cats">
+          <a routerLink="/shop" class="hero-cat">Painted pots</a>
+          <a routerLink="/shop" class="hero-cat">Bottle vases</a>
+          <a routerLink="/shop" class="hero-cat">Wooden toys</a>
         </div>
         <div class="hero-stats">
           <div class="stat-item">
@@ -47,33 +62,117 @@
           </div>
         </div>
       </div>
-      <div class="col-lg-6">
+      <div class="col-lg-6 hero-plates-col">
+        <!-- The shelf. 'Best Seller' used to be a sticker pinned to the first poster's mat, and 'Secure' a
+             dark chip hanging off its bottom edge; both needed the rotated lacquer board under the frames to
+             hang from. On paper the three prints are captioned once, above them - which is also truer,
+             because all three are best sellers - and the word 'Secure' is already carried in full by the
+             trust strip under the benefits band.
+
+             Each print is a link into the shop, as the three pills beside the copy were: the shelf is three
+             more ways in, and the zoom on hover is the only movement in the band. -->
         <div class="hero-visual">
+          <p class="hero-plates-head">Best sellers</p>
           <div class="hero-image-showcase">
-            <div class="showcase-card showcase-card-main">
-              <img src="/images/channapatna/hero-scene.svg" alt="Hand-turned Channapatna wooden toys lined up on a shelf" loading="lazy">
-              <div class="showcase-tag">
-                <i class="bi bi-star-fill"></i> Best Seller
-              </div>
-            </div>
-            <div class="showcase-card showcase-card-sm showcase-card-top">
-              <img src="/images/channapatna/doll.svg" alt="Channapatna dancing doll" loading="lazy">
-            </div>
-            <div class="showcase-card showcase-card-sm showcase-card-bottom">
-              <img src="/images/channapatna/top.svg" alt="Channapatna spinning top" loading="lazy">
-            </div>
-            <!-- A landscape miniature rather than a square one: vases.svg is drawn in a 400 x 300
-                 box, so a 4:3 frame shows the whole turned vase and its two dried stems, while a
-                 square one would have sliced the sides off with object-fit: cover. -->
-            <div class="showcase-card showcase-card-sm showcase-card-wide showcase-card-left">
-              <img src="/images/channapatna/vases.svg" alt="Turned wooden vase with two dried stems" loading="lazy">
-            </div>
-            <div class="hero-floating-badge badge-2">
-              <i class="bi bi-shield-check"></i>
-              <span>Secure</span>
+            <a routerLink="/shop" class="showcase-print">
+              <img src="/images/banners/musicians-banner.jpg"
+                   alt="Hand-painted Channapatna wooden toy musicians with cymbals, flutes and drums, standing on a wooden shelf"
+                   width="900" height="1080" fetchpriority="high">
+            </a>
+            <div class="showcase-stack">
+              <a routerLink="/shop" class="showcase-print showcase-print-square">
+                <img src="/images/banners/vase-banner.jpg"
+                     alt="A tall blue bottle vase finished in cream geometric lines, standing on a wooden shelf beside a potted plant"
+                     width="900" height="900">
+              </a>
+              <a routerLink="/shop" class="showcase-print">
+                <img src="/images/banners/ganesha-banner.jpg"
+                     alt="Hand-painted terracotta Ganesha idols in bright colours, sitting on wooden logs among marigolds"
+                     width="900" height="1117">
+              </a>
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Benefits banner: the band that opens the page under the hero. It sits directly under the hero and ahead of
+     the products rather than between two product bands - these are the only pictures on the home page of the
+     goods at home in a room and not on a shelf - and the Featured Products shelf below it is listed once.
+
+     It is drawn as one printed plate rather than as a photo mosaic: copy on the left, three prints on the
+     right, a hairline column rule between them, and the prints run in grey so the hero above keeps the only
+     colour on the page. The plate is a single row, so the band can never grow taller than the taller of its
+     two halves, and the four reasons sit two by two to keep the copy half inside that height. -->
+<section class="section benefits-section">
+  <div class="container">
+    <div class="row g-5 align-items-center benefits-plate">
+      <div class="col-lg-6">
+        <div class="benefits-content">
+          <span class="section-subtitle">Why Choose Us</span>
+          <h2 class="section-title">We Make Your Home Beautiful</h2>
+          <p>At Homecuties, we believe every home deserves to be beautiful. We carefully select each product to ensure quality, style, and value.</p>
+          <div class="benefits-list">
+            <div class="benefit-item">
+              <div class="benefit-check">
+                <i class="bi bi-check-lg"></i>
+              </div>
+              <div>
+                <strong>Curated Collections</strong>
+                <p>Every item is handpicked by our team of design experts to ensure quality and style.</p>
+              </div>
+            </div>
+            <div class="benefit-item">
+              <div class="benefit-check">
+                <i class="bi bi-check-lg"></i>
+              </div>
+              <div>
+                <strong>Premium Quality</strong>
+                <p>We partner with trusted manufacturers to bring you products that last.</p>
+              </div>
+            </div>
+            <div class="benefit-item">
+              <div class="benefit-check">
+                <i class="bi bi-check-lg"></i>
+              </div>
+              <div>
+                <strong>Best Prices</strong>
+                <p>Get the best value for your money with our competitive pricing and regular deals.</p>
+              </div>
+            </div>
+            <div class="benefit-item">
+              <div class="benefit-check">
+                <i class="bi bi-check-lg"></i>
+              </div>
+              <div>
+                <strong>Fast Delivery</strong>
+                <p>We process and ship orders quickly so you can enjoy your new decor sooner.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6 benefits-gallery">
+        <!-- Deferred: these three prints are still the original Unsplash photographs. The strip wants pictures of
+             the goods shot without type on them - the two posters the hero carries are portrait like these prints,
+             but each is printed with its own headline and footer, so at this size the words would be cropped off
+             (object-fit: cover) or the poster would have to be letterboxed inside the print (object-fit: contain).
+             scripts/make-banner.ps1 cuts clean panels out of the product photographs for exactly this slot; this
+             strip is the last one waiting on it. -->
+        <figure class="benefits-print">
+          <img src="https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=600&q=80" alt="Beautiful home decor" loading="lazy">
+        </figure>
+        <!-- The exterior is the darkest of the three, so it hangs in the middle of the strip: read left to
+             right as light, dark, light, the triptych is balanced; with it on the right, the strip pulled
+             the eye off the copy. -->
+        <figure class="benefits-print">
+          <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80" alt="Modern home at dusk" loading="lazy">
+        </figure>
+        <figure class="benefits-print">
+          <img src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=600&q=80" alt="Kitchen and dining interior" loading="lazy">
+        </figure>
       </div>
     </div>
   </div>
@@ -109,35 +208,6 @@
   </div>
 </section>
 
-<!-- Collection Banner: the shop's own photographs. The four product shots are laid in a row and cut to one band by
-     HC.Web/scripts/make-banner.ps1 - the light surface, the gaps between the photographs and the product-card corners
-     are all in the picture, so the band needs no card, border or shadow of its own. The words stay here in HTML: they
-     wrap, they are read out and they are translated, none of which a picture can do. -->
-<section class="section collection-banner-section">
-  <div class="container">
-    <div class="section-header">
-      <div>
-        <span class="section-subtitle">The Collection</span>
-        <h2 class="section-title">Painted pots, bottle vases, wooden toys</h2>
-        <p class="section-description">Shot in our own studio, exactly as it arrives - no stock photography.</p>
-      </div>
-      <a routerLink="/shop" class="btn btn-outline-primary btn-sm d-none d-md-inline-flex">
-        Shop the Collection <i class="bi bi-arrow-right ms-1"></i>
-      </a>
-    </div>
-    <a routerLink="/shop" class="collection-banner">
-      <img src="/images/banners/home-collection.jpg"
-           alt="A blue geometric bottle vase, a black leaf bottle vase, a house-shaped shelf of painted pots and a wooden cat toy"
-           width="1600" height="620" loading="lazy">
-    </a>
-    <div class="text-center mt-4 d-md-none">
-      <a routerLink="/shop" class="btn btn-outline-primary">
-        Shop the Collection <i class="bi bi-arrow-right ms-1"></i>
-      </a>
-    </div>
-  </div>
-</section>
-
 <!-- Featured Products -->
 <section class="section" *ngIf="!loading && products.length > 0">
   <div class="container">
@@ -152,8 +222,9 @@
       </a>
     </div>
 
-    <div class="row g-4">
-      <div *ngFor="let product of products.slice(0, 8)" class="col-xl-3 col-lg-4 col-md-6">
+    <!-- Two cards to a column on a phone, as in the shop's listing (see shop.component.html). -->
+    <div class="row g-3 g-md-4">
+      <div *ngFor="let product of products.slice(0, 8)" class="col-6 col-lg-4 col-xl-3">
         <div class="product-card">
           <div class="product-image">
             <img [src]="product.PromoImage | productImage" alt="{{ product.ProductName }}">
@@ -241,79 +312,6 @@
     </div>
   </div>
 </section>
-
-<!-- Benefits Section -->
-<section class="section benefits-section">
-  <div class="container">
-    <div class="row g-5 align-items-center">
-      <div class="col-lg-6">
-        <div class="benefits-content">
-          <span class="section-subtitle">Why Choose Us</span>
-          <h2 class="section-title">We Make Your Home Beautiful</h2>
-          <p>At Homecuties, we believe every home deserves to be beautiful. We carefully select each product to ensure quality, style, and value.</p>
-          <div class="benefits-list">
-            <div class="benefit-item">
-              <div class="benefit-check">
-                <i class="bi bi-check-lg"></i>
-              </div>
-              <div>
-                <strong>Curated Collections</strong>
-                <p>Every item is handpicked by our team of design experts to ensure quality and style.</p>
-              </div>
-            </div>
-            <div class="benefit-item">
-              <div class="benefit-check">
-                <i class="bi bi-check-lg"></i>
-              </div>
-              <div>
-                <strong>Premium Quality</strong>
-                <p>We partner with trusted manufacturers to bring you products that last.</p>
-              </div>
-            </div>
-            <div class="benefit-item">
-              <div class="benefit-check">
-                <i class="bi bi-check-lg"></i>
-              </div>
-              <div>
-                <strong>Best Prices</strong>
-                <p>Get the best value for your money with our competitive pricing and regular deals.</p>
-              </div>
-            </div>
-            <div class="benefit-item">
-              <div class="benefit-check">
-                <i class="bi bi-check-lg"></i>
-              </div>
-              <div>
-                <strong>Fast Delivery</strong>
-                <p>We process and ship orders quickly so you can enjoy your new decor sooner.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="col-lg-6">
-        <!-- Deferred: this mosaic still uses the original Unsplash photos. Its main panel is
-             portrait (~294 x 450) while the hand-drawn Channapatna art is drawn 4:3, so swapping
-             it in would either crop the illustration in half (object-fit: cover) or letterbox it
-             (object-fit: contain). The hero, hero mini-cards and category tiles all use the SVGs. -->
-        <div class="benefits-image">
-          <div class="benefits-image-grid">
-            <div class="benefits-image-main">
-              <img src="https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=600&q=80" alt="Beautiful home decor" loading="lazy">
-            </div>
-            <div class="benefits-image-sm benefits-image-sm-1">
-              <img src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=300&q=80" alt="Wooden decorative items" loading="lazy">
-            </div>
-            <div class="benefits-image-sm benefits-image-sm-2">
-              <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=300&q=80" alt="Modern home interior" loading="lazy">
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- Newsletter CTA -->
 <section class="section newsletter-cta">
   <div class="container">

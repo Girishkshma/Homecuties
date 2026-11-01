@@ -25,52 +25,46 @@
 
   .hero-banner {
     /* Same reasoning as the desktop rule in _hero.scss: the copy column is centred against the
-       taller image column here, which adds ~20px of its own, so the padding comes down. */
-    padding: 2.25rem 0 3rem;
+       taller image column here, which adds ~20px of its own, so the padding comes down - and it has
+       come down again with the desktop rule, to the point where the band is two blocks and the second
+       one starts within the first screen. */
+    padding: 1.75rem 0 2.25rem;
 
     h1 {
       font-size: 2.5rem;
     }
 
     .hero-visual {
-      /* The artwork is no longer beside the copy, so the column's own indent goes and the band
-         gets its air back as a top margin instead. */
+      /* The shelf is under the copy at this width, not beside it, so the column's own indent goes, the
+         width cap goes with it (the column is narrower than the cap all the way down to ~1180, so it
+         was never doing anything here) and the band gets its air back as a top margin instead. */
+      max-width: none;
       padding-left: 0;
-      padding-right: 0;
-      margin-top: 3rem;
+      margin-top: 1.5rem;
     }
 
+    /* Between a phone and a desktop the shelf lies down again: three prints in a row, the square one on a
+       track 1.25x the others so that it stands as tall as the 4:5 windows either side of it. It is what
+       the width wants - 722px at 768 - and it is what keeps the band at this size from standing ~950px
+       tall, which is what the shelf costs when it is stacked under the copy instead of beside it.
+
+       The row has three children but the markup has two, so the stack is unwrapped rather than repeated:
+       display: contents hands its two prints to the same grid, and they take their place after the large
+       print, which is where the square one belongs. */
     .hero-image-showcase {
-      /* Once stacked the picture would otherwise run the full width of a tablet and stand 750px
-         tall; it is centred at a print's width instead. */
-      max-width: 560px;
-      margin-left: auto;
-      margin-right: auto;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr);
     }
 
-    /* The two square miniatures come down with the frame; the landscape print sets its own width as
-       a share of the frame, so it needs no override here. */
-    .showcase-card-top,
-    .showcase-card-bottom {
-      width: 130px;
-      height: 130px;
+    .showcase-stack {
+      display: contents;
     }
 
-    .showcase-card-top {
-      top: -1.25rem;
-      right: -1rem;
+    .showcase-stack .showcase-print {
+      aspect-ratio: 4 / 5;
     }
 
-    .showcase-card-bottom {
-      bottom: -1.25rem;
-      right: -0.5rem;
-    }
-
-    .hero-floating-badge {
-      &.badge-2 {
-        top: 1rem;
-        left: 1rem;
-      }
+    .showcase-print.showcase-print-square {
+      aspect-ratio: 1 / 1;
     }
   }
 
@@ -82,8 +76,17 @@
     max-width: 350px;
   }
 
-  .benefits-section .benefits-image .benefits-image-grid {
-    height: 350px;
+  /* Stacked, the plate's column rule becomes the one above the prints, and the strip takes its height
+     again: nothing stretches the column at this width, so the height the copy no longer gives it has
+     to be declared. The rule is drawn on the column's top edge - the row's own gutter is what separates
+     it from the copy - and the prints keep their air from a padding rather than a second margin. */
+  .benefits-section {
+    .benefits-gallery {
+      height: 220px;
+      padding-top: 1.25rem;
+      border-left: none;
+      border-top: 1px solid var(--border-color);
+    }
   }
 
   .newsletter-cta .newsletter-cta-card {
@@ -130,7 +133,9 @@
   }
 
   .hero-banner {
-    padding: 2.5rem 0;
+    /* The two blocks still stand one above the other at this width; both ends of the band come in so
+       that the shelf, which is where the pictures are, starts inside the first screen. */
+    padding: 1.5rem 0 1.75rem;
 
     h1 {
       font-size: 2rem;
@@ -145,22 +150,26 @@
       padding: 0.7rem 1.5rem;
       font-size: 0.9375rem;
     }
-
-    /* The frame fills the column between these two widths, so the landscape print only needs a small
-       tuck at the left edge to stay on the page. */
-    .showcase-card-left {
-      left: -0.75rem;
-    }
   }
 
   .section {
     padding-block: 2rem;
   }
 
-  .product-card .product-image {
-    height: 200px;
+  /* The band comes down with the page: at this width the copy already stacks above the strip, so the
+     band is two blocks tall and the second one can afford to be short. */
+  .benefits-section {
+    padding-block: 1.75rem;
+
+    .benefits-gallery {
+      height: 190px;
+    }
   }
 
+  /* The product tile stays square at this width. It used to be pinned to 200px here (180px on a phone), which only holds
+     while a card has a column to itself: with two cards to a column the frame would be far wider than it is tall, and
+     'contain' would leave the whole photograph floating in grey bands inside it. The base rule's aspect-ratio draws the
+     square instead and the card simply gets narrower - the same shape the tiles have at every other width. */
   .product-detail .product-gallery .main-image-square {
     max-width: 280px;
   }
@@ -217,10 +226,30 @@
 
 @media (max-width: 576px) {
   .hero-banner {
-    padding: 2rem 0 2.5rem;
+    padding: 1.5rem 0 1.75rem;
 
     h1 {
       font-size: 1.75rem;
+    }
+
+    /* A phone opens on text only: the copy is ~460px tall at this width, so the shelf under it - the
+       first picture on the page, the products the band is advertising - starts more than a screen
+       down and the visitor reads a wall of words before seeing anything for sale. So the band is
+       turned around at this width: the pictures come first, the copy follows.
+
+       The turn is `order`, not a second copy of the markup: the row is already a flex container and
+       its two columns are its items, so the shelf's column can be moved ahead of the copy's without
+       touching the document - the class on it in home.component.html is the hook, because the visual
+       itself sits one element lower and `order` only reaches its parent's siblings. Screen readers
+       keep the headline before the pictures, which is the order that reads better anyway; only the
+       drawing is reordered. */
+    .hero-plates-col {
+      order: -1;
+    }
+
+    .hero-visual {
+      margin-top: 0;
+      margin-bottom: 1.25rem;
     }
 
     /* Two buttons cannot sit side by side at this width without shrinking their labels to the
@@ -235,28 +264,27 @@
       }
     }
 
-    .hero-chips {
-      gap: 0.35rem;
-      margin-bottom: 1.75rem;
+    /* One line of links at a size a phone can still tap: the three names fit 358px, and the middots
+       between them are drawn by the base rule. */
+    .hero-cats {
+      margin-bottom: 1.35rem;
     }
 
-    .hero-chip {
-      gap: 0.35rem;
-      padding: 0.45rem 0.55rem;
-      font-size: 0.72rem;
+    .hero-cat {
+      font-size: 0.625rem;
+      letter-spacing: 0.09em;
 
-      i {
-        font-size: 0.82rem;
+      /* The base rule's sibling selector again, not `& + &` - see the note there. */
+      & + .hero-cat::before {
+        margin: 0 0.4rem;
       }
     }
 
-    /* Three cards still fit a phone's column, but only with their padding and figures brought down;
-       the labels are allowed to wrap rather than shrinking the type past reading size. */
+    /* The ruled row keeps its three columns - the labels are allowed to wrap rather than the figures
+       shrinking past reading size - so only the space either side of each hairline comes in. */
     .hero-stats {
-      gap: 0.4rem;
-
       .stat-item {
-        padding: 0.65rem 0.55rem;
+        padding-left: 0.75rem;
       }
 
       .stat-number {
@@ -264,29 +292,23 @@
       }
     }
 
-    /* The miniatures hang off the picture's right edge; on a phone that edge is the edge of the
-       page, so they come back inside it and come down in size. */
-    .showcase-card-top,
-    .showcase-card-bottom {
-      width: 118px;
-      height: 118px;
-    }
+    /* Three prints in a row, the same ribbon the tablet width draws and for the same reason - only
+       smaller: 107 / 133 / 107 across a 358px phone, all 133px tall. A row is what makes the turn
+       above work. The shelf's own shape, the large print with two stacked beside it, is 285px tall
+       here, and pictures that tall in front of the headline would push the headline itself off the
+       first screen - trading one problem for the other. The ribbon is 147px with its caption, so the
+       band opens on three posters and still reaches the headline inside the first screen.
 
-    .showcase-card-top {
-      top: -1rem;
-      right: 0.25rem;
-    }
-
-    .showcase-card-bottom {
-      bottom: -1rem;
-      right: 0;
-    }
-
-    /* The landscape print goes on a phone: at this width the frame is only ~358px wide, and a third
-       card hung on its left edge lands straight on the horse and under the secure chip. The two
-       square miniatures are the cluster the band was designed around at this size. */
-    .showcase-card-left {
-      display: none;
+       The tracks are the tablet block's, inherited: `1fr 1.25fr 1fr` and the stack unwrapped - so
+       the shelf-restoring rules that used to stand here are gone, and the ribbon is what a phone gets.
+       The prints are thumbnails at this width, and a thumbnail is what a phone can show of a poster
+       whose own headline is set at 90px: the window stays 4:5 (square for the vase poster, whose
+       one-square artwork is the only one that must not be cropped sideways), and the band leans on
+       the lacquer-and-ink of the three together rather than on any one of them. Only the two gaps
+       come in here: at this size 10px is a sixth of the smaller plate's own mat. */
+    .hero-image-showcase,
+    .showcase-stack {
+      gap: 6px;
     }
   }
 
@@ -296,8 +318,114 @@
     display: none;
   }
 
-  .product-card .product-image {
-    height: 180px;
+  /* The four reasons drop their descriptions on a phone, the way the product cards do, and keep their
+     labels in small capitals two to a row: at this width the sentences wrap to four lines each and the
+     list on its own would stand taller than the prints. The order of the band is untouched - the strip
+     of prints still closes it. */
+  .benefits-section {
+    .benefits-list {
+      gap: 0.6rem 1rem;
+
+      /* A phone's column is ~143px wide inside a reason; at 11px with 0.08em of tracking
+         'Curated Collections' takes one line too many and the four labels stop lining up with each
+         other, so the label comes down a step here rather than wrapping. The selector carries the
+         list's own class so it outranks the base rule. */
+      .benefit-item strong {
+        font-size: 0.625rem;
+        letter-spacing: 0.06em;
+      }
+
+      .benefit-item p {
+        display: none;
+      }
+    }
+
+    .benefits-gallery {
+      height: 150px;
+    }
+  }
+
+  /* ===== Two products to a phone's column =====
+     The listing, the home page's featured row and the wishlist put two cards side by side on a phone instead of one. The
+     card was drawn for a column of its own, so at ~150px it has to give things up, and what it gives up is chosen so that
+     the two things a shopper buys on - the piece and its price - stay whole:
+
+     - the description goes. It is already cut at 120 characters, and at this width that reads as a fragment of four
+       words to a line rather than as an introduction to the piece;
+     - the name is held to two lines, so a row of cards stays level instead of one card's button sitting lower than its
+       neighbour's;
+     - the footer stops trying to sit beside the price. 'Add to Cart' next to the price needs ~100px the column does not
+       have, so the price takes the first line of the footer and the button the second, at the card's full width - which
+       is also a thumb-sized target, the same one it was on a single column;
+     - the flags and the wishlist heart come in a size, so '20% OFF' and the heart still sit clear of each other on the
+       tile.
+
+     The tile itself stays square (see the note at the 768px rule): the pair only reads as a grid when the two photos are
+     the same shape as each other, and as the ones on the shelves above. */
+  .product-card {
+    .product-image {
+      height: auto;
+
+      .product-badge {
+        top: 8px;
+        left: 8px;
+        padding: 3px 7px;
+        font-size: 0.5625rem;
+        letter-spacing: 0.08em;
+      }
+
+      .product-actions {
+        top: 8px;
+        right: 8px;
+
+        .btn-action {
+          width: 28px;
+          height: 28px;
+        }
+      }
+    }
+
+    .product-body {
+      padding: 0.65rem 0.7rem 0.75rem;
+
+      .product-name {
+        font-size: 0.8125rem;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      .product-description {
+        display: none;
+      }
+
+      .stock-info {
+        font-size: 0.6875rem;
+        padding: 0.15rem 0.45rem;
+        margin-bottom: 0.4rem;
+
+        i {
+          font-size: 0.7rem;
+        }
+      }
+
+      .product-footer {
+        flex-wrap: wrap;
+        gap: 0.4rem;
+
+        .product-price .current-price {
+          font-size: 1rem;
+        }
+
+        .btn-add-cart {
+          width: 100%;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+      }
+    }
   }
 
   .product-detail .product-gallery .main-image-square {

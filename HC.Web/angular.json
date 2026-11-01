@@ -39,7 +39,10 @@
               },
               {
                 "glob": "**/*",
-                "input": "src/assets"
+                "input": "src/assets",
+                "ignore": [
+                  "images/banners/*_banner.png"
+                ]
               }
             ],
             "styles": [

@@ -1,46 +1,74 @@
 /* ===== Hero Banner =====
-   The opening band is the one place on the storefront where the palette is allowed to speak. The
-   colours are the lacquers the Channapatna pieces are actually finished in - vermilion, saffron and
-   leaf green, read off the artwork in assets/images/channapatna - mixed into the washes behind the
-   type, the eyebrow, the two buttons, the three counters and the mount behind the picture.
-   Everything outside this band keeps the theme's ink-on-white discipline, so the colour reads as
-   coming from the goods rather than from a template.
+   The storefront's masthead: a grey sheet, ink type, small capitals and hairlines, with the shop's
+   three best sellers mounted to its right. It is set the way the page under it is set, and the lacquer
+   is let out in three places only - the two words 'Home Decor' and the rule under them, the primary
+   button, and the four bands along the bottom edge.
 
-   The band sits on cream rather than white, which is also what separates it from the white header
-   above without needing a rule. The artwork keeps its white mat and its white-framed miniatures;
-   only the mount behind it and the tag on the main frame are coloured. A four-band lacquer stripe
-   closes the bottom edge. */
+   It replaces a band that was a collage: a gradient-clipped headline with a marker stroke under it, a
+   saffron pill for the eyebrow, three tinted chips, three tinted counter cards, and the three posters
+   pinned to a rotated lacquer board with a sticker and a dark 'Secure' chip on top. Each of those was
+   a different idea about depth, and together they left the right half of the band empty above and
+   below a strip of pictures 226px tall.
+
+   What is here instead:
+   - the shadows and the tints are gone. The pictures are mounted as prints - a white mat inside a
+     hairline - and the counters are one ruled row, so the band reads as printed rather than as built;
+   - the pictures are hung as a shelf, one large print and two smaller ones from a common top edge to a
+     common baseline, which is what gives the art column the height a three-in-a-row strip never had.
+     The ratio the three windows are cut to is solved in the note at .hero-image-showcase;
+   - the three chips became one line of small-capital links and the counters dropped their cards, so
+     the copy column is two rows shorter than it was;
+   - the posters are unchanged: same three, same order of importance, same printed words - only their
+     mounting is different. 'Best Seller' is now the caption over the shelf and applies to all three,
+     which is also why the sticker and the 'Secure' chip could go: the trust strip below the benefits
+     band already says 'Secure Payment' in full.
+
+   The band sits on grey rather than white, which separates it from the white header above without
+   needing a rule, and grey is the ground a piece is photographed against - which is the ground the
+   three prints want. It was cream, and the cream was doing two jobs badly: it warmed the band, and it
+   put a warm cast behind three warm posters, so the sheet and the artwork pulled in the same direction
+   and neither stood out. Grey is that same paper with the cast taken out.
+
+   Nothing warm is left in the band's own surfaces - the ink, the hairlines, the middot between the
+   links and the two washes are all neutral now - which leaves the vermilion of 'Home Decor', of the
+   primary button and of the four bands as the only colour on it. It reads louder on grey than it did
+   on cream, where it had to argue with the paper for attention. */
 .hero-banner {
   /* Hero-only tokens. Declared here rather than in :root so no other band can pick them up by
-     accident - the rest of the storefront stays monochrome. */
-  --hero-cream: #fff8ee;
-  --hero-cream-deep: #fcecd8;
-  --hero-ink: #2f2117;
-  --hero-ink-soft: #6b5546;
+     accident - the rest of the storefront keeps the white and the one grey surface it always had, and
+     this band is the only one that sets a ground of its own. */
+  --hero-sheet: #f7f7f7;
+  --hero-sheet-deep: #e9e9e9;
+  --hero-ink: #171717;
+  --hero-ink-soft: #5f5f5f;
   --hero-red: #a83620;
   --hero-red-bright: #d1492c;
   --hero-saffron: #edb12d;
-  --hero-saffron-light: #f8cd55;
-  --hero-saffron-ink: #8a5b06;
   --hero-green: #2f8353;
-  --hero-green-ink: #1b5434;
+  /* One hairline colour for the whole band: the print mounts, the separators in the counter row and
+     the rule that runs out of the 'Best sellers' caption. Neutral black at 14% rather than ink at 16% -
+     over grey the warm ink read as a dirty line. */
+  --hero-hairline: rgba(0, 0, 0, 0.14);
 
   position: relative;
-  /* Keeps the artwork's negative-z mount inside this band instead of letting it fall behind the
+  /* Keeps the artwork's negative-z layers inside this band instead of letting them fall behind the
      page background. */
   isolation: isolate;
-  background: linear-gradient(180deg, var(--hero-cream) 0%, #fdf2e3 58%, var(--hero-cream-deep) 100%);
+  /* The sheet falls from the light grey it meets the header at to the deeper grey the lacquer stripe
+     closes it with, which is the light in the band read as one tone: it is lighter where the type sits
+     and darker where the shelf does. Both ends are neutral - R, G and B differ by nothing here - so
+     the three warm posters are the only warm thing on the sheet. */
+  background: linear-gradient(180deg, var(--hero-sheet) 0%, #f1f1f1 58%, var(--hero-sheet-deep) 100%);
   color: var(--body-color);
-  /* The fixed header is already 106px of air above this section, so the hero's own top padding
-     is deliberately the smaller of the two: two near-identical bands stacked up to ~210px of
-     white above the first line of the home page. The bottom stays roomier - that is what
-     separates the hero from the service strip under it. The 7vw this used to run climbed to its
-     6.5rem cap on any screen wider than ~1490px, which is where the two bands met. */
-  padding: clamp(2.5rem, 3.5vw, 3.5rem) 0 clamp(3rem, 5.5vw, 5rem);
+  /* The fixed header is already 106px of air above this section, so the hero's own top padding is
+     deliberately the smaller of the two - and both ends have come in again since the band was first
+     drawn: at 1440 it was 46px over the copy and 56px under it, which is a fifth of the band spent on
+     air that the header and the next band already provide. */
+  padding: clamp(1.75rem, 2.4vw, 2.5rem) 0 clamp(1.75rem, 2.6vw, 2.5rem);
   overflow: hidden;
 
   /* The one line of pure lacquer on the page: four equal bands, no gaps, in the colours the pieces
-     are turned in. It replaces the hairline the band used to end on. */
+     are turned in. It closes the band's bottom edge. */
   &::after {
     content: '';
     position: absolute;
@@ -68,125 +96,102 @@
     z-index: 2;
   }
 
-  /* Four washes, one per lacquer: a saffron sun behind the artwork where the light would fall, a
-     vermilion lift off the bottom-right corner, a leaf-green one in the top-left and a second
-     saffron low on the left. They are alphas rather than fills, so the cream still reads as the
-     paper the band is printed on and the type keeps its contrast. */
+  /* Two washes, both very low, and both neutral: a white light over the copy corner, and a shade under
+     the shelf. They used to be a saffron sun over the shelf and a whisper of vermilion off the
+     bottom-left - warm alphas over a warm sheet. On grey the light has moved to the type, because the
+     type is the thing that needs the ground taken out from under it, and the shade has moved down
+     behind the shelf, because that is what separates a white mat from the sheet it hangs on.
+
+     They stay alphas over the gradient, so the band still reads as one sheet and the ink keeps its
+     contrast - the white wash only ever lightens. They replace the four washes and the field of dots
+     that used to be here; the dots sat behind the artwork, where nothing of them could be seen. */
   .hero-bg-overlay {
     position: absolute;
     inset: 0;
     z-index: 0;
-    background:
-      radial-gradient(44% 56% at 78% 14%, rgba(248, 205, 85, 0.58) 0%, rgba(248, 205, 85, 0) 70%),
-      radial-gradient(38% 48% at 100% 78%, rgba(209, 73, 44, 0.22) 0%, rgba(209, 73, 44, 0) 70%),
-      radial-gradient(34% 44% at 6% 10%, rgba(69, 168, 108, 0.22) 0%, rgba(69, 168, 108, 0) 72%),
-      radial-gradient(30% 42% at 0% 96%, rgba(237, 177, 45, 0.28) 0%, rgba(237, 177, 45, 0) 72%);
     pointer-events: none;
-  }
-
-  /* A field of hand-turned dots, faded out well before it reaches the type: texture for the empty
-     cream on the right, nothing where the words are. */
-  .hero-bg-overlay::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-image: radial-gradient(rgba(47, 33, 23, 0.18) 1px, transparent 1px);
-    background-size: 20px 20px;
-    -webkit-mask-image: radial-gradient(54% 62% at 82% 40%, #000 0%, rgba(0, 0, 0, 0) 72%);
-    mask-image: radial-gradient(54% 62% at 82% 40%, #000 0%, rgba(0, 0, 0, 0) 72%);
-    opacity: 0.5;
+    background:
+      radial-gradient(54% 60% at 4% 0%, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0) 70%),
+      radial-gradient(52% 58% at 100% 100%, rgba(0, 0, 0, 0.055) 0%, rgba(0, 0, 0, 0) 70%);
   }
 
   /* ===== Eyebrow =====
-     Saffron, the colour the turned beads are dipped in first, with the ink on top: the pill is the
-     first thing that tells a visitor this band is not the grey one it used to be. */
-  .hero-badge {
-    position: relative;
+     A rule and a line of small capitals, the way a printed plate sets its caption - it used to be a
+     saffron pill with a pulsing dot and a rule trailing off its right edge, which was three ideas for
+     one label. The rule is the band's one warm hairline and it is drawn before the words rather than
+     after them, so it hangs off the margin the way the copy below it does. */
+  .hero-eyebrow {
     display: inline-flex;
     align-items: center;
-    gap: 0.65rem;
-    background: linear-gradient(135deg, #fdecc4 0%, var(--hero-saffron-light) 100%);
-    color: var(--hero-ink);
+    gap: 0.75rem;
+    margin: 0 0 0.9rem;
     font-size: 0.6875rem;
     font-weight: 700;
-    letter-spacing: 0.16em;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
-    padding: 0.5rem 1rem 0.5rem 0.9rem;
-    border-radius: var(--radius-badge);
-    border: 1px solid rgba(168, 54, 32, 0.28);
-    margin-bottom: 1.75rem;
+    color: var(--hero-ink-soft);
     animation: fadeInUp 0.7s ease both;
 
-    /* A length of rule trailing the pill. On its own in the middle of the page the badge read as
-       a label on nothing; the rule ties it back to the margin the way an editorial kicker does. It
-       is drawn outside the border, so the pill keeps the width of its words. */
-    &::after {
+    &::before {
       content: '';
-      position: absolute;
-      top: 50%;
-      left: 100%;
-      width: 3rem;
-      height: 1px;
-      margin-left: 0.75rem;
-      background: linear-gradient(to right, rgba(168, 54, 32, 0.45), rgba(168, 54, 32, 0));
-    }
-
-    .hero-badge-dot {
-      position: relative;
       flex: 0 0 auto;
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--hero-red-bright);
-      animation: badgePulse 2.6s ease-out infinite;
+      width: 2.25rem;
+      height: 1px;
+      background: var(--hero-red);
     }
   }
 
   h1 {
-    font-size: clamp(2.5rem, 1.35rem + 3.6vw, 4rem);
+    /* 'Handcrafted Home Decor' / 'That Tells a Story': the break after the accent phrase is in the
+       markup. How much of the headline the first line carries is the width's business - at 51px
+       'Handcrafted Home Decor' measures just under the 668px column, so from ~1150 up the headline sets
+       in two lines, and below that the first half breaks again and it sets in three (1024 is the
+       tallest copy column in the band for that reason).
+
+       3.2rem at the top end rather than the 3.65rem the band was first drawn with: at 58px the first
+       half of the headline broke onto two lines at every width, so the desktop band carried a third
+       line of headline - 60px of a copy column that the shelf then had to be sized against - for a
+       headline that reads no louder for it. */
+    font-size: clamp(2.2rem, 1.35rem + 2.6vw, 3.2rem);
     font-weight: 800;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.1rem;
     color: var(--hero-ink);
     line-height: 1.02;
     letter-spacing: -0.035em;
     animation: fadeInUp 0.8s ease 0.05s both;
 
-    /* The emphasised words are the colour moment of the headline: a lacquer gradient cut into the
-       glyphs, from vermilion to a deep saffron. Both ends stay darker than 3:1 against the cream,
-       which is the bar for type this size, and the swash beneath them is the highlighter stroke a
-       marker would leave - thick, a shade out of true, and stroked in once the line has landed. */
+    /* The colour moment of the band: two words in vermilion with a flat printed rule under them. It is
+       painted as flat ink and not clipped out of a gradient - at this size the gradient showed as
+       banding along the strokes - and the rule is level, 3px, and stroked in from the left once the
+       line has landed. The marker swash it replaces was the last hand-drawn gesture on the page. */
     .text-accent {
-      color: transparent;
-      background-image: linear-gradient(96deg, #a83620 0%, #c4471f 52%, #b8730a 100%);
-      -webkit-background-clip: text;
-      background-clip: text;
       position: relative;
       display: inline-block;
+      color: var(--hero-red);
       white-space: nowrap;
 
       &::after {
         content: '';
         position: absolute;
-        left: -0.04em;
-        right: -0.04em;
-        bottom: 0;
-        height: 0.11em;
-        min-height: 4px;
-        border-radius: 2px;
-        background: linear-gradient(90deg, rgba(209, 73, 44, 0.9) 0%, rgba(237, 177, 45, 0.95) 100%);
-        transform: rotate(-0.7deg);
+        left: 0;
+        right: 0;
+        bottom: 0.04em;
+        height: 3px;
+        background: var(--hero-red);
         transform-origin: left center;
-        animation: underlineIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.55s both;
+        animation: underlineIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.5s both;
       }
     }
   }
 
   .hero-description {
-    font-size: clamp(1rem, 0.96rem + 0.2vw, 1.125rem);
+    /* 42ch: the measure the old lede kept, held so the paragraph stays three lines beside the shelf and
+       never runs the full width of a 656px column. */
+    font-size: clamp(0.95rem, 0.92rem + 0.16vw, 1.0625rem);
     color: var(--hero-ink-soft);
-    margin-bottom: 2rem;
-    max-width: 46ch;
-    line-height: 1.75;
+    margin-bottom: 1.4rem;
+    max-width: 42ch;
+    line-height: 1.7;
     animation: fadeInUp 0.8s ease 0.15s both;
   }
 
@@ -197,123 +202,43 @@
 
   /* The rule under the emphasised words strokes in from the left once the headline has settled. */
   @keyframes underlineIn {
-    from { transform: scaleX(0) rotate(-0.7deg); }
-    to { transform: scaleX(1) rotate(-0.7deg); }
-  }
-
-  /* A ring off the eyebrow dot, in the dot's own colour: the only motion in the band that repeats,
-     and it stops itself. */
-  @keyframes badgePulse {
-    0% { box-shadow: 0 0 0 0 rgba(209, 73, 44, 0.35); }
-    70% { box-shadow: 0 0 0 7px rgba(209, 73, 44, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(209, 73, 44, 0); }
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
   }
 
   .hero-actions {
     display: flex;
-    gap: 0.85rem;
-    margin-bottom: 1.15rem;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.95rem;
     flex-wrap: wrap;
     animation: fadeInUp 0.8s ease 0.3s both;
   }
 
-  /* ===== Quick links =====
-     Three tinted tags, one per lacquer, each a way into the shop. They carry the same words as the
-     collection band further down the page, so the vocabulary is consistent, and they fill the strip
-     between the buttons and the counters with something a visitor can act on. */
-  .hero-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-bottom: 2rem;
-    animation: fadeInUp 0.8s ease 0.38s both;
-  }
-
-  .hero-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    padding: 0.5rem 0.9rem;
-    border-radius: var(--radius-badge);
-    border: 1px solid transparent;
-    font-size: 0.78rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    text-decoration: none;
-    transition: var(--transition-base);
-
-    i {
-      font-size: 0.9rem;
-    }
-
-    &:hover,
-    &:focus-visible {
-      text-decoration: none;
-      transform: translateY(-1px);
-    }
-
-    &.chip-pots {
-      background: rgba(209, 73, 44, 0.1);
-      border-color: rgba(209, 73, 44, 0.28);
-      color: #8f2b1a;
-
-      &:hover,
-      &:focus-visible {
-        background: rgba(209, 73, 44, 0.18);
-        color: #8f2b1a;
-      }
-    }
-
-    &.chip-vases {
-      background: rgba(47, 131, 83, 0.1);
-      border-color: rgba(47, 131, 83, 0.28);
-      color: var(--hero-green-ink);
-
-      &:hover,
-      &:focus-visible {
-        background: rgba(47, 131, 83, 0.18);
-        color: var(--hero-green-ink);
-      }
-    }
-
-    &.chip-toys {
-      background: rgba(237, 177, 45, 0.18);
-      border-color: rgba(237, 177, 45, 0.45);
-      color: var(--hero-saffron-ink);
-
-      &:hover,
-      &:focus-visible {
-        background: rgba(237, 177, 45, 0.3);
-        color: var(--hero-saffron-ink);
-      }
-    }
-  }
-
-  /* The primary is the lacquer itself - vermilion going darker into its own shadow, with a warm
-     glow under it. The second is a cream card with an ink label and its arrow in vermilion, so the
-     two do not fight for the same attention. Both lift a hair and walk their icon forward. */
+  /* The primary is the lacquer itself; the second is the same sheet with an ink hairline round it and
+     its arrow in vermilion, so the two do not fight for the same attention. Neither carries a shadow:
+     a shadow would lift a button off a flat sheet, and the band is meant to be a page. */
   .btn-hero,
   .btn-hero-outline {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.55rem;
-    padding: 1rem 2.25rem;
+    padding: 0.8rem 1.9rem;
     border-radius: var(--radius-button);
     font-weight: 700;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     letter-spacing: var(--letter-label);
     text-transform: uppercase;
     transition: var(--transition-base);
 
     i {
-      font-size: 1rem;
+      font-size: 0.95rem;
       transition: transform var(--transition-base);
     }
 
     &:hover {
       text-decoration: none;
-      transform: translateY(-1px);
 
       i {
         transform: translateX(3px);
@@ -322,32 +247,29 @@
   }
 
   .btn-hero {
-    background: linear-gradient(135deg, #c2401f 0%, var(--hero-red) 58%, #8f2b1a 100%);
-    border: 1px solid #8f2b1a;
+    background: var(--hero-red);
+    border: 1px solid var(--hero-red);
     color: var(--white);
-    box-shadow: 0 12px 24px -14px rgba(143, 43, 26, 0.85);
 
     &:hover {
-      background: linear-gradient(135deg, var(--hero-red) 0%, #8f2b1a 100%);
-      border-color: #75220f;
+      background: #8f2b1a;
+      border-color: #8f2b1a;
       color: var(--white);
-      box-shadow: 0 16px 30px -14px rgba(143, 43, 26, 0.95);
     }
   }
 
   .btn-hero-outline {
-    background: rgba(255, 255, 255, 0.72);
+    background: transparent;
     color: var(--hero-ink);
-    border: 1px solid rgba(47, 33, 23, 0.22);
+    border: 1px solid var(--hero-hairline);
 
     i {
       color: var(--hero-red);
     }
 
     &:hover {
-      background: var(--white);
-      border-color: var(--hero-red);
-      color: var(--hero-red);
+      border-color: var(--hero-ink);
+      color: var(--hero-ink);
 
       i {
         color: var(--hero-red);
@@ -355,244 +277,237 @@
     }
   }
 
+  /* ===== Where to start =====
+     Three small-capital links, one per line the shop turns - painted pots, bottle vases, wooden toys -
+     divided by a middot. They were three tinted pills with icons; the pills said in a louder voice what
+     the collection band further down the page says anyway, and a row of them was 42px of the column's
+     height. One line keeps the same three ways into the shop and costs 18px. */
+  .hero-cats {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    row-gap: 0.4rem;
+    margin-bottom: 1.15rem;
+    animation: fadeInUp 0.8s ease 0.36s both;
+  }
+
+  .hero-cat {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--hero-ink-soft);
+    text-decoration: none;
+    transition: color var(--transition-base);
+
+    /* The middot belongs to the gap between two links rather than to either of them, so it is drawn
+       there instead of being written into the markup, and it cannot end up on a line of its own. The
+       sibling is spelled out rather than written as `& + &`, which would have compiled to
+       `.hero-banner .hero-cat + .hero-banner .hero-cat` and matched nothing. */
+    & + .hero-cat::before {
+      content: '\00b7';
+      margin: 0 0.6rem;
+      /* Neutral, like the hairlines: the warm ink at 45% turned grey-green over the grey sheet. */
+      color: rgba(23, 23, 23, 0.4);
+    }
+
+    &:hover,
+    &:focus-visible {
+      color: var(--hero-red);
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 4px;
+    }
+  }
+
   /* ===== Numbers =====
-     Three tinted counters instead of a ruled row: red, green and saffron - the same three colours as
-     the chips above and the stripe below - each on a card of its own tint, so the row reads as part
-     of the band rather than as small print under it. The figures stay tabular so the live counts do
-     not shiver sideways as they arrive. */
+     One ruled row instead of three tinted cards: the figures in ink, tabular so the live counts do not
+     shiver sideways as they arrive, the labels in small capitals, and a hairline between each pair. It
+     is the eyebrow's idiom again - rule, small capitals, nothing else - and it costs the column 52px
+     where the three cards cost it 78px. */
   .hero-stats {
     display: flex;
-    gap: 0.6rem;
-    animation: fadeInUp 0.8s ease 0.45s both;
+    animation: fadeInUp 0.8s ease 0.44s both;
 
     .stat-item {
       display: flex;
       flex-direction: column;
-      gap: 0.3rem;
+      gap: 0.2rem;
       flex: 1 1 0;
       min-width: 0;
-      padding: 0.8rem 0.95rem;
-      border-radius: var(--radius-card);
-      background: rgba(255, 255, 255, 0.6);
-      border: 1px solid rgba(255, 255, 255, 0.9);
-      box-shadow: 0 12px 26px -24px rgba(47, 33, 23, 0.6);
+      padding-left: 1.25rem;
+      border-left: 1px solid var(--hero-hairline);
+
+      &:first-child {
+        padding-left: 0;
+        border-left: none;
+      }
 
       .stat-number {
-        font-size: clamp(1.35rem, 1.2rem + 0.6vw, 1.75rem);
+        font-size: clamp(1.2rem, 1.05rem + 0.55vw, 1.5rem);
         font-weight: 800;
         line-height: 1;
         letter-spacing: var(--letter-tight);
         font-variant-numeric: tabular-nums;
-        color: var(--hero-red);
+        color: var(--hero-ink);
       }
 
       .stat-label {
-        font-size: 0.6875rem;
+        font-size: 0.625rem;
         font-weight: 700;
-        letter-spacing: 0.1em;
+        letter-spacing: 0.14em;
         text-transform: uppercase;
         color: var(--hero-ink-soft);
       }
-
-      &:first-child {
-        background: rgba(209, 73, 44, 0.1);
-        border-color: rgba(209, 73, 44, 0.2);
-      }
-
-      &:nth-child(2) {
-        background: rgba(47, 131, 83, 0.12);
-        border-color: rgba(47, 131, 83, 0.22);
-
-        .stat-number {
-          color: var(--hero-green-ink);
-        }
-      }
-
-      &:nth-child(3) {
-        background: rgba(237, 177, 45, 0.22);
-        border-color: rgba(237, 177, 45, 0.42);
-
-        .stat-number {
-          color: var(--hero-saffron-ink);
-        }
-      }
     }
   }
 
-  /* ===== Artwork =====
-     The picture is mounted, not floated: a lacquer panel sits under the white frame, offset down and
-     to the right and turned slightly out of true, so the page reads a print on a coloured board. Two
-     square miniatures hang over the right edge at a slight angle, as if they had been laid down by
-     hand, a landscape print leans on the left edge, and the secure chip sits in the quiet top-left
-     corner of the scene, where the artwork is only sky. */
+  /* ===== The shelf =====
+     Three of the shop's own posters, mounted as prints and hung the way a shelf of framed work is hung:
+     one large print on the left, two smaller ones stacked beside it, from a common top edge to a common
+     baseline.
+
+     It is not a row of three any more. A row of three in a 656px column gives each poster ~190px of
+     width inside a strip ~240px tall, and beside a copy column ~480px tall that strip reads as a ribbon
+     with air above and below it - which is what this half of the band looked like before.
+
+     The 'Best Seller' sticker and the 'Secure' chip went with the board they were pinned to. Both
+     existed to hang off a rotated mount of lacquer gradient; on paper there is nothing for them to hang
+     from, and the words they carried are now the caption over the shelf and a line of the trust strip
+     under the benefits band respectively. */
   .hero-visual {
     position: relative;
-    /* The indent on the left is the gutter against the copy, and it is what the landscape miniature
-       hangs into; the one on the right keeps the two square miniatures off the edge of the page,
-       which they were reaching for at 1440. Both came in by half a rem when the mount was added. */
-    padding-left: 1.5rem;
-    padding-right: 1rem;
+    /* The indent is the gutter against the copy; the column's own right edge is where the shelf stops,
+       so the prints run out to the container's edge the way a plate runs to the edge of its page.
+
+       The width is capped because the shelf's height is a fixed fraction of its width - 0.795 of it,
+       see the note at .hero-image-showcase - so an uncapped shelf in this column is 640px across and
+       509px tall, and alone decides how tall the band is. 32rem puts the shelf at 394px, and with the
+       27px caption over it the pictures stand exactly as tall as the copy column beside them (421px at
+       1440), so the caption's rule and the eyebrow's share a line, the posters' feet and the stats'
+       share another, and nothing below the fold is pushed down by pictures. `margin-left: auto` keeps
+       the shelf on the column's right edge, where the page's margin is, rather than letting it drift
+       left into the copy. Below ~1110 the column is already narrower than the cap, so the whole
+       arrangement - shelf level with copy - only holds on a wide screen; narrower, the copy is the
+       taller of the two and the shelf centres against it. */
+    max-width: 32rem;
+    margin-left: auto;
+    padding-left: 1rem;
     animation: fadeInUp 0.9s ease 0.2s both;
   }
 
-  .hero-image-showcase {
-    position: relative;
-    max-width: 540px;
-    margin-left: auto;
-    z-index: 1;
+  /* The caption over the shelf: small capitals and a rule running out to the column's right edge. */
+  .hero-plates-head {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    margin: 0 0 0.85rem;
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--hero-ink-soft);
 
-    /* The mount: a lacquer panel laid under the white frame, offset down and to the right and turned
-       a degree out of true, so the artwork reads as a print mounted on a coloured board rather than
-       as a picture floating on the page. It is the only large area of pure colour in the band. */
-    &::before {
+    &::after {
       content: '';
-      position: absolute;
-      inset: 18px -16px -20px 16px;
-      background: linear-gradient(145deg, rgba(248, 205, 85, 0.85) 0%, rgba(209, 73, 44, 0.6) 54%, rgba(47, 131, 83, 0.5) 100%);
-      border-radius: var(--radius-md);
-      transform: rotate(-1.6deg);
-      z-index: -1;
+      flex: 1 1 auto;
+      height: 1px;
+      background: var(--hero-hairline);
     }
   }
 
-  .showcase-card {
-    /* Square corners: the reference keeps imagery sharp and uses white frames for depth. */
-    border-radius: var(--radius-media);
+  /* Where the shelf's proportions come from - the one piece of arithmetic in the band.
+
+     The large print is cut to 4:5, so its height is 1.25x its width. The stack beside it holds the
+     square vase poster (1x its width) and the terracotta one (1.24x), with a gap between. Writing a for
+     the large print's width, b for the stack's and g for the gap, the two columns come out level when
+
+       1.25a = b + 1.24b + g      i.e.   a = (2.24b + g) / 1.25
+
+     and with a + b + g = 640 - the column's width at 1440, less the copy's gutter - that is b = 223 and
+     a = 407. Expressed as a ratio, a/b = 1.83, which is what the track sizes below say. Because the
+     ratio and the gap are solved together, the two columns land level at every width, and neither
+     picture is cropped: each window is the shape of the artwork behind it.
+
+     That 640 is now the *cap* rather than the width: .hero-visual stops at 32rem, so the shelf is 496
+     across on a wide screen and the same arithmetic gives b = 171 and a = 315, a 394px shelf. The ratio
+     is what the tracks carry, so nothing below has to change with the cap - the shelf simply comes out
+     shorter than the column, and the band ends where the copy does.
+
+     Tracks and not flex bases: a flex item's basis is measured on its content box, so the large print's
+     5px mat and hairline made it 4px wider than its share and the two smaller prints 4px narrower -
+     enough to make object-fit crop a corner badge off the vase poster. */
+  .hero-image-showcase {
+    display: grid;
+    grid-template-columns: minmax(0, 1.83fr) minmax(0, 1fr);
+    align-items: stretch;
+    gap: 10px;
+    max-width: 100%;
+  }
+
+  /* One poster, drawn as a print: a 5px white mat inside a hairline. Square corners and no shadow - a
+     print on paper has neither. The mat is white and the sheet under it is grey, which is the one thing
+     the grey ground buys the shelf: the mount separates itself from the band without a shadow having to
+     do it.
+
+     The window is 4:5. Both portrait posters print their headline along the top edge and their price
+     badges along the bottom one, so object-fit: cover is allowed to take width and never height: the
+     toys poster is 900x1080 in the artwork's own pixels (1.2) and the terracotta one 900x1117 (1.24),
+     which is why 4:5 (1.25) crops the first slightly and the second barely at all. */
+  .showcase-print {
+    position: relative;
+    display: block;
+    aspect-ratio: 4 / 5;
+    min-width: 0;
+    padding: 5px;
+    background: var(--white);
+    border: 1px solid var(--hero-hairline);
     overflow: hidden;
-    background: var(--surface);
-    transition: var(--transition-base);
+    text-decoration: none;
 
     img {
       width: 100%;
       height: 100%;
       object-fit: cover;
       display: block;
-      transition: transform 0.6s ease;
+      transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
     }
 
-    &:hover img {
-      transform: scale(1.06);
+    /* A breath of zoom when pointed at - the prints are laid on the sheet, not glued to it. 3% and not
+       the 6% the old miniatures used: a poster's own headline runs close to its edges. */
+    &:hover img,
+    &:focus-visible img {
+      transform: scale(1.03);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--hero-red);
+      outline-offset: 2px;
     }
   }
 
-  .showcase-card-main {
-    position: relative;
-    width: 100%;
-    /* The art is drawn in a 640 x 512 box, so holding the frame to that ratio means object-fit
-       never crops the shelf the pieces stand on, at any column width. The hairline and the shadow
-       do the mounting: the artwork already carries a white margin of its own, so a second mount
-       here only made the picture smaller inside its frame. */
-    aspect-ratio: 640 / 512;
-    background: var(--white);
-    border: 1px solid rgba(47, 33, 23, 0.12);
-    box-shadow: 0 30px 60px -40px rgba(47, 33, 23, 0.8);
+  /* The two smaller prints: a grid of two rows rather than a nested flex, because the rows are not equal
+     - a square, and a 1.24 - and those are exactly the ratios the large print above was solved against.
+     Each picture is cropped to its cell by object-fit with the origin at the top edge, so what a crop may
+     take is the footer of a poster and never its headline. */
+  .showcase-stack {
+    display: grid;
+    grid-template-rows: 1fr 1.24fr;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .showcase-stack .showcase-print {
+    aspect-ratio: auto;
 
     img {
-      height: 100%;
-    }
-
-    .showcase-tag {
-      position: absolute;
-      bottom: 1rem;
-      left: 1rem;
-      background: var(--hero-saffron-light);
-      color: var(--hero-ink);
-      padding: 0.45rem 0.9rem;
-      border-radius: var(--radius-badge);
-      border: 1px solid rgba(138, 91, 6, 0.28);
-      font-size: 0.6875rem;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-
-      i {
-        color: var(--hero-red);
-      }
+      object-position: 50% 0;
     }
   }
 
-  .showcase-card-sm {
-    position: absolute;
-    /* Square frame: the mini-card art (doll.svg / top.svg) is drawn in a 240x240 box, so a
-       non-square frame forced object-fit: cover to slice the hat and base rings off. The
-       base `.showcase-card img` rule (width/height 100% + cover) then fills it 1:1. The landscape
-       print below shares this frame's border and shadow, but sets its own 4:3 box. */
-    width: 160px;
-    height: 160px;
-    border: 6px solid var(--white);
-    box-shadow: 0 22px 45px -24px rgba(0, 0, 0, 0.55);
-    transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
-
-    /* Straightens up when pointed at - the cards are laid down at an angle, not glued there. */
-    &:hover {
-      transform: translateY(-3px) rotate(0deg);
-    }
-  }
-
-  .showcase-card-top {
-    top: -1.5rem;
-    right: -1rem;
-    transform: rotate(2.5deg);
-  }
-
-  .showcase-card-bottom {
-    bottom: -1.5rem;
-    right: -0.5rem;
-    transform: rotate(-2deg);
-  }
-
-  /* A landscape print rather than a square: vases.svg is drawn in a 400 x 300 box, so a 4:3 frame
-     shows the whole turned vase and its two dried stems, while a square one would have sliced the
-     sides off with object-fit: cover. Its width is a share of the frame rather than a pixel size, so
-     it stays the same proportion of the composition at every column width. */
-  .showcase-card-wide {
-    width: 34%;
-    height: auto;
-    aspect-ratio: 4 / 3;
-  }
-
-  /* Seated on the left edge just above the rocking horse: in the artwork the horse stands from
-     y≈258 to the shelf at y≈385 (of 512), and the Secure chip sits in the top corner, so 17% down
-     is the clear band of turning rings where a third frame can hang without hiding a toy. */
-  .showcase-card-left {
-    top: 17%;
-    bottom: auto;
-    left: -3rem;
-    transform: rotate(-3.5deg);
-  }
-
-  /* ===== Secure chip =====
-     Chocolate ink on the pale end of the artwork, so the band carries one dark anchor besides the
-     vermilion button - the same #2f2117 the headline is set in, which is why it sits in the palette
-     rather than outside it. It used to sit top-right, directly on top of the doll miniature, which
-     read as a collision rather than as a badge. */
-  .hero-floating-badge {
-    position: absolute;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: var(--hero-ink);
-    color: var(--white);
-    border: 1px solid var(--hero-ink);
-    padding: 0.6rem 1rem;
-    border-radius: var(--radius-badge);
-    font-size: 0.6875rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    z-index: 4;
-
-    i {
-      font-size: 0.9rem;
-      color: var(--white);
-    }
-
-    &.badge-2 {
-      top: 1.5rem;
-      left: 1.5rem;
-    }
+  /* The vase poster is square and its copy runs down the right-hand half, so its plate shows all of it
+     and is centred on both axes. */
+  .showcase-print-square img {
+    object-position: 50% 50%;
   }
 }

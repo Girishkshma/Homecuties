@@ -88,9 +88,11 @@
     <i class="bi bi-exclamation-circle me-2"></i>{{ error }}
   </div>
 
-  <!-- Products Grid -->
-  <div *ngIf="!loading && !error && products.length > 0" class="row g-4">
-    <div *ngFor="let product of products" class="col-xl-3 col-lg-4 col-md-6">
+  <!-- Products Grid. Two cards to a column on a phone, not one: a single card takes the whole screen at that width, so
+       the listing turned into a slideshow - one piece in sight and nothing beside it to compare. The card is trimmed to
+       fit half a phone in _responsive.scss, which is where the description stops being drawn. -->
+  <div *ngIf="!loading && !error && products.length > 0" class="row g-3 g-md-4">
+    <div *ngFor="let product of products" class="col-6 col-lg-4 col-xl-3">
       <div class="product-card">
         <div class="product-image">
           <img [src]="product.PromoImage | productImage" alt="{{ product.ProductName }}">
