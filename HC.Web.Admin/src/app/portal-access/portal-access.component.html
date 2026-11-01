@@ -300,6 +300,11 @@
                     <span class="code" *ngIf="hit.countryCode">{{ hit.countryCode }}</span>
                   </ng-container>
                   <ng-template #noPlace><span class="muted">no place</span></ng-template>
+                  <!-- The visitor pressed 'Share my location' on this hit. It sits beside the place, not instead
+                       of it: the place is the address's own answer, the point is the visitor's addition. -->
+                  <span class="code shared"
+                        *ngIf="hit.latitude !== null && hit.latitude !== undefined"
+                        [title]="'The visitor shared this point: ' + hit.latitude + ', ' + hit.longitude">shared</span>
                 </td>
                 <td class="muted">{{ hit.organization || '-' }}</td>
                 <td class="page-cell" [title]="hit.url">{{ hit.url }}</td>

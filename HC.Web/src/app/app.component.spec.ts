@@ -5,6 +5,7 @@ import { HttpClientTestingModule, HttpTestingController } from '@angular/common/
 import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { AppComponent } from './app.component';
 import { ApiConfigService } from './services/api.service';
+import { VisitorLocationService } from './services/visitor-location.service';
 
 /** A page with nothing drawn in it: the root component only cares that the router opened one. */
 @Component({ template: '', standalone: false })
@@ -21,6 +22,9 @@ const routes: Routes = [
 interface VisitSent {
   pageUrl: string;
   referrerUrl: string | null;
+  latitude?: number;
+  longitude?: number;
+  accuracyMeters?: number | null;
 }
 
 describe('AppComponent', () => {
@@ -29,6 +33,10 @@ describe('AppComponent', () => {
   let trackingUrl: string;
 
   beforeEach(async () => {
+    // The location question's answer is remembered by the browser (see VisitorLocationService), and one test's
+    // answer must not decide the next one's.
+    localStorage.clear();
+
     await TestBed.configureTestingModule({
       imports: [
         RouterModule.forRoot(routes),
@@ -48,6 +56,7 @@ describe('AppComponent', () => {
     router = TestBed.inject(Router);
     trackingUrl = TestBed.inject(ApiConfigService).getBaseServUrl() + 'Utilities/AddAccessTracking';
   });
+
 
   afterEach(() => http.verify());
 
@@ -117,4 +126,41 @@ describe('AppComponent', () => {
 
     sent[0].flush({ Result: 1, Messages: ['Access tracked'] });
   });
+
+  /**
+   * A visitor who agreed to share is described by their device as well as by their address: the point rides along
+   * with every page view recorded after they answered, and nothing else about the page view changes. The visitor
+   * who has not answered sends exactly what the shop always sent - which is what makes the API's fallback (place
+   * the hit by the address) the ordinary path rather than an error path.
+   */
+  it('carries the point a visitor agreed to share, and nothing at all when they did not', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    visitsSent();
+
+    await router.navigateByUrl('/shop/7');
+
+    const unshared = visitsSent();
+    expect(unshared.length).toBe(1);
+    expect(unshared[0].latitude).toBeUndefined();
+    expect(unshared[0].longitude).toBeUndefined();
+    expect(unshared[0].accuracyMeters).toBeUndefined();
+
+    // What 'Share my location' leaves behind for the page views that follow (VisitorLocationService).
+    spyOnProperty(VisitorLocationService.prototype, 'sharedPoint', 'get').and.returnValue({
+      latitude: 13.0826802,
+      longitude: 80.2707184,
+      accuracyMeters: 40
+    });
+
+    await router.navigateByUrl('/product/10045');
+
+    const shared = visitsSent();
+    expect(shared.length).toBe(1);
+    expect(shared[0].pageUrl).toBe('/product/10045');
+    expect(shared[0].latitude).toBe(13.0826802);
+    expect(shared[0].longitude).toBe(80.2707184);
+    expect(shared[0].accuracyMeters).toBe(40);
+  });
 });
+

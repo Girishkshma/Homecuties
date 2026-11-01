@@ -93,15 +93,19 @@
     padding: 2rem;
   }
 
-  /* The filter card comes down in step with the page, and its columns with it: a narrower track keeps the shelves
-     beside each other for as long as the width allows instead of dropping to one column of half-empty ones. */
-  .category-filter {
-    padding: 1rem 1.15rem 1.25rem;
+  /* The shop's category filter is not drawn at this width: it is the width at which the header's nav gives way to the
+     hamburger (see .header-nav above), and the menu behind that button already lists every heading and shelf the card
+     lists - drawn from the same rows (see .mobile-nav in side-menu.component.html) - so the card would be the catalogue
+     said twice on a screen that has the least room for it. Stacked under the page's heading it stood taller than the
+     first row of products it was filtering, which meant a phone opened on the shop on a wall of collection names before
+     a single piece for sale.
 
-    .filter-columns {
-      grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-      gap: 1.25rem 1.5rem;
-    }
+     Hidden whole rather than unwrapped to its chips: the card is one thing - the trail being browsed, 'All Products'
+     and the columns - and the chips alone would say nothing about whose collection each shelf belongs to, which is the
+     one reading the columns exist for (see .category-filter in _components.scss). Browsing by collection on a phone is
+     the menu's job, and 'Shop' in that menu is the way back out to the whole catalogue. */
+  .category-filter {
+    display: none;
   }
 }
 
@@ -430,17 +434,6 @@
 
   .product-detail .product-gallery .main-image-square {
     max-width: 240px;
-  }
-
-  /* One collection under another on a phone, each keeping its own rule: the columns stack, so the rule that stood
-     beside the shelves now stands above them, and the browsed collection is still the one in solid ink. */
-  .category-filter {
-    padding: 1rem;
-
-    .filter-columns {
-      grid-template-columns: 1fr;
-      gap: 1.25rem;
-    }
   }
 }
 

@@ -1,0 +1,113 @@
+/* ===== Location question =====
+   The strip the shop asks one question with, drawn as the rest of the site is drawn: a white card with a thin
+   rule, ink text, and the site's own button shapes. It sits in the page's bottom margin on a wide screen (it
+   never covers the content behind it) and becomes a full-width band on a phone, where there is no margin to
+   spare. */
+.geo-consent {
+  position: fixed;
+  left: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  max-width: 38rem;
+  padding: 1rem 1.25rem;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-md);
+  font-family: var(--font-family);
+}
+
+.geo-consent-body {
+  min-width: 0;
+}
+
+.geo-consent-title {
+  margin: 0 0 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: var(--letter-label);
+  text-transform: uppercase;
+  color: var(--heading-color);
+}
+
+.geo-consent-text {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--body-color);
+}
+
+.geo-consent-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.geo-consent-share,
+.geo-consent-decline {
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-button);
+  font-family: var(--font-family);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: var(--letter-label);
+  text-transform: uppercase;
+  padding: 0.55rem 1rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.geo-consent-share {
+  background: var(--primary);
+  color: var(--white);
+
+  &:hover {
+    background: var(--primary-light);
+    border-color: var(--primary-light);
+  }
+}
+
+.geo-consent-decline {
+  background: transparent;
+  color: var(--heading-color);
+
+  &:hover {
+    background: var(--gray-100);
+  }
+}
+
+.geo-consent-share:focus-visible,
+.geo-consent-decline:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* A phone has no margin to sit in, so the strip becomes the band it would be on a native app: full width, the
+   two answers side by side under the words. */
+@media (max-width: 767px) {
+  .geo-consent {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    max-width: none;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    padding: 0.9rem 1rem calc(0.9rem + env(safe-area-inset-bottom, 0));
+    border-width: 1px 0 0;
+    border-radius: 0;
+  }
+
+  .geo-consent-actions {
+    flex-direction: row;
+
+    button {
+      flex: 1;
+    }
+  }
+}

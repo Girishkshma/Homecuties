@@ -1,0 +1,19 @@
+<!--
+  The location question: a strip at the foot of the page, drawn only while the question is unanswered (see
+  VisitorLocationService). Nothing on the page waits on it - it can be ignored, answered or dismissed and the
+  shop works exactly the same - and it never covers the page's own content on a wide screen, only its margin.
+-->
+<aside class="geo-consent" *ngIf="isAsking" aria-label="Share your location">
+  <div class="geo-consent-body">
+    <p class="geo-consent-title">May we know roughly where you are?</p>
+    <p class="geo-consent-text">
+      Sharing the area you shop from helps us see where our customers are. It is optional, it is kept to about
+      a hundred metres, and the shop works exactly the same either way.
+    </p>
+  </div>
+
+  <div class="geo-consent-actions">
+    <button type="button" class="geo-consent-share" (click)="share()">Share my location</button>
+    <button type="button" class="geo-consent-decline" (click)="decline()">Not now</button>
+  </div>
+</aside>

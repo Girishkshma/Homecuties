@@ -319,5 +319,72 @@ public class AccessTrackingTests
             (new DateOnly(2026, 10, 10), new DateOnly(2026, 10, 10)),
             AccessTrackingRules.ResolvePlaceDays(new DateOnly(2026, 10, 20), new DateOnly(2026, 10, 10), today));
     }
+
+    /// <summary>
+    /// The point a visitor agreed to share, read as a place in the world: rounded to about a hundred metres
+    /// before it is stored, so the column holds which part of a city a reader is in and not the door they are
+    /// behind. A device that says how sure it is keeps that number (in whole metres); one that says nothing
+    /// (or says zero) still has a point, it simply comes without a promise about how close it is.
+    /// </summary>
+    [Fact]
+    public void ASharedPointIsKeptToAboutAHundredMetres()
+    {
+        var point = AccessTrackingRules.ResolveSharedPoint(13.0826802, 80.2707184, 41.6);
+
+        Assert.NotNull(point);
+        Assert.Equal(13.083, point.Latitude);
+        Assert.Equal(80.271, point.Longitude);
+        Assert.Equal(42, point.AccuracyMeters);
+
+        // An accuracy of zero, a negative one or none at all is not a claim: the point stands, the promise does
+        // not.
+        Assert.Null(AccessTrackingRules.ResolveSharedPoint(13.0826802, 80.2707184, 0)!.AccuracyMeters);
+        Assert.Null(AccessTrackingRules.ResolveSharedPoint(13.0826802, 80.2707184, -5)!.AccuracyMeters);
+        Assert.Null(AccessTrackingRules.ResolveSharedPoint(13.0826802, 80.2707184, null)!.AccuracyMeters);
+    }
+
+    /// <summary>
+    /// Nothing is written for a point that is not a place: half of one (a browser that sent only the latitude),
+    /// one off the globe, and the NaN and infinity a broken or overreaching client can put in JSON. Every one of
+    /// those hits keeps the place its address was looked up to, which is what every hit had before the shop
+    /// began asking.
+    /// </summary>
+    [Theory]
+    [InlineData(null, 80.2707184)]
+    [InlineData(13.0826802, null)]
+    [InlineData(null, null)]
+    [InlineData(90.5, 80.2707184)]
+    [InlineData(-90.5, 80.2707184)]
+    [InlineData(13.0826802, 180.5)]
+    [InlineData(13.0826802, -180.5)]
+    [InlineData(double.NaN, 80.2707184)]
+    [InlineData(13.0826802, double.NaN)]
+    [InlineData(double.PositiveInfinity, 80.2707184)]
+    [InlineData(13.0826802, double.NegativeInfinity)]
+    public void APointThatIsNotAPlaceIsNotWritten(double? latitude, double? longitude)
+    {
+        Assert.Null(AccessTrackingRules.ResolveSharedPoint(latitude, longitude, 40));
+    }
+
+    /// <summary>
+    /// The edges of the world are still places (a point on the equator or the date line is a visitor), and a fix
+    /// the device itself says is wider than a hundred kilometres is not kept: the address already says more
+    /// than a guess that wide, so keeping it would only put a visitor in the wrong city with confidence.
+    /// </summary>
+    [Fact]
+    public void TheEdgesOfTheWorldArePlacesButAWildGuessIsNot()
+    {
+        var equator = AccessTrackingRules.ResolveSharedPoint(0, 0, 10);
+        Assert.NotNull(equator);
+        Assert.Equal(0, equator.Latitude);
+        Assert.Equal(0, equator.Longitude);
+
+        Assert.NotNull(AccessTrackingRules.ResolveSharedPoint(-90, -180, 10));
+        Assert.NotNull(AccessTrackingRules.ResolveSharedPoint(90, 180, 10));
+
+        Assert.Null(AccessTrackingRules.ResolveSharedPoint(13.0826802, 80.2707184, AccessTrackingRules.MaxSharedAccuracyMeters + 1));
+        Assert.NotNull(AccessTrackingRules.ResolveSharedPoint(13.0826802, 80.2707184, AccessTrackingRules.MaxSharedAccuracyMeters));
+    }
 }
+
 

@@ -180,6 +180,13 @@ public partial class HomecutiesDbContext : DbContext
 
             entity.Property(e => e.Id).HasColumnName("ID");
             entity.Property(e => e.AccessOn).HasColumnType("datetime");
+            // The point a visitor chose to share, when they did - 'float' is the T-SQL double, which holds the
+            // three decimals the rule keeps (AccessTrackingRules.ResolveSharedPoint) without a decimal type's
+            // fixed scale pretending to a precision the browser never claimed. All three are nullable, because
+            // a hit recorded without consent is the ordinary hit and it has no point at all.
+            entity.Property(e => e.AccuracyMeters).HasColumnType("float");
+            entity.Property(e => e.Latitude).HasColumnType("float");
+            entity.Property(e => e.Longitude).HasColumnType("float");
             // The place columns hold what the location lookup names, so they are sized for a real name
             // ('Tamil Nadu', 'Andhra Pradesh', 'United Kingdom') rather than for the 20 characters the first
             // version of this table allowed - a name that does not fit is a hit placed somewhere wrong.

@@ -44,4 +44,21 @@ public partial class AccessTracking
 
     /// <summary>The ISO 3166-1 alpha-2 code of Country ('IN', 'US'), null when not located.</summary>
     public string? CountryCode { get; set; }
+
+    /// <summary>
+    /// The point the visitor chose to share on this page view, rounded to about a hundred metres (see
+    /// HC.Business.AccessTrackingRules.ResolveSharedPoint), or null - which is what a hit recorded without
+    /// their agreement carries, and what every hit carried before the shop began asking.
+    ///
+    /// It sits beside the place columns rather than in place of them: the place is what the report groups by,
+    /// and it is still the answer the caller's own address was looked up to, so a browser cannot file itself
+    /// in another country by sending a coordinate. A point is only ever the visitor's own addition.
+    /// </summary>
+    public double? Latitude { get; set; }
+
+    /// <summary>The longitude of that point, null exactly when <see cref="Latitude"/> is.</summary>
+    public double? Longitude { get; set; }
+
+    /// <summary>How close the device said the shared point is, in metres, or null when it did not say.</summary>
+    public double? AccuracyMeters { get; set; }
 }

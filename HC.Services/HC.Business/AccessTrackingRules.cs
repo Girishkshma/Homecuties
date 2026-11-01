@@ -27,6 +27,19 @@ public enum AccessPlaceDimension
 }
 
 /// <summary>
+/// The point a visitor chose to share, once it has been read as a place in the world: where they were, to about
+/// a hundred metres, and how sure the device was of it.
+///
+/// It is not an address and not a person: the device answers with a coordinate, the coordinate is rounded
+/// before it is stored (<see cref="AccessTrackingRules.SharedPointDecimals"/>), and the row it is written to has
+/// no column for a name, a customer or a device.
+/// </summary>
+/// <param name="Latitude">Degrees north of the equator, rounded to three decimals ('13.082').</param>
+/// <param name="Longitude">Degrees east of Greenwich, rounded to three decimals ('80.270').</param>
+/// <param name="AccuracyMeters">How close the device said it was, in metres, or null when it did not say.</param>
+public sealed record SharedPoint(double Latitude, double Longitude, double? AccuracyMeters);
+
+/// <summary>
 /// The decisions the portal access tracker makes that are not about the database: which portal a hit is
 /// filed under, what a page address is allowed to be, how wide the frequency chart's slices are, and what a
 /// country's share of a period is.
@@ -51,6 +64,20 @@ public static class AccessTrackingRules
 
     /// <summary>The longest portal name the column holds.</summary>
     public const int MaxPortalLength = 20;
+
+    /// <summary>
+    /// How much of a shared point is kept: three decimals, which is about a hundred metres - near enough to say
+    /// which part of a city a reader is in, and not near enough to point at a door. The visitor agreed to be
+    /// placed, not to have their address written down.
+    /// </summary>
+    public const int SharedPointDecimals = 3;
+
+    /// <summary>
+    /// The widest accuracy a shared point may claim (a hundred kilometres). Beyond that a browser is not
+    /// saying where it is, and the place its address was looked up to says more, so the point is not kept -
+    /// a fix that wide would only put a visitor in the wrong city with more confidence than before.
+    /// </summary>
+    public const double MaxSharedAccuracyMeters = 100000;
 
     /// <summary>The portal a hit is filed under when the caller names none - the storefront's own.</summary>
     public const string DefaultPortal = "Web";
@@ -149,6 +176,45 @@ public static class AccessTrackingRules
             return null;
 
         return address.Length > MaxPageUrlLength ? address[..MaxPageUrlLength] : address;
+    }
+
+    /// <summary>
+    /// The point the visitor chose to share, or null when there is no point worth keeping.
+    ///
+    /// A browser sends these three numbers only after the visitor has agreed (see HC.Web/src/app/geo-consent),
+    /// so most hits arrive without them and are placed by their address as they always were. What does arrive
+    /// is not believed as written: both halves have to be there, finite and on the globe - a coordinate that
+    /// is half-present, infinite, or off the planet is a broken or overreaching client, and it is dropped
+    /// rather than written. What survives is rounded to about a hundred metres, and a fix the device itself
+    /// says is wider than <see cref="MaxSharedAccuracyMeters"/> is not kept at all, because the address knows
+    /// better than that.
+    /// </summary>
+    public static SharedPoint? ResolveSharedPoint(double? latitude, double? longitude, double? accuracyMeters)
+    {
+        if (latitude is null || longitude is null)
+            return null;
+
+        // 'double.IsFinite' covers both the NaN a division by nothing produces and the infinity a JSON body
+        // can carry ('1e400'), neither of which is a place.
+        if (!double.IsFinite(latitude.Value) || !double.IsFinite(longitude.Value))
+            return null;
+
+        if (latitude is < -90 or > 90 || longitude is < -180 or > 180)
+            return null;
+
+        if (accuracyMeters is > MaxSharedAccuracyMeters)
+            return null;
+
+        // An accuracy of zero, a negative one, or none at all is not a claim: the point is still where the
+        // device said it was, it simply does not come with a promise about how close that is.
+        var accuracy = accuracyMeters is > 0 and <= MaxSharedAccuracyMeters
+            ? Math.Round(accuracyMeters.Value)
+            : (double?)null;
+
+        return new SharedPoint(
+            Math.Round(latitude.Value, SharedPointDecimals),
+            Math.Round(longitude.Value, SharedPointDecimals),
+            accuracy);
     }
 
     /// <summary>

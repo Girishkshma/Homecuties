@@ -465,6 +465,15 @@
   .price-step:last-child dd {
     font-size: 1.5rem;
   }
+
+  /* The categories the piece is filed under are not listed at this width either, for the reason the shop's filter is
+     not (see .category-filter in scss/_responsive.scss): the menu behind the hamburger already lists every heading and
+     shelf the tags name, from the same rows (see .mobile-nav in side-menu.component.html), and under the description the
+     tags repeated the catalogue on a phone in a place the piece itself has the least room. The trail above the title is
+     left as it is - it says only where the shopper came from, and it is the one link back to that listing. */
+  .product-categories {
+    display: none;
+  }
 }
 
 @media (max-width: 575.98px) {

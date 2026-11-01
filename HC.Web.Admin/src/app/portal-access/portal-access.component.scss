@@ -345,6 +345,15 @@
   font-weight: 600;
 }
 
+/* The same pill, in the colour of something the visitor gave rather than something the lookup said: a hit that
+   carries the point they agreed to share (see AccessTrackingRules.ResolveSharedPoint). Hovering it names the
+   point, which is all the screen shows of it - the place beside it is still the address's own answer. */
+.code.shared {
+  background: #e7f6ec;
+  color: #1e7b3f;
+  cursor: help;
+}
+
 .muted {
   color: #9aa0a6;
   font-size: 13px;

@@ -4,9 +4,14 @@ namespace HC.Business.Dtos;
 
 /// <summary>
 /// What a shop front sends when a page has been opened: the page, where the reader came from, and which front
-/// it is. Nothing about the reader - no id, no cookie, no name - and no location either: the address is read
-/// off the caller's own connection by the API, and the place it is in is looked up server-side (see
-/// HC.Business.Geo.IpGeoLocator), so a browser cannot claim to be somewhere it is not.
+/// it is. Nothing about the reader - no id, no cookie, no name - and no place either: the address is read off
+/// the caller's own connection by the API, and the place it is in is looked up server-side (see
+/// HC.Business.Geo.IpGeoLocator), so a browser cannot claim to be in a country it is not.
+///
+/// The one thing the browser may add is a point the visitor chose to share (see
+/// HC.Web/src/app/geo-consent): it is optional, left out by every visitor who did not agree, and it is written
+/// beside the place the address was looked up to rather than in place of it - so what the report counts is
+/// still the address's own answer, and a point can only ever add to the picture, never redirect it.
 /// </summary>
 public class AccessTrackingRequestDto
 {
@@ -21,6 +26,25 @@ public class AccessTrackingRequestDto
     /// <summary>Which shop front sent the hit - 'Web' for the storefront when it is left out.</summary>
     [JsonPropertyName("portal")]
     public string? Portal { get; set; }
+
+    /// <summary>
+    /// The latitude the visitor agreed to share, or null - which is what every hit recorded without consent
+    /// carries. Read, checked and rounded by HC.Business.AccessTrackingRules.ResolveSharedPoint before it is
+    /// stored; an unreadable pair is dropped and the hit is placed by its address alone.
+    /// </summary>
+    [JsonPropertyName("latitude")]
+    public double? Latitude { get; set; }
+
+    /// <summary>The longitude that goes with <see cref="Latitude"/> - neither half is stored on its own.</summary>
+    [JsonPropertyName("longitude")]
+    public double? Longitude { get; set; }
+
+    /// <summary>
+    /// How close the device said the shared point is, in metres, or null when it did not say. A fix wider than
+    /// the tracker keeps is refused with the point, because the address already places the hit better.
+    /// </summary>
+    [JsonPropertyName("accuracyMeters")]
+    public double? AccuracyMeters { get; set; }
 }
 
 /// <summary>
@@ -271,5 +295,17 @@ public class PortalAccessLogItemDto
     /// <summary>The network behind the address - a provider, a crawler, an office.</summary>
     [JsonPropertyName("organization")]
     public string? Organization { get; set; }
+
+    /// <summary>
+    /// The point the visitor chose to share on this hit - about a hundred metres of it - or null on every hit
+    /// recorded without their agreement, which is most of them. Beside it, not instead of it, the place the
+    /// address was looked up to is what the row already reads as.
+    /// </summary>
+    [JsonPropertyName("latitude")]
+    public double? Latitude { get; set; }
+
+    /// <summary>The longitude that goes with <see cref="Latitude"/>, null exactly when it is.</summary>
+    [JsonPropertyName("longitude")]
+    public double? Longitude { get; set; }
 }
 

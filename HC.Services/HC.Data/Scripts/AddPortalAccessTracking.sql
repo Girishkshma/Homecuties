@@ -25,6 +25,13 @@
 --   CountryCode  the ISO 3166-1 alpha-2 code the location lookup names beside the country ('IN', 'US'),
 --                which is what keeps two spellings of one country from reading as two.
 --
+-- Why Latitude/Longitude/AccuracyMeters are in the CREATE TABLE below:
+--   The API writes the point a visitor agreed to share on every hit it records, so a table made without
+--   those columns would refuse the insert rather than store the hit unplaced (see
+--   AddAccessTrackingSharedLocation.sql, which adds them to a table that already exists). They are
+--   nullable and are left empty on a table that is created here: a point is only ever written when a
+--   visitor shares one, and none of the rows this script has ever written came with one.
+--
 -- Safe to run on any environment and more than once: every step asks whether it has already been done
 -- and does nothing when it has. Nothing here deletes a row.
 -- ============================================================
@@ -47,6 +54,9 @@ BEGIN
         [Organization] [varchar](200) NULL,
         [Portal] [varchar](20) NULL,
         [CountryCode] [varchar](2) NULL,
+        [Latitude] [float] NULL,
+        [Longitude] [float] NULL,
+        [AccuracyMeters] [float] NULL,
         CONSTRAINT [PK_AccessTracking] PRIMARY KEY CLUSTERED ([ID] ASC)
     );
 

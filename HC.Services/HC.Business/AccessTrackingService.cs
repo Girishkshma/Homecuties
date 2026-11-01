@@ -11,6 +11,11 @@ namespace HC.Business;
 /// The portal access tracker: one row per page view saying where the reader's address is and when it was
 /// seen - never who.
 ///
+/// A hit also carries the point the visitor agreed to share, when they did: it is rounded and checked by
+/// <see cref="AccessTrackingRules.ResolveSharedPoint"/> and written beside the place, never instead of it - the
+/// place stays the API's own answer about the caller's address, so a coordinate can add to the picture but not
+/// redirect it. A visitor who declines is recorded exactly as every visitor was before the shop asked.
+///
 /// This file holds what a hit costs (the write) and what keeps the table from growing without end (the
 /// purge); the reads the admin screen makes are in 'AccessTrackingService.Report.cs' and
 /// 'AccessTrackingService.Log.cs', and the decisions that are neither are pinned in
@@ -61,6 +66,13 @@ public partial class AccessTrackingService : IAccessTrackingService
 
         var location = await LocateSafelyAsync(address, cancellationToken);
 
+        // A point the visitor chose to share is kept beside the place their address was looked up to, never
+        // instead of it: the place is what the report counts, and it stays the API's own answer about the
+        // caller's address, so a coordinate can add to the picture but never redirect it. Most hits have none
+        // - the question is optional and is only answered by the visitors who agree (see
+        // HC.Web/src/app/geo-consent) - and those hits read exactly as they always have.
+        var sharedPoint = AccessTrackingRules.ResolveSharedPoint(request?.Latitude, request?.Longitude, request?.AccuracyMeters);
+
         var tracking = new AccessTracking
         {
             Ip = address,
@@ -71,7 +83,10 @@ public partial class AccessTrackingService : IAccessTrackingService
             Region = AccessTrackingRules.Clip(location?.Region, AccessTrackingRules.MaxPlaceLength),
             Country = AccessTrackingRules.Clip(location?.Country, AccessTrackingRules.MaxPlaceLength),
             CountryCode = AccessTrackingRules.Clip(location?.CountryCode, 2),
-            Organization = AccessTrackingRules.Clip(location?.Organization, AccessTrackingRules.MaxOrganizationLength)
+            Organization = AccessTrackingRules.Clip(location?.Organization, AccessTrackingRules.MaxOrganizationLength),
+            Latitude = sharedPoint?.Latitude,
+            Longitude = sharedPoint?.Longitude,
+            AccuracyMeters = sharedPoint?.AccuracyMeters
         };
 
         try

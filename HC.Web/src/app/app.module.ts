@@ -22,6 +22,7 @@ import { TermsOfServiceComponent } from './terms-of-service/terms-of-service.com
 import { SideMenuComponent } from './side-menu/side-menu.component';
 import { PageFooterComponent } from './page-footer/page-footer.component';
 import { NewsletterComponent } from './newsletter/newsletter.component';
+import { GeoConsentComponent } from './geo-consent/geo-consent.component';
 import { ProductImagePipe } from './pipes/product-image.pipe';
 import { ForgotPasswordComponent } from './forgot-password/forgot-password.component';
 import { ResetPasswordComponent } from './reset-password/reset-password.component';
@@ -48,6 +49,7 @@ import { PageTitleStrategy } from './seo/page-title.strategy';
     SideMenuComponent,
     PageFooterComponent,
     NewsletterComponent,
+    GeoConsentComponent,
     ProductImagePipe,
     ForgotPasswordComponent,
     ResetPasswordComponent,

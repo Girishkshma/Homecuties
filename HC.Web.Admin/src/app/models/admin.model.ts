@@ -1265,6 +1265,14 @@ export interface AdminPortalAccessLogItem {
   countryCode?: string | null;
   /** The network behind the address - a provider, a crawler, an office. */
   organization?: string | null;
+  /**
+   * The point the visitor chose to share on this hit, rounded by the API to about a hundred metres, or null on
+   * every hit recorded without their agreement - which is most of them. The place above is still the address's
+   * own answer; the point sits beside it.
+   */
+  latitude?: number | null;
+  /** The longitude that goes with it, null exactly when it does. */
+  longitude?: number | null;
 }
 
 /** One page of that log, newest first. */

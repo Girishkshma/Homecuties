@@ -8,6 +8,10 @@ namespace HC.Business;
 /// the place that address was looked up to. A figure on the screen is a claim; this is what it is checked
 /// against - which is also why the log is where a place row on the screen leads.
 ///
+/// A hit also carries the point the visitor chose to share, when they did (most do not) - shown beside the
+/// place rather than in place of it, because the place is the address's own answer and the point is the
+/// visitor's addition to it.
+///
 /// The filters are the ones the report's rows offer (a country, a region, a portal), each applied only when it
 /// is given, so 'the log of India' is one click rather than a second report.
 /// </summary>
@@ -74,7 +78,9 @@ public partial class AccessTrackingService
                 Region = row.Region,
                 Country = row.Country,
                 CountryCode = row.CountryCode,
-                Organization = row.Organization
+                Organization = row.Organization,
+                Latitude = row.Latitude,
+                Longitude = row.Longitude
             })
             .ToListAsync(cancellationToken);
 
