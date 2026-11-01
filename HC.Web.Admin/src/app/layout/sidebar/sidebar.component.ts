@@ -69,6 +69,7 @@ export class SidebarComponent implements OnInit {
       'Vendors': '🏪',
       'Users': '👤',
       'Categories': '📁',
+      'Portal Access': '🌍',
       'Settings': '⚙️',
       'Reports': '📈',
       'Content': '📝'

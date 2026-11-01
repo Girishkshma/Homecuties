@@ -1,4 +1,5 @@
 using HC.Business;
+using HC.Business.Geo;
 using HC.Business.Messaging;
 using HC.Business.Security;
 using HC.Business.Shipping;
@@ -62,7 +63,7 @@ builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IGoogleLoginService, GoogleLoginService>();
 builder.Services.AddScoped<IFacebookLoginService, FacebookLoginService>();
-builder.Services.AddScoped<IUtilitiesService, UtilitiesService>();
+builder.Services.AddScoped<IAccessTrackingService, AccessTrackingService>();
 builder.Services.AddScoped<IWishListService, WishListService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IAdminAuthService, AdminAuthService>();
@@ -93,6 +94,38 @@ builder.Services.AddHttpClient<IPincodeService, PincodeService>(client =>
 {
     client.BaseAddress = new Uri(pincodeBaseUrl);
     client.Timeout = TimeSpan.FromSeconds(8);
+});
+
+// Portal access tracking: every page view a shop front opens is recorded with the caller's address and the
+// place that address is in - never who (see HC.Business.AccessTrackingService). The place comes from a free,
+// keyless lookup ('GeoLookup:BaseUrl', ip-api.com unless it is pointed elsewhere) that is asked once per
+// address and remembered for a month; 'GeoLookup:Enabled' false records the hits without a place, for a shop
+// that would rather not call a third party at all. Nothing about it may reach a page: the timeout is short,
+// and every failure is answered as 'no place' by HC.Business.Geo.IpGeoLocator rather than thrown.
+var geoCandidate = int.TryParse(builder.Configuration["GeoLookup:TimeoutSeconds"], out var configuredGeoSeconds)
+    ? configuredGeoSeconds
+    : 3;
+
+var geoLookup = new GeoLookupSettings
+{
+    Enabled = !string.Equals(builder.Configuration["GeoLookup:Enabled"], "false", StringComparison.OrdinalIgnoreCase),
+    BaseUrl = builder.Configuration["GeoLookup:BaseUrl"] ?? GeoLookupSettings.DefaultBaseUrl,
+    Timeout = TimeSpan.FromSeconds(Math.Clamp(geoCandidate, 1, 15)),
+    // A browser on the developer's own machine reaches the API over loopback ('::1'), which is nowhere in the
+    // world, so every hit it records would be unplaced and the Portal Access screen could not be read while the
+    // shop is being written. 'GeoLookup:DevelopmentAddress' is asked about in such an address's place - read
+    // here in Development and nowhere else, so a deployed shop always places a visitor by the address the
+    // request really came from.
+    DevelopmentAddress = builder.Environment.IsDevelopment()
+        ? builder.Configuration["GeoLookup:DevelopmentAddress"]
+        : null
+};
+
+builder.Services.AddSingleton(geoLookup);
+builder.Services.AddHttpClient<IIpGeoLocator, IpGeoLocator>(client =>
+{
+    client.BaseAddress = new Uri(geoLookup.BaseUrl);
+    client.Timeout = geoLookup.Timeout;
 });
 
 // Shipping: the providers that carry the parcels of an order. One adapter per provider, registered here

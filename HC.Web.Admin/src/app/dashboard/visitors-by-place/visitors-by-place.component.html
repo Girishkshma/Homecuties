@@ -1,0 +1,134 @@
+<!--
+  The dashboard's 'Visitors by place' tile: where the shop was read from, counted country, state or city, for the
+  days the team names - this week when they name none (the API answers with the days it read, and they are written
+  here, so the week's Monday is the server's rule rather than a second one in this screen).
+
+  It is drawn only for an admin whose role covers Portal Access: the tile is a window onto that section, and the
+  API refuses 'access/places' to everyone else.
+-->
+<section class="stats-section" *ngIf="isAllowed">
+  <h2 class="section-title">
+    Visitors by place
+    <span class="section-note" *ngIf="places">
+      {{ places.title }} &middot; {{ dayLabel(readFrom) }} to {{ dayLabel(readTo) }}
+      <span *ngIf="isThisWeek">(this week)</span> &middot; UTC days
+    </span>
+  </h2>
+
+  <div class="place-tile">
+    <div class="tile-controls">
+      <div class="tile-sizes" role="group" aria-label="Count visitors by country, state or city">
+        <button
+          type="button"
+          class="size-btn"
+          [class.is-on]="by === 'country'"
+          [attr.aria-pressed]="by === 'country'"
+          (click)="showBy('country')">
+          Country
+        </button>
+        <button
+          type="button"
+          class="size-btn"
+          [class.is-on]="by === 'state'"
+          [attr.aria-pressed]="by === 'state'"
+          (click)="showBy('state')">
+          State
+        </button>
+        <button
+          type="button"
+          class="size-btn"
+          [class.is-on]="by === 'city'"
+          [attr.aria-pressed]="by === 'city'"
+          (click)="showBy('city')">
+          City
+        </button>
+      </div>
+
+      <div class="tile-days">
+        <label class="tile-day">
+          From
+          <input
+            class="form-input"
+            type="date"
+            name="placesFrom"
+            [(ngModel)]="from"
+            (change)="applyDays()" />
+        </label>
+        <label class="tile-day">
+          To
+          <input
+            class="form-input"
+            type="date"
+            name="placesTo"
+            [(ngModel)]="to"
+            (change)="applyDays()" />
+        </label>
+        <button type="button" class="btn-secondary tile-reset" *ngIf="!isThisWeek" (click)="showThisWeek()">
+          Back to this week
+        </button>
+      </div>
+    </div>
+
+    <p class="tile-state" *ngIf="isLoading && !places">Reading where the shop was read from&hellip;</p>
+
+    <p class="form-message error" *ngIf="loadError">{{ loadError }}</p>
+
+    <ng-container *ngIf="places && !loadError">
+      <p class="tile-state" *ngIf="!places.totalHits">{{ places.messages[0] }}</p>
+
+      <div class="tile-body" *ngIf="places.totalHits" [class.is-refreshing]="isLoading">
+        <div class="table-container">
+          <table class="data-table place-table">
+            <thead>
+              <tr>
+                <th>{{ places.title }}</th>
+                <th class="number">Hits</th>
+                <th class="number">Visitors</th>
+                <th>Share</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let place of places.places">
+                <td>
+                  {{ place.name }}
+                  <span class="code" *ngIf="by === 'country' && place.countryCode">{{ place.countryCode }}</span>
+                </td>
+                <td class="number">{{ place.hits | number }}</td>
+                <td class="number">{{ place.visitors | number }}</td>
+                <td>
+                  <div class="share">
+                    <span class="share-bar" [style.width.%]="place.share"></span>
+                    <span class="share-text">{{ place.share }}%</span>
+                  </div>
+                </td>
+              </tr>
+              <tr *ngIf="isUnplacedPeriod">
+                <td colspan="4" class="tile-empty-cell">{{ emptyText }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="tile-totals">
+          {{ places.totalHits | number }} {{ places.totalHits === 1 ? 'hit' : 'hits' }} from
+          {{ places.uniqueVisitors | number }} {{ places.uniqueVisitors === 1 ? 'visitor' : 'visitors' }}
+          <span *ngIf="places.unlocatedHits">
+            &middot; {{ places.locatedHits | number }} of them placed
+          </span>
+        </p>
+
+        <p class="tile-note" *ngIf="daysAdjusted">
+          The days read are {{ dayLabel(readFrom) }} to {{ dayLabel(readTo) }}: a period wider than a year is trimmed
+          at its far end, and two days the wrong way round are read as the one day they name.
+        </p>
+
+        <p class="tile-note" *ngFor="let note of notes">{{ note }}</p>
+      </div>
+    </ng-container>
+
+    <p class="tile-link">
+      Every country, state and city with the hits behind them is on
+      <a routerLink="/portal-access">Portal Access</a>.
+    </p>
+  </div>
+</section>

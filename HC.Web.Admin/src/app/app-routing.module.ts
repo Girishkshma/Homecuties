@@ -16,6 +16,7 @@ import { VendorsComponent } from './vendors/vendors.component';
 import { PurchasesComponent } from './purchases/purchases.component';
 import { AdminUsersComponent } from './admin-users/admin-users.component';
 import { CategoriesComponent } from './categories/categories.component';
+import { PortalAccessComponent } from './portal-access/portal-access.component';
 import { AuthGuard } from './guards/auth.guard';
 import { MenuAccessGuard } from './guards/menu-access.guard';
 
@@ -54,6 +55,13 @@ const routes: Routes = [
       // HC.Data/Scripts/AddCategoriesMenu.sql), because reshaping the catalogue is a different job from filing a
       // product under it: the API checks the same section, and a role granted one need not be granted the other.
       { path: 'categories', component: CategoriesComponent, canActivate: [MenuAccessGuard], data: { section: '/categories' } },
+
+      // Where the shop is being read from, and how often - counted from the storefront's own anonymous page
+      // views (see HC.Business.AccessTrackingService). Its own section ('/portal-access', seeded by
+      // HC.Data/Scripts/AddPortalAccessMenu.sql) because where the whole shop is read from is a thing to grant
+      // on purpose; the API checks the same section on every call.
+      { path: 'portal-access', component: PortalAccessComponent, canActivate: [MenuAccessGuard], data: { section: '/portal-access' } },
+
       { path: '', redirectTo: '/dashboard', pathMatch: 'full' }
     ]
   },

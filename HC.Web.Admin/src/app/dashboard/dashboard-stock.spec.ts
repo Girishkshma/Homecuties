@@ -14,6 +14,7 @@ import { AdminService as AdminApiService } from '../services/admin.service';
 import { AuthService } from '../services/auth.service';
 import { PermissionsService } from '../services/permissions.service';
 import { DashboardComponent } from './dashboard.component';
+import { VisitorsByPlaceComponent } from './visitors-by-place/visitors-by-place.component';
 
 /**
  * The 'Stock by category' section of the dashboard: one card per heading of the catalogue, with the categories
@@ -103,7 +104,7 @@ describe('DashboardComponent stock by category', () => {
   function draw(read: Observable<AdminStockByCategory>): { fixture: ComponentFixture<DashboardComponent>; root: HTMLElement } {
     TestBed.configureTestingModule({
       imports: [CommonModule, FormsModule, RouterModule.forRoot([])],
-      declarations: [DashboardComponent],
+      declarations: [DashboardComponent, VisitorsByPlaceComponent],
       providers: [
         {
           provide: AdminApiService,

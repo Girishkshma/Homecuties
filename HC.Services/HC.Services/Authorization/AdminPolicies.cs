@@ -46,6 +46,17 @@ public static class AdminPolicies
     /// </summary>
     public const string OrdersOrFinance = SectionPrefix + "/orders|/finance";
 
+    /// <summary>
+    /// Where the shop is being read from, and how often: the Portal Access screen, which counts the hits the
+    /// storefront records (see HC.Business.AccessTrackingService) by country, region, city and portal, and the
+    /// one action it offers - removing the history older than a given number of days.
+    ///
+    /// It is its own section rather than part of the dashboard because it shows where the shop's readers are,
+    /// which is a thing to grant on purpose (a partner who may see their own sales has no business seeing the
+    /// country the whole shop is read from). The menu is seeded by AddPortalAccessMenu.sql.
+    /// </summary>
+    public const string PortalAccess = SectionPrefix + "/portal-access";
+
     /// <summary>Every section policy the API registers, mirroring the menus mapped in 'AdminMenusRoles'.</summary>
     public static readonly string[] SectionPolicies =
     {
@@ -58,7 +69,8 @@ public static class AdminPolicies
         AdminUsers,
         ProductsOrAdminUsers,
         Categories,
-        OrdersOrFinance
+        OrdersOrFinance,
+        PortalAccess
     };
 
     /// <summary>Policy granting access when the admin's role may open any one of the given menu URLs.</summary>

@@ -52,7 +52,10 @@ import {
   AdminStockByCategory,
   AdminResult,
   AdminSettlementSyncRequest,
-  AdminFinanceSummary
+  AdminFinanceSummary,
+  AdminPortalAccessReport,
+  AdminPortalAccessLogPage,
+  AdminPortalAccessPlaces
 } from '../models/admin.model';
 
 
@@ -161,6 +164,100 @@ export class AdminService {
       `${this.apiUrl}/finance/summary${days ? `?${days}` : ''}`, {
         headers: this.getAuthHeaders()
       });
+  }
+
+  /**
+   * Where the shop was read from over a period, and how often: the hits, the visitors behind them (one address is
+   * one visitor), the top countries, regions and cities, the per-portal split and the frequency chart's slices
+   * (see HC.Business.AccessTrackingService.Report).
+   *
+   * The two days are 'YYYY-MM-DD' and both are optional - leaving them out reports the month to date, exactly as
+   * the Finance screen does. 'portal' narrows the answer to one shop front ('Web', 'Admin') and is left out to
+   * count every one. Nothing is written and no customer is read: the rows counted are the storefront's own
+   * anonymous page views, so it is safe to open as often as the team likes.
+   */
+  getPortalAccessReport(from?: string | null, to?: string | null, portal?: string | null): Observable<AdminPortalAccessReport> {
+    const query = [
+      from ? `from=${from}` : '',
+      to ? `to=${to}` : '',
+      portal ? `portal=${encodeURIComponent(portal)}` : ''
+    ].filter(part => part).join('&');
+
+    return this.http.get<AdminPortalAccessReport>(
+      `${this.apiUrl}/access/summary${query ? `?${query}` : ''}`, {
+        headers: this.getAuthHeaders()
+      });
+  }
+
+  /**
+   * The hits behind those figures, newest first, one page at a time - what an unusual number is checked against.
+   * 'country' and 'region' are the names the report's rows offer as 'filter' (the value as stored, never the
+   * 'Tamil Nadu, India' the row reads as), and the page and the size are clamped by the API rather than refused.
+   */
+  getPortalAccessLog(
+    filters: {
+      from?: string | null;
+      to?: string | null;
+      portal?: string | null;
+      country?: string | null;
+      region?: string | null;
+      city?: string | null;
+    },
+    page = 1,
+    pageSize = 50
+  ): Observable<AdminPortalAccessLogPage> {
+    const query = [
+      filters.from ? `from=${filters.from}` : '',
+      filters.to ? `to=${filters.to}` : '',
+      filters.portal ? `portal=${encodeURIComponent(filters.portal)}` : '',
+      filters.country ? `country=${encodeURIComponent(filters.country)}` : '',
+      filters.region ? `region=${encodeURIComponent(filters.region)}` : '',
+      filters.city ? `city=${encodeURIComponent(filters.city)}` : '',
+      `page=${page}`,
+      `pageSize=${pageSize}`
+    ].filter(part => part).join('&');
+
+    return this.http.get<AdminPortalAccessLogPage>(`${this.apiUrl}/access/log?${query}`, {
+      headers: this.getAuthHeaders()
+    });
+  }
+
+  /**
+   * Removes the access history older than the given number of days (a year when nothing is said) and answers with
+   * how many rows went. The API clamps the retention to a month..ten years and deletes in batches, so a slip of a
+   * digit cannot empty the table and the storefront never waits on the delete.
+   */
+  purgePortalAccess(days: number): Observable<AdminResult> {
+    return this.http.post<AdminResult>(`${this.apiUrl}/access/purge?days=${days}`, {}, {
+      headers: this.getAuthHeaders()
+    });
+  }
+
+  /**
+   * The same roll-up cut to one size - the countries, the states ('state' is the shop's word for a region) or the
+   * cities of the period, most hits first - which is what the dashboard's tile draws (see
+   * HC.Business.AccessTrackingService.Places).
+   *
+   * The two days are 'YYYY-MM-DD' and both are optional: leaving them out reads this week, Monday to today, and
+   * the answer names the two days it read, so the tile never has to work the week out for itself. 'limit' is how
+   * many places to keep (eight when it is left out) and is clamped by the API rather than refused.
+   */
+  getPortalAccessPlaces(
+    by: 'country' | 'state' | 'city',
+    from?: string | null,
+    to?: string | null,
+    limit?: number | null
+  ): Observable<AdminPortalAccessPlaces> {
+    const query = [
+      `by=${by}`,
+      from ? `from=${from}` : '',
+      to ? `to=${to}` : '',
+      limit ? `limit=${limit}` : ''
+    ].filter(part => part).join('&');
+
+    return this.http.get<AdminPortalAccessPlaces>(`${this.apiUrl}/access/places?${query}`, {
+      headers: this.getAuthHeaders()
+    });
   }
 
   // Products

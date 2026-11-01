@@ -1,0 +1,440 @@
+/* Portal Access - where the shop is being read from, and how often. The table, badge, button and pager styles
+   come from scss/_tables.scss; the tile vocabulary below is the dashboard's and the finance screen's, so a
+   figure looks the same on all three screens. */
+.portal-access {
+  max-width: 1280px;
+}
+
+.page-header {
+  margin-bottom: 24px;
+
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #333;
+    margin: 0 0 4px;
+  }
+
+  p {
+    font-size: 15px;
+    color: #888;
+    margin: 0;
+    max-width: 880px;
+  }
+}
+
+/* The period picker: the days and the portal are optional, so the buttons are what the row is really for. */
+.period-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  margin-bottom: 28px;
+}
+
+.period-form {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #555;
+  }
+}
+
+.period-day {
+  width: 160px;
+}
+
+.portal-day {
+  width: 200px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease;
+  font-family: inherit;
+  background: #fff;
+
+  &:focus {
+    border-color: #4a6cf7;
+    box-shadow: 0 0 0 2px rgba(74, 108, 247, 0.1);
+  }
+
+  &:disabled {
+    background: #f5f6fa;
+    color: #999;
+  }
+}
+
+.hint {
+  font-size: 12px;
+  color: #8a8f98;
+  margin: 12px 0 0;
+  max-width: 900px;
+}
+
+.loading {
+  text-align: center;
+  padding: 60px;
+  color: #888;
+  font-size: 16px;
+}
+
+/* The days the server actually read - not the ones that were asked for, which can differ. */
+.period-line {
+  font-size: 14px;
+  color: #555;
+  margin: 0 0 20px;
+}
+
+.form-message {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: #2f7d32;
+
+  &.error {
+    color: #c0392b;
+  }
+}
+
+/* What the figures cannot say by themselves: an empty period, the hits with no place, traffic from abroad. */
+.findings {
+  background: #f4f7ff;
+  border-left: 4px solid #4361ee;
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-bottom: 24px;
+
+  p {
+    font-size: 13px;
+    color: #3c4257;
+    margin: 0 0 6px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+}
+
+.stats-section {
+  margin-bottom: 32px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin: 0 0 12px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.section-note {
+  font-size: 12px;
+  font-weight: 400;
+  color: #8a8f98;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.stat-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 18px 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  &.alert {
+    box-shadow: 0 0 0 1px #f3c2b8 inset;
+  }
+
+  .stat-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    background: #eef1fd;
+    flex-shrink: 0;
+
+    &.hits {
+      background: #e8f0fe;
+    }
+
+    &.visitors {
+      background: #e9f7ef;
+    }
+
+    &.places {
+      background: #fff4e5;
+    }
+
+    &.unknown {
+      background: #fdecea;
+    }
+  }
+
+  .stat-info {
+    min-width: 0;
+
+    h3 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin: 0 0 2px;
+      line-height: 1.2;
+    }
+
+    p {
+      font-size: 13px;
+      color: #7a808a;
+      margin: 0;
+    }
+  }
+}
+
+/* The frequency chart: one bar per slice of the period, drawn with the page's own styles rather than a chart
+   library, because all it has to say is 'this day, not that one'. */
+.chart-card {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  padding: 20px 16px 12px;
+}
+
+.chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 180px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.bar-slot {
+  flex: 1 0 auto;
+  min-width: 18px;
+  max-width: 64px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+
+  &:hover .bar {
+    background: #2f4fd8;
+  }
+}
+
+.bar {
+  width: 100%;
+  min-height: 2px;
+  border-radius: 3px 3px 0 0;
+  background: #4361ee;
+  transition: height 0.2s ease, background 0.15s ease;
+
+  &.empty {
+    background: #e3e6ef;
+  }
+}
+
+.bar-label {
+  font-size: 10px;
+  color: #8a8f98;
+  white-space: nowrap;
+  transform: rotate(-45deg);
+  transform-origin: top right;
+  margin-top: 6px;
+}
+
+/* The roll-ups: countries, regions, cities side by side, and the portal split underneath. */
+.places-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.place-card {
+  min-width: 0;
+
+  h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #495057;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .table-container {
+    margin-top: 8px;
+  }
+}
+
+.portal-card {
+  margin-top: 16px;
+  max-width: 640px;
+}
+
+.clickable {
+  cursor: pointer;
+
+  &:hover td {
+    background: #f4f7ff;
+  }
+}
+
+.number {
+  text-align: right;
+}
+
+.share {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 110px;
+}
+
+.share-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: #4361ee;
+  min-width: 2px;
+  max-width: 60px;
+  flex-shrink: 0;
+}
+
+.share-text {
+  font-size: 12px;
+  color: #6c757d;
+  white-space: nowrap;
+}
+
+.code {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #eef1fd;
+  color: #3f51b5;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.muted {
+  color: #9aa0a6;
+  font-size: 13px;
+}
+
+.mono {
+  font-family: 'Consolas', 'Menlo', monospace;
+  font-size: 13px;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+/* A page address is long and only its beginning is worth reading; the whole of it is in the title. */
+.page-cell {
+  max-width: 380px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: #495057;
+}
+
+.table-scroll {
+  overflow-x: auto;
+  max-height: 520px;
+  overflow-y: auto;
+}
+
+.log-scope {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #f8f9fc;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: #495057;
+}
+
+/* Keeping the history: the one card on the screen that writes anything. */
+.retention-card {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  padding: 20px 24px;
+
+  > p {
+    font-size: 13px;
+    color: #5c636a;
+    margin: 0 0 16px;
+    max-width: 880px;
+  }
+
+  .hint {
+    margin-top: 12px;
+  }
+}
+
+.retention-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #555;
+  }
+}
+
+.retention-unit {
+  font-size: 13px;
+  color: #6c757d;
+  padding-bottom: 10px;
+}
+
+.btn-secondary.danger {
+  background: #fdecea;
+  color: #b03a2e;
+
+  &:hover:not(:disabled) {
+    background: #f9dcd7;
+  }
+}
+

@@ -180,24 +180,37 @@ public partial class HomecutiesDbContext : DbContext
 
             entity.Property(e => e.Id).HasColumnName("ID");
             entity.Property(e => e.AccessOn).HasColumnType("datetime");
+            // The place columns hold what the location lookup names, so they are sized for a real name
+            // ('Tamil Nadu', 'Andhra Pradesh', 'United Kingdom') rather than for the 20 characters the first
+            // version of this table allowed - a name that does not fit is a hit placed somewhere wrong.
             entity.Property(e => e.City)
-                .HasMaxLength(20)
+                .HasMaxLength(100)
                 .IsUnicode(false);
             entity.Property(e => e.Country)
-                .HasMaxLength(20)
+                .HasMaxLength(100)
                 .IsUnicode(false);
+            entity.Property(e => e.CountryCode)
+                .HasMaxLength(2)
+                .IsUnicode(false);
+            // 45 characters is the longest an IPv6 address can be written, and the address is never shortened
+            // to fit an older column: two addresses cut to the same prefix are two places read as one.
             entity.Property(e => e.Ip)
-                .HasMaxLength(15)
+                .HasMaxLength(45)
                 .IsUnicode(false)
                 .HasColumnName("IP");
             entity.Property(e => e.Organization)
                 .HasMaxLength(200)
                 .IsUnicode(false);
-            entity.Property(e => e.Region)
+            entity.Property(e => e.Portal)
                 .HasMaxLength(20)
                 .IsUnicode(false);
+            entity.Property(e => e.Region)
+                .HasMaxLength(100)
+                .IsUnicode(false);
+            // A page address carries its query string ('?q=...', '@returnUrl=...'), which is what makes a
+            // product page distinct from the search that found it, so it is not squeezed into 150 characters.
             entity.Property(e => e.Url)
-                .HasMaxLength(150)
+                .HasMaxLength(400)
                 .IsUnicode(false)
                 .HasColumnName("URL");
         });

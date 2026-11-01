@@ -1199,3 +1199,108 @@ export interface AdminResult {
   result: number;
   messages: string[];
 }
+
+/**
+ * One row of the Portal Access screen's roll-ups: a country, a region, a city or a portal, with how often it was
+ * seen in the period and how many different addresses came from it (see HC.Business.AccessTrackingService).
+ *
+ * 'filter' is the value the row narrows the log by - the name as it is stored ('Tamil Nadu'), never the
+ * 'Tamil Nadu, India' it reads as - which is what a click on the row sends.
+ */
+export interface AdminPortalAccessPlace {
+  name: string;
+  filter?: string | null;
+  /** The country's ISO code, when the row is a place that has one ('IN'). */
+  countryCode?: string | null;
+  hits: number;
+  visitors: number;
+  /** The place's part of the period's hits, as a percentage with one decimal. */
+  share: number;
+}
+
+/** One slice of the frequency chart: an hour, a day or a month of the period and what was seen in it. */
+export interface AdminPortalAccessFrequency {
+  /** The start of the slice, UTC. */
+  bucketStart: string;
+  /** '09 Aug', '09 Aug 14:00' or 'Aug 2026' - written by the server, so both sides read the same words. */
+  label: string;
+  hits: number;
+  visitors: number;
+}
+
+/**
+ * Where the shop was read from over a period, and how often - the figures, the roll-ups and the frequency the
+ * Portal Access screen draws. 'unit' says how wide one bar is ('Hour', 'Day' or 'Month'), which the server
+ * decides from the period so the chart can never disagree with the figures under it.
+ */
+export interface AdminPortalAccessReport {
+  from: string;
+  to: string;
+  unit: string;
+  totalHits: number;
+  uniqueVisitors: number;
+  locatedHits: number;
+  unlocatedHits: number;
+  countryCount: number;
+  regionCount: number;
+  cityCount: number;
+  countries: AdminPortalAccessPlace[];
+  regions: AdminPortalAccessPlace[];
+  cities: AdminPortalAccessPlace[];
+  portals: AdminPortalAccessPlace[];
+  frequency: AdminPortalAccessFrequency[];
+  /** What the figures cannot say by themselves - an empty period, the hits with no place, traffic from abroad. */
+  messages: string[];
+}
+
+/** One recorded hit as the log shows it: when, from where (address and place) and which page. */
+export interface AdminPortalAccessLogItem {
+  accessOn: string;
+  ip: string;
+  portal: string;
+  url: string;
+  city?: string | null;
+  region?: string | null;
+  country?: string | null;
+  countryCode?: string | null;
+  /** The network behind the address - a provider, a crawler, an office. */
+  organization?: string | null;
+}
+
+/** One page of that log, newest first. */
+export interface AdminPortalAccessLogPage {
+  from: string;
+  to: string;
+  page: number;
+  pageSize: number;
+  totalHits: number;
+  pageCount: number;
+  items: AdminPortalAccessLogItem[];
+}
+
+/**
+ * The same roll-up cut to one size ('GET access/places'): the countries, the states or the cities of the period,
+ * most hits first - what the dashboard's tile draws.
+ *
+ * 'from'/'to' are the days the server actually read, which is how the tile knows it is showing this week without
+ * working the week out itself: an empty ask is Monday to today, and the answer says which two days those were.
+ * 'title' is the list's own heading ('Countries', 'States', 'Cities'), so 'state' and 'region' can never be shown
+ * to the team as two different things.
+ */
+export interface AdminPortalAccessPlaces {
+  from: string;
+  to: string;
+  /** 'country', 'region' or 'city' - what the rows are counted at. */
+  dimension: string;
+  title: string;
+  totalHits: number;
+  uniqueVisitors: number;
+  locatedHits: number;
+  unlocatedHits: number;
+  /** How many different places the period had at this size, before the list was cut. */
+  placeCount: number;
+  places: AdminPortalAccessPlace[];
+  /** What the figures cannot say by themselves - an empty period, the hits with no place, a list cut short. */
+  messages: string[];
+}
+

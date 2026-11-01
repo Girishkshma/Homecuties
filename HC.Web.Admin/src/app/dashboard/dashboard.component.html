@@ -69,6 +69,12 @@
       </div>
     </section>
 
+    <!-- Where the shop is being read from: the country, state or city the period's page views came from, for the
+         days the team names - this week when they name none, because the API resolves an empty period to the week
+         it is standing in. The tile is its own component so its rules (the default week, the size switch, the
+         narrowing to the role that may read it) are pinned by their own spec rather than through this screen. -->
+    <app-visitors-by-place></app-visitors-by-place>
+
     <!-- Stock by category: the shop's stock cut by the catalogue's own headings - one card per heading, with the
          categories beneath it and what each of them can still sell - so what is ordered is a shelf rather than a
          single product. Every figure is what the storefront can sell (a suspended product and a switched-off

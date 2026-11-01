@@ -1,0 +1,374 @@
+<div class="portal-access">
+  <div class="page-header">
+    <h1>Portal Access</h1>
+    <p>
+      Where the shop is being read from, and how often. Every page view the storefront opens is recorded with the
+      address it came from and the place that address is in - a location and a count, never a person: no customer
+      is named, shown or exported here.
+    </p>
+  </div>
+
+  <!-- The period and the portal. The two days are optional - an empty pair asks for the month to date - and the
+       server answers back the days it actually read, which is what the line under this card says. -->
+  <div class="period-card">
+    <div class="period-form">
+      <label class="period-day">
+        From
+        <input class="form-input" type="date" [(ngModel)]="from" [disabled]="isLoading" />
+      </label>
+      <label class="period-day">
+        To
+        <input class="form-input" type="date" [(ngModel)]="to" [disabled]="isLoading" />
+      </label>
+      <label class="period-day portal-day">
+        Portal
+        <select class="form-input" [(ngModel)]="portal" [disabled]="isLoading">
+          <option value="">Every portal</option>
+          <option value="Web">Web (storefront)</option>
+          <option value="Admin">Admin</option>
+        </select>
+      </label>
+      <button class="btn-primary" [disabled]="isLoading" (click)="load()">
+        {{ isLoading ? 'Reading...' : 'Report' }}
+      </button>
+      <button class="btn-secondary" [disabled]="isLoading || isDefaultPeriod" (click)="showThisMonth()">
+        This month
+      </button>
+    </div>
+
+    <p class="hint">
+      Both days empty is the month to date. A period wider than a year is read a year at a time, and a period whose
+      days run backwards is read as the single day it names. Everything is read in <strong>UTC</strong>, which is how
+      the visits are recorded - the log says so too rather than quietly shifting the hours.
+    </p>
+  </div>
+
+  <div *ngIf="isLoading && !report" class="loading">Reading the visits...</div>
+  <div *ngIf="!isLoading && loadError" class="form-message error">{{ loadError }}</div>
+
+  <ng-container *ngIf="report as visits">
+    <p class="period-line">
+      <strong>{{ visits.from | date:'mediumDate' }} &ndash; {{ visits.to | date:'mediumDate' }}</strong>
+      <span *ngIf="isLoading"> &middot; reading the new period, the figures below are the last ones read</span>
+    </p>
+
+    <!-- What the figures cannot say by themselves: an empty period, the hits with no place, traffic from abroad. -->
+    <div class="findings" *ngIf="visits.messages.length">
+      <p *ngFor="let message of visits.messages">{{ message }}</p>
+    </div>
+
+    <section class="stats-section">
+      <h2 class="section-title">The period at a glance</h2>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon hits">&#128065;</div>
+          <div class="stat-info">
+            <h3>{{ visits.totalHits | number }}</h3>
+            <p title="Every page view recorded in the period">Page views</p>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon visitors">&#128100;</div>
+          <div class="stat-info">
+            <h3>{{ visits.uniqueVisitors | number }}</h3>
+            <p title="Different addresses in the period - one visitor is one address, which is as close as this gets">
+              Visitors (different addresses)
+            </p>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon places">&#127758;</div>
+          <div class="stat-info">
+            <h3>{{ visits.countryCount }} {{ visits.countryCount === 1 ? 'country' : 'countries' }}</h3>
+            <p>{{ visits.regionCount }} region(s) &middot; {{ visits.cityCount }} city/cities</p>
+          </div>
+        </div>
+
+        <div class="stat-card" [class.alert]="visits.unlocatedHits > 0">
+          <div class="stat-icon unknown">&#10067;</div>
+          <div class="stat-info">
+            <h3>{{ visits.unlocatedHits | number }}</h3>
+            <p title="Hits whose address was private (a local or office network) or that the lookup had no answer for">
+              Without a place
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- The frequency: one bar per hour, day or month of the period - the server decides which, from the period. -->
+    <section class="stats-section" *ngIf="visits.frequency.length">
+      <h2 class="section-title">
+        How often
+        <span class="section-note">per {{ visits.unit | lowercase }}, busiest {{ peakHits | number }} view(s)</span>
+      </h2>
+
+      <div class="chart-card">
+        <div class="chart">
+          <div
+            class="bar-slot"
+            *ngFor="let slice of visits.frequency"
+            [title]="slice.label + ' - ' + slice.hits + ' view(s), ' + slice.visitors + ' visitor(s)'">
+            <div class="bar" [class.empty]="slice.hits === 0" [style.height.%]="barHeight(slice.hits)"></div>
+            <span class="bar-label">{{ slice.label }}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Where the visits came from. Every row is a link into the log below: the figure and the rows it is made of
+         are one click apart, so a surprising number is checked rather than argued with. -->
+    <section class="stats-section">
+      <h2 class="section-title">
+        Where it comes from
+        <span class="section-note">the biggest ten, click a row to see its hits</span>
+      </h2>
+
+      <div class="places-grid">
+        <div class="place-card">
+          <h3>Countries</h3>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Country</th>
+                  <th class="number">Hits</th>
+                  <th class="number">Visitors</th>
+                  <th>Share</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let place of visits.countries" class="clickable" (click)="filterLogBy(place, 'country')">
+                  <td>
+                    {{ place.name }}
+                    <span class="code" *ngIf="place.countryCode">{{ place.countryCode }}</span>
+                  </td>
+                  <td class="number">{{ place.hits | number }}</td>
+                  <td class="number">{{ place.visitors | number }}</td>
+                  <td>
+                    <div class="share">
+                      <span class="share-bar" [style.width.%]="place.share"></span>
+                      <span class="share-text">{{ place.share }}%</span>
+                    </div>
+                  </td>
+                </tr>
+                <tr *ngIf="!visits.countries.length">
+                  <td colspan="4" class="empty">No country was placed in this period.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="place-card">
+          <h3>Regions</h3>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Region</th>
+                  <th class="number">Hits</th>
+                  <th class="number">Visitors</th>
+                  <th>Share</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let place of visits.regions" class="clickable" (click)="filterLogBy(place, 'region')">
+                  <td>{{ place.name }}</td>
+                  <td class="number">{{ place.hits | number }}</td>
+                  <td class="number">{{ place.visitors | number }}</td>
+                  <td>
+                    <div class="share">
+                      <span class="share-bar" [style.width.%]="place.share"></span>
+                      <span class="share-text">{{ place.share }}%</span>
+                    </div>
+                  </td>
+                </tr>
+                <tr *ngIf="!visits.regions.length">
+                  <td colspan="4" class="empty">No region was named in this period.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="place-card">
+          <h3>Cities</h3>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>City</th>
+                  <th class="number">Hits</th>
+                  <th class="number">Visitors</th>
+                  <th>Share</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let place of visits.cities" class="clickable" (click)="filterLogBy(place, 'city')">
+                  <td>{{ place.name }}</td>
+                  <td class="number">{{ place.hits | number }}</td>
+                  <td class="number">{{ place.visitors | number }}</td>
+                  <td>
+                    <div class="share">
+                      <span class="share-bar" [style.width.%]="place.share"></span>
+                      <span class="share-text">{{ place.share }}%</span>
+                    </div>
+                  </td>
+                </tr>
+                <tr *ngIf="!visits.cities.length">
+                  <td colspan="4" class="empty">No city was named in this period.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="place-card portal-card">
+        <h3>Which front</h3>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Portal</th>
+                <th class="number">Hits</th>
+                <th class="number">Visitors</th>
+                <th>Share</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let place of visits.portals" class="clickable" (click)="filterLogBy(place, 'portal')">
+                <td>{{ place.name }}</td>
+                <td class="number">{{ place.hits | number }}</td>
+                <td class="number">{{ place.visitors | number }}</td>
+                <td>
+                  <div class="share">
+                    <span class="share-bar" [style.width.%]="place.share"></span>
+                    <span class="share-text">{{ place.share }}%</span>
+                  </div>
+                </td>
+              </tr>
+              <tr *ngIf="!visits.portals.length">
+                <td colspan="4" class="empty">No visit was recorded in this period.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- The hits themselves: the rows every figure above is counted from, newest first. A roll-up row narrows
+         this table to itself, so a figure and its rows are always one click apart. -->
+    <section class="stats-section">
+      <h2 class="section-title">
+        The hits behind these figures
+        <span class="section-note">newest first, times in UTC</span>
+      </h2>
+
+      <div class="log-scope" *ngIf="hasLogFilters">
+        <span>Narrowed to {{ logScopeText }}</span>
+        <button class="btn-sm btn-clear" (click)="clearLogFilters()">Show every hit</button>
+      </div>
+
+      <div *ngIf="logError" class="form-message error">{{ logError }}</div>
+
+      <div class="table-container">
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>When (UTC)</th>
+                <th>Portal</th>
+                <th>Address</th>
+                <th>Place</th>
+                <th>Network</th>
+                <th>Page</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let hit of log?.items">
+                <td class="nowrap">{{ hit.accessOn | date:'dd MMM yyyy, HH:mm:ss':'UTC' }}</td>
+                <td><span class="badge">{{ hit.portal || 'unknown' }}</span></td>
+                <td class="mono">{{ hit.ip }}</td>
+                <td>
+                  <ng-container *ngIf="hit.country; else noPlace">
+                    {{ hit.city || hit.region || hit.country }}
+                    <span class="code" *ngIf="hit.countryCode">{{ hit.countryCode }}</span>
+                  </ng-container>
+                  <ng-template #noPlace><span class="muted">no place</span></ng-template>
+                </td>
+                <td class="muted">{{ hit.organization || '-' }}</td>
+                <td class="page-cell" [title]="hit.url">{{ hit.url }}</td>
+              </tr>
+              <tr *ngIf="!isLogLoading && !(log?.items?.length)">
+                <td colspan="6" class="empty">No hit matches this period and these filters.</td>
+              </tr>
+              <tr *ngIf="isLogLoading">
+                <td colspan="6" class="empty">Reading the hits...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pagination" *ngIf="pageCount > 1">
+          <div class="pagination-info">
+            Page <strong>{{ page }}</strong> of <strong>{{ pageCount }}</strong>
+            &middot; {{ log?.totalHits | number }} hit(s)
+          </div>
+          <div class="pagination-controls">
+            <button class="nav-btn" [disabled]="page <= 1 || isLogLoading" (click)="changePage(page - 1)">Prev</button>
+            <button
+              *ngFor="let number of pageNumbers"
+              [class.active]="number === page"
+              [disabled]="isLogLoading"
+              (click)="changePage(number)">
+              {{ number }}
+            </button>
+            <button class="nav-btn" [disabled]="page >= pageCount || isLogLoading" (click)="changePage(page + 1)">
+              Next
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Keeping the history: the only thing on this screen that writes anything, and it only ever removes rows. -->
+    <section class="stats-section">
+      <h2 class="section-title">Keeping the history</h2>
+
+      <div class="retention-card">
+        <p>
+          Every page view is kept until it is cleared out here - there is no customer data in these rows to keep
+          or to delete, only an address, a place and a time. Clearing the old ones keeps the table (and the report)
+          quick; the retention is never shorter than a month, because the report reads the month to date.
+        </p>
+
+        <div class="retention-form">
+          <label class="period-day">
+            Keep the last
+            <input class="form-input" type="number" min="30" max="3650" step="30"
+                   [(ngModel)]="retentionDays" [disabled]="isPurging" />
+          </label>
+          <span class="retention-unit">days</span>
+          <button class="btn-secondary danger" [disabled]="isPurging" (click)="purge()">
+            {{ isPurging ? 'Removing...' : 'Remove older visits' }}
+          </button>
+        </div>
+
+        <p class="hint">
+          The server removes in batches and never less than 30 days or more than 10 years at a time, so a slip of a
+          digit cannot empty the table and the storefront never waits on the delete.
+        </p>
+
+        <p class="form-message" *ngIf="purgeMessage">{{ purgeMessage }}</p>
+        <p class="form-message error" *ngIf="purgeError">{{ purgeError }}</p>
+      </div>
+    </section>
+  </ng-container>
+</div>
+
+

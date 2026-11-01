@@ -27,15 +27,18 @@ public class AdminController : ControllerBase
     private readonly IAdminAuthService _adminAuthService;
     private readonly IAdminDashboardService _adminDashboardService;
     private readonly IProductImageService _productImageService;
+    private readonly IAccessTrackingService _accessTrackingService;
 
     public AdminController(
         IAdminAuthService adminAuthService,
         IAdminDashboardService adminDashboardService,
-        IProductImageService productImageService)
+        IProductImageService productImageService,
+        IAccessTrackingService accessTrackingService)
     {
         _adminAuthService = adminAuthService;
         _adminDashboardService = adminDashboardService;
         _productImageService = productImageService;
+        _accessTrackingService = accessTrackingService;
     }
 
     #region Authentication
@@ -944,6 +947,103 @@ public class AdminController : ControllerBase
     {
         var stock = await _adminDashboardService.GetStockByCategoryAsync();
         return Ok(stock);
+    }
+
+    #endregion
+
+    #region Portal access
+
+    /// <summary>
+    /// Where the shop was read from in the period, and how often - the Portal Access screen's figures and
+    /// roll-ups (see HC.Business.AccessTrackingService.Report). Both days are optional and an empty pair is the
+    /// month to date, exactly as the finance screen's period resolves; 'portal' narrows the answer to one shop
+    /// front ('Web', 'Admin') and is left out to count every one of them.
+    ///
+    /// The screen reads no customer and no admin: the rows it counts are the storefront's own anonymous page
+    /// views ('Utilities/AddAccessTracking'), so what is shown here is a place and a count, never a person.
+    /// </summary>
+    [Authorize(Policy = AdminPolicies.PortalAccess)]
+    [HttpGet("access/summary")]
+    public async Task<ActionResult> GetPortalAccessSummary(
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] string? portal)
+    {
+        var report = await _accessTrackingService.GetReportAsync(ToDay(from), ToDay(to), portal);
+        return Ok(report);
+    }
+
+    /// <summary>
+    /// The same roll-up cut to one size - the countries, the states or the cities of the period, most hits
+    /// first - which is what the dashboard's tile draws. 'by' names the size ('country', 'state' or 'city', and
+    /// 'region' for 'state'); both days are optional and an empty pair is this week, Monday to today, so the
+    /// tile opens on the week it is standing in without the screen having to work the days out itself.
+    ///
+    /// 'limit' is how many places to keep (eight when nothing is said), clamped by the service: the tile shows a
+    /// handful, and the full report is what a longer list is read on.
+    /// </summary>
+    [Authorize(Policy = AdminPolicies.PortalAccess)]
+    [HttpGet("access/places")]
+    public async Task<ActionResult> GetPortalAccessPlaces(
+        [FromQuery] string? by,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] int? limit)
+    {
+        var places = await _accessTrackingService.GetPlacesAsync(by, ToDay(from), ToDay(to), limit);
+        return Ok(places);
+    }
+
+    /// <summary>
+    /// The hits behind those figures, newest first, one page at a time - what an unusual number is checked
+    /// against. 'country', 'region' and 'city' are the stored values (each row of the report offers its own), and
+    /// the page and the page size are clamped by the service rather than refused.
+    /// </summary>
+    [Authorize(Policy = AdminPolicies.PortalAccess)]
+    [HttpGet("access/log")]
+    public async Task<ActionResult> GetPortalAccessLog(
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] string? portal,
+        [FromQuery] string? country,
+        [FromQuery] string? region,
+        [FromQuery] string? city,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50)
+    {
+        var log = await _accessTrackingService.GetLogAsync(
+            ToDay(from),
+            ToDay(to),
+            portal,
+            country,
+            region,
+            city,
+            page,
+            pageSize);
+
+        return Ok(log);
+    }
+
+    /// <summary>
+    /// Removes the access history older than the given number of days (a year when nothing is said) and answers
+    /// with how many rows went. The retention is clamped to a month..ten years by the service, so a slip of a
+    /// digit cannot empty the table, and the delete runs in batches so the storefront never waits on it.
+    /// </summary>
+    [Authorize(Policy = AdminPolicies.PortalAccess)]
+    [HttpPost("access/purge")]
+    public async Task<ActionResult> PurgePortalAccess([FromQuery] int days = 365)
+    {
+        var result = await _accessTrackingService.PurgeAsync(days);
+
+        // Answered the way every other admin action is ('{ result, messages }'), so the screen shows the same
+        // shape of answer whether a purge removed nothing or a thousand rows.
+        return Ok(new { result = result.Result, messages = result.Messages });
+    }
+
+    /// <summary>The day a query's date names, or nothing when none was given - the service resolves the period.</summary>
+    private static DateOnly? ToDay(DateTime? day)
+    {
+        return day.HasValue ? DateOnly.FromDateTime(day.Value) : null;
     }
 
     #endregion

@@ -1,0 +1,230 @@
+/* The 'Visitors by place' tile: the same heading and card the dashboard's other sections use, with the two
+   controls a place list needs - what to count (country, state, city) and which days. */
+.stats-section {
+  margin-bottom: 32px;
+}
+
+.section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.section-note {
+  font-size: 11px;
+  font-weight: 500;
+  color: #aaa;
+  letter-spacing: 0.2px;
+  text-transform: none;
+}
+
+.place-tile {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px 24px 18px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* What to count on the left, which days on the right, and one row while there is room for one. */
+.tile-controls {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.tile-sizes {
+  display: inline-flex;
+  border: 1px solid #e1e4ea;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f7f8fb;
+}
+
+.size-btn {
+  padding: 8px 16px;
+  border: 0;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6c757d;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  & + & {
+    border-left: 1px solid #e1e4ea;
+  }
+
+  &:hover {
+    background: #eef1fd;
+    color: #3f51b5;
+  }
+
+  &.is-on {
+    background: #4361ee;
+    color: #fff;
+  }
+}
+
+.tile-days {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tile-day {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #555;
+}
+
+.form-input {
+  width: 150px;
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease;
+  font-family: inherit;
+  background: #fff;
+
+  &:focus {
+    border-color: #4a6cf7;
+    box-shadow: 0 0 0 2px rgba(74, 108, 247, 0.1);
+  }
+}
+
+.tile-reset {
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+/* One quiet line while there is nothing to draw yet, or nothing to draw at all. */
+.tile-state {
+  margin: 16px 0 0;
+  font-size: 13px;
+  color: #8a8f98;
+  font-style: italic;
+}
+
+/* A refresh keeps the old rows on screen (dimmed) rather than blinking the tile empty between two sizes. */
+.tile-body {
+  margin-top: 14px;
+
+  &.is-refreshing {
+    opacity: 0.55;
+  }
+}
+
+.place-table {
+  th,
+  td {
+    white-space: nowrap;
+  }
+
+  td:first-child {
+    white-space: normal;
+  }
+}
+
+.number {
+  text-align: right;
+}
+
+/* The share of the period: a bar whose length is the percentage, with the number beside it - the same pair the
+   Portal Access screen draws, so a country reads the same way on both. */
+.share {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 110px;
+}
+
+.share-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: #4361ee;
+  min-width: 2px;
+  max-width: 60px;
+  flex-shrink: 0;
+}
+
+.share-text {
+  font-size: 12px;
+  color: #6c757d;
+  white-space: nowrap;
+}
+
+.code {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #eef1fd;
+  color: #3f51b5;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.tile-empty-cell {
+  color: #8a8f98;
+  font-style: italic;
+  padding: 14px 12px;
+}
+
+.tile-totals {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: #6c757d;
+}
+
+/* What the figures cannot say by themselves, in the API's own words. */
+.tile-note {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #8a8f98;
+  max-width: 900px;
+}
+
+.form-message {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+
+  &.error {
+    background: #f8d7da;
+    color: #721c24;
+  }
+}
+
+.tile-link {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: #888;
+
+  a {
+    color: #4a6cf7;
+    font-weight: 600;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
